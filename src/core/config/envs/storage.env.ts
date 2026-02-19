@@ -1,7 +1,7 @@
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 export enum StorageProvider {
-  CloudFlareR2 = 'cloudflare-r2',
+  CloudFlareR2 = 'cloudflare-R2',
 }
 
 export class StorageEnv {

@@ -7,7 +7,6 @@ import {
   HeadObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { v4 as uuidv4 } from 'uuid';
 import { extname } from 'path';
 import { TypedConfigService } from 'src/core/config/typed-config.service';
 import { IStorageService } from '../interfaces/storage.interface';
@@ -98,11 +97,10 @@ export class CloudflareR2StorageService implements IStorageService {
     originalName: string,
     folderPath?: string,
   ): string {
-    const uuid = uuidv4();
     const extension = extname(originalName);
     const nameWithoutExt = originalName.replace(extension, '');
     const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9-_]/g, '-');
-    const uniqueFileName = `${uuid}-${sanitizedName}${extension}`;
+    const uniqueFileName = `${Date.now()}-${sanitizedName}${extension}`;
 
     return folderPath
       ? `${folderPath.replace(/^\/|\/$/g, '')}/${uniqueFileName}`

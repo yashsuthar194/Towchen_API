@@ -3,8 +3,8 @@ import { PrismaService } from 'src/core/prisma/prisma.service';
 import { VendorListDto } from './dto/vendor-list.dto';
 import { VendorDetailDto } from './dto/vendor-detail.dto';
 import { CreateVendorDto } from './dto/create-vendor.dto';
-import { VendorUploadFilesDto } from './interfaces';
 import { StorageService } from 'src/services/storage/storage.service';
+import { VendorUploadFilesDto } from './dto/vendor-upload-files.dto';
 
 @Injectable()
 export class VendorService {
@@ -86,59 +86,91 @@ export class VendorService {
     files: VendorUploadFilesDto,
   ): Promise<VendorDetailDto> {
     // Validate required files
-    // this.validateRequiredFiles(files);
+    this.validateRequiredFiles(files);
 
-    // Upload all files to storage in parallel
-    const [
-      vendorImageResult,
-      panCardResult,
-      adharCardResult,
-      gstCertResult,
-      orgCertResult,
-    ] = await Promise.all([
-      this.uploadFileAsync(files.vendor_image![0], 'vendor/images'),
-      this.uploadFileAsync(files.pan_card![0], 'vendor/documents/pan'),
-      this.uploadFileAsync(files.adhar_card![0], 'vendor/documents/adhar'),
-      this.uploadFileAsync(files.gst_certification![0], 'vendor/documents/gst'),
-      this.uploadFileAsync(files.org_certification![0], 'vendor/documents/org'),
-    ]);
-
-    // Create vendor with uploaded file URLs
-    return this._prismaService.vendor.create({
+    // Step 1: Create vendor record (fast DB operation)
+    const vendor = await this._prismaService.vendor.create({
       data: {
         ...dto,
         status: 'Pending',
-        vendor_image_url: vendorImageResult.url,
-        pan_card_url: panCardResult.url,
-        adhar_card_url: adharCardResult.url,
-        gst_certificate_url: gstCertResult.url,
-        org_certificate_url: orgCertResult.url,
-      },
-      select: {
-        id: true,
-        formated_id: true,
-        full_name: true,
-        email: true,
-        number: true,
-        is_email_verified: true,
-        vendor_image_url: true,
-        services: true,
-        pan_card_url: true,
-        adhar_card_url: true,
-        org_name: true,
-        org_number: true,
-        org_alternate_number: true,
-        org_certificate_url: true,
-        org_email: true,
-        gst_number: true,
-        gst_certificate_url: true,
-        approved_by: true,
-        status: true,
-        created_at: true,
-        updated_at: true,
-        bank_detail: true,
+        vendor_image_url: '',
+        pan_card_url: '',
+        adhar_card_url: '',
+        gst_certificate_url: '',
+        org_certificate_url: '',
       },
     });
+
+    try {
+      // Step 2: Upload all files to storage in parallel (outside transaction to avoid timeout)
+      const [
+        vendorImageResult,
+        panCardResult,
+        adharCardResult,
+        gstCertResult,
+        orgCertResult,
+      ] = await Promise.all([
+        this.uploadFileAsync(files.vendor_image, `vendor/${vendor.id}/profile`),
+        this.uploadFileAsync(
+          files.pan_card,
+          `vendor/${vendor.id}/documents/pan`,
+        ),
+        this.uploadFileAsync(
+          files.adhar_card,
+          `vendor/${vendor.id}/documents/adhar`,
+        ),
+        this.uploadFileAsync(
+          files.gst_certification,
+          `vendor/${vendor.id}/documents/gst`,
+        ),
+        this.uploadFileAsync(
+          files.org_certification,
+          `vendor/${vendor.id}/documents/org`,
+        ),
+      ]);
+
+      // Step 3: Update vendor with uploaded file URLs
+      const entity = await this._prismaService.vendor.update({
+        data: {
+          vendor_image_url: vendorImageResult.url,
+          pan_card_url: panCardResult.url,
+          adhar_card_url: adharCardResult.url,
+          gst_certificate_url: gstCertResult.url,
+          org_certificate_url: orgCertResult.url,
+        },
+        where: { id: vendor.id },
+        select: {
+          id: true,
+          formated_id: true,
+          full_name: true,
+          email: true,
+          number: true,
+          is_email_verified: true,
+          vendor_image_url: true,
+          services: true,
+          pan_card_url: true,
+          adhar_card_url: true,
+          org_name: true,
+          org_number: true,
+          org_alternate_number: true,
+          org_certificate_url: true,
+          org_email: true,
+          gst_number: true,
+          gst_certificate_url: true,
+          approved_by: true,
+          status: true,
+          created_at: true,
+          updated_at: true,
+          bank_detail: true,
+        },
+      });
+
+      return entity;
+    } catch (error) {
+      // Compensating action: delete the vendor if file upload or update fails
+      await this._prismaService.vendor.delete({ where: { id: vendor.id } });
+      throw error;
+    }
   }
 
   /**
@@ -174,12 +206,17 @@ export class VendorService {
    * @returns Promise resolving to file upload result
    * @private
    */
-  private async uploadFileAsync(file: Express.Multer.File, folderPath: string) {
+  private async uploadFileAsync(
+    file: Express.Multer.File | Express.Multer.File[],
+    folderPath: string,
+  ) {
+    // FileFieldsInterceptor returns arrays, extract the first file
+    const singleFile = Array.isArray(file) ? file[0] : file;
     return this._storageService.uploadFileAsync({
-      buffer: file.buffer,
-      originalName: file.originalname,
-      mimeType: file.mimetype,
-      size: file.size,
+      buffer: singleFile.buffer,
+      originalName: singleFile.originalname,
+      mimeType: singleFile.mimetype,
+      size: singleFile.size,
       folderPath,
     });
   }

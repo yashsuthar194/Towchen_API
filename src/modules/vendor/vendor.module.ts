@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { VendorController } from './vendor.controller';
 import { VendorService } from './vendor.service';
 import { PrismaModule } from 'src/core/prisma/prisma.module';
-import { StorageModule } from 'src/services/storage';
+import { StorageModule } from 'src/services/storage/storage.module';
 
 @Module({
   controllers: [VendorController],

@@ -9,9 +9,6 @@ import {
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
   ApiConsumes,
   ApiBody,
   ApiExtraModels,
@@ -21,10 +18,9 @@ import { VendorService } from './vendor.service';
 import { VendorListDto } from './dto/vendor-list.dto';
 import { VendorDetailDto } from './dto/vendor-detail.dto';
 import { CreateVendorDto } from './dto/create-vendor.dto';
-import { VendorUploadFilesDto } from './interfaces';
+import { VendorUploadFilesDto } from './dto/vendor-upload-files.dto';
 
-@ApiTags('Vendor')
-@ApiExtraModels(CreateVendorDto, VendorUploadFilesDto)
+@ApiExtraModels(VendorUploadFilesDto, CreateVendorDto)
 @Controller('vendor')
 export class VendorController {
   constructor(private readonly _vendorService: VendorService) {}
@@ -35,12 +31,6 @@ export class VendorController {
    * @returns Promise resolving to array of vendor list items
    */
   @Get('list')
-  @ApiOperation({ summary: 'Get list of all vendors' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns list of vendors with basic information',
-    type: [VendorListDto],
-  })
   async getListAsync(): Promise<VendorListDto[]> {
     return this._vendorService.getListAsync();
   }
@@ -52,13 +42,6 @@ export class VendorController {
    * @returns Promise resolving to vendor details including bank information
    */
   @Get(':id')
-  @ApiOperation({ summary: 'Get vendor details by ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns detailed vendor information',
-    type: VendorDetailDto,
-  })
-  @ApiResponse({ status: 404, description: 'Vendor not found' })
   async getByIdAsync(@Param('id') id: number): Promise<VendorDetailDto> {
     return this._vendorService.getByIdAsync(id);
   }
