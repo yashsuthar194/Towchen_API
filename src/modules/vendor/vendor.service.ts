@@ -89,15 +89,23 @@ export class VendorService {
     this.validateRequiredFiles(files);
 
     // Step 1: Create vendor record (fast DB operation)
+    const vendorData = CreateVendorDto.toVendorData(dto);
+    const bankDetail = CreateVendorDto.toBankDetail(dto);
     const vendor = await this._prismaService.vendor.create({
       data: {
-        ...dto,
+        ...vendorData,
         status: 'Pending',
         vendor_image_url: '',
         pan_card_url: '',
         adhar_card_url: '',
         gst_certificate_url: '',
         org_certificate_url: '',
+        bank_detail: {
+          create: {
+            ...bankDetail,
+            detail_url: '',
+          },
+        },
       },
     });
 
@@ -109,23 +117,28 @@ export class VendorService {
         adharCardResult,
         gstCertResult,
         orgCertResult,
+        bankDetailResult,
       ] = await Promise.all([
-        this.uploadFileAsync(files.vendor_image, `vendor/${vendor.id}/profile`),
+        this.uploadFileAsync(files.vendor_image[0], `vendor/${vendor.id}/profile`),
         this.uploadFileAsync(
-          files.pan_card,
+          files.pan_card[0],
           `vendor/${vendor.id}/documents/pan`,
         ),
         this.uploadFileAsync(
-          files.adhar_card,
+          files.adhar_card[0],
           `vendor/${vendor.id}/documents/adhar`,
         ),
         this.uploadFileAsync(
-          files.gst_certification,
+          files.gst_certification[0],
           `vendor/${vendor.id}/documents/gst`,
         ),
         this.uploadFileAsync(
-          files.org_certification,
+          files.org_certification[0],
           `vendor/${vendor.id}/documents/org`,
+        ),
+        this.uploadFileAsync(
+          files.bank_detail[0],
+          `vendor/${vendor.id}/documents/bank`,
         ),
       ]);
 
@@ -137,6 +150,11 @@ export class VendorService {
           adhar_card_url: adharCardResult.url,
           gst_certificate_url: gstCertResult.url,
           org_certificate_url: orgCertResult.url,
+          bank_detail: {
+            update: {
+              detail_url: bankDetailResult.url,
+            },
+          },
         },
         where: { id: vendor.id },
         select: {
@@ -187,6 +205,7 @@ export class VendorService {
       'adhar_card',
       'gst_certification',
       'org_certification',
+      'bank_detail',
     ];
 
     const missingFiles = requiredFiles.filter((field) => !files[field]);

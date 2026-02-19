@@ -24,4 +24,7 @@ export class VendorUploadFilesDto {
   /** Organization Certificate document file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
   org_certification: Express.Multer.File;
+
+  @ApiPropertyOptional({ type: 'string', format: 'binary' })
+  bank_detail: Express.Multer.File;
 }
