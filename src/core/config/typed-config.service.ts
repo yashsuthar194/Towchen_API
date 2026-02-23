@@ -4,10 +4,11 @@ import { AppConfig } from './namespaces/app.config';
 import { DatabaseConfig } from './namespaces/database.config';
 import { JwtConfig } from './namespaces/jwt.config';
 import { StorageConfig } from './namespaces/storage.config';
+import { VerificationConfig } from './namespaces/verification.config';
 
 @Injectable()
 export class TypedConfigService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(private readonly config: ConfigService) { }
 
   get app(): AppConfig {
     return this.config.get<AppConfig>('app')!;
@@ -23,5 +24,9 @@ export class TypedConfigService {
 
   get storage(): StorageConfig {
     return this.config.get<StorageConfig>('storage')!;
+  }
+
+  get verification(): VerificationConfig {
+    return this.config.get<VerificationConfig>('verification')!;
   }
 }

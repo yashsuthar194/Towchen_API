@@ -5,13 +5,16 @@ import { VendorDetailDto } from './dto/vendor-detail.dto';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { StorageService } from 'src/services/storage/storage.service';
 import { VendorUploadFilesDto } from './dto/vendor-upload-files.dto';
+import { OtpService } from '../otp/otp.service';
+import { OtpType } from 'generated/prisma/client';
 
 @Injectable()
 export class VendorService {
   constructor(
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
-  ) {}
+    private readonly _otpService: OtpService,
+  ) { }
 
   /**
    * Get list data
@@ -94,6 +97,7 @@ export class VendorService {
     const vendor = await this._prismaService.vendor.create({
       data: {
         ...vendorData,
+        formated_id: '',
         status: 'Pending',
         vendor_image_url: '',
         pan_card_url: '',
@@ -182,6 +186,9 @@ export class VendorService {
           bank_detail: true,
         },
       });
+
+      // Step 4: Send OTP to vendor number
+      await this._otpService.sendOtp(entity.number, OtpType.Number);
 
       return entity;
     } catch (error) {

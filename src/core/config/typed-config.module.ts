@@ -6,6 +6,7 @@ import { databaseConfig } from './namespaces/database.config';
 import { jwtConfig } from './namespaces/jwt.config';
 import { TypedConfigService } from './typed-config.service';
 import { storageConfig } from './namespaces/storage.config';
+import { verificationConfig } from './namespaces/verification.config';
 
 @Global()
 @Module({
@@ -15,11 +16,11 @@ import { storageConfig } from './namespaces/storage.config';
       cache: true,
       expandVariables: true,
       envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
-      load: [appConfig, databaseConfig, jwtConfig, storageConfig],
+      load: [appConfig, databaseConfig, jwtConfig, storageConfig, verificationConfig],
       validate: validateEnv,
     }),
   ],
   providers: [TypedConfigService],
   exports: [TypedConfigService],
 })
-export class TypedConfigModule {}
+export class TypedConfigModule { }
