@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { StorageService } from './storage.service';
 import { TypedConfigService } from 'src/core/config/typed-config.service';
-import { StorageProvider } from 'src/core/config/envs/storage.env';
+import { StorageProvider } from 'src/core/config/namespaces/storage.config';
 import { CloudflareR2StorageService } from './providers/cloudflare-r2.service';
 
 /**

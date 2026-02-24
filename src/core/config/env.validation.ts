@@ -11,8 +11,8 @@ import {
   MinLength,
   validateSync,
 } from 'class-validator';
-import { NodeEnv } from './envs/app.env';
-import { StorageProvider } from './envs/storage.env';
+import { NodeEnv } from './namespaces/app.config';
+import { StorageProvider } from './namespaces/storage.config';
 
 // ─── Flat class covering ALL env vars ────────────────────────────────────────
 // class-validator works on a flat object, so we mirror every env var here.
