@@ -30,6 +30,13 @@ enum VendorStatus {
   Approved
 }
 
+enum DriverStatus {
+  Available
+  Busy
+  UnderApproval
+  Banned
+}
+
 enum Role {
   SuperAdmin
   Admin
@@ -46,7 +53,9 @@ model vendor {
   email                String           @unique @db.VarChar(255)
   number               String           @unique @db.VarChar(20)
   password             String           @db.VarChar(255)
-  is_email_verified    Boolean          @default(false)
+  is_email_verified    Boolean          @default(true)
+  is_number_verified   Boolean          @default(true)
+  is_gst_vendor        Boolean          @default(false)
   vendor_image_url     String           @db.Text()
   services             VendorServices[]
   pan_card_url         String           @db.Text()
@@ -63,6 +72,7 @@ model vendor {
   status               VendorStatus     @default(Pending)
   created_at           DateTime         @default(now())
   updated_at           DateTime         @default(now()) @updatedAt
+  is_deleted_by        Int?
 
   bank_detail vendor_bank_detail?
 
@@ -110,4 +120,9 @@ model driver {
   adhar_card_url     String  @db.Text()
   pan_card_url       String  @db.Text()
   driver_license_url String  @db.Text()
+  is_deleted         Boolean @default(false)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @default(now()) @updatedAt
+  is_deleted_by      Int?
+  status             DriverStatus @default(Busy)
 }
