@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f4f7fa;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 40px;
+        text-align: center;
+        color: white;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 32px;
+      }
+      .header p {
+        margin: 10px 0 0 0;
+        font-size: 16px;
+        opacity: 0.9;
+      }
+      .content {
+        padding: 40px 30px;
+      }
+      .content h2 {
+        color: #333;
+        margin-top: 0;
+      }
+      .content p {
+        color: #555;
+        line-height: 1.6;
+        font-size: 16px;
+      }
+      .welcome-box {
+        background: linear-gradient(135deg, #f8f9ff 0%, #e7f3ff 100%);
+        padding: 25px;
+        border-radius: 8px;
+        margin: 25px 0;
+        text-align: center;
+      }
+      .welcome-box h3 {
+        color: #667eea;
+        margin: 0 0 10px 0;
+      }
+      .button {
+        display: inline-block;
+        padding: 14px 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        margin: 20px 0;
+      }
+      .features {
+        margin: 25px 0;
+      }
+      .feature-item {
+        padding: 15px;
+        margin: 10px 0;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        border-left: 3px solid #667eea;
+      }
+      .feature-item strong {
+        color: #333;
+      }
+      .footer {
+        background-color: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+        font-size: 13px;
+      }
+      .footer a {
+        color: #667eea;
+        text-decoration: none;
+      }
+      @media only screen and (max-width: 600px) {
+        .container {
+          margin: 20px 10px;
+        }
+        .content {
+          padding: 30px 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Welcome! 🎉</h1>
+        <p>Your journey with {{APP_NAME}} begins now</p>
+      </div>
+      <div class="content">
+        <h2>Hi {{NAME}},</h2>
+        <p>
+          We're thrilled to have you join {{APP_NAME}}! Your account has been
+          successfully created.
+        </p>
+        <div class="welcome-box">
+          <h3>🚀 Get Started</h3>
+          <p style="color: #555; margin: 10px 0">
+            Click below to explore your dashboard
+          </p>
+          <a href="{{DASHBOARD_LINK}}" class="button">Go to Dashboard</a>
+        </div>
+        <div class="features">
+          <p><strong>What you can do:</strong></p>
+          <div class="feature-item">
+            <strong>📝 Complete Your Profile</strong><br />
+            <span style="color: #666; font-size: 14px"
+              >Add your business details and preferences</span
+            >
+          </div>
+          <div class="feature-item">
+            <strong>💼 Manage Services</strong><br />
+            <span style="color: #666; font-size: 14px"
+              >Set up and track your service offerings</span
+            >
+          </div>
+          <div class="feature-item">
+            <strong>👥 Connect with Customers</strong><br />
+            <span style="color: #666; font-size: 14px"
+              >Start receiving and managing requests</span
+            >
+          </div>
+        </div>
+        <p>If you have any questions, we're here to help!</p>
+        <p>Best regards,<br /><strong>The {{APP_NAME}} Team</strong></p>
+      </div>
+      <div class="footer">
+        <p>© {{YEAR}} {{APP_NAME}}. All rights reserved.</p>
+        <p>
+          Need help? Contact us at
+          <a href="mailto:{{SUPPORT_EMAIL}}">{{SUPPORT_EMAIL}}</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Login Detected</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f4f7fa;
+      }
+      .container {
+        max-width: 600px;
+        margin: 40px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 30px;
+        text-align: center;
+        color: white;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 28px;
+      }
+      .content {
+        padding: 40px 30px;
+      }
+      .content h2 {
+        color: #333;
+        margin-top: 0;
+      }
+      .content p {
+        color: #555;
+        line-height: 1.6;
+        font-size: 16px;
+      }
+      .info-table {
+        width: 100%;
+        margin: 20px 0;
+        border-collapse: collapse;
+      }
+      .info-table td {
+        padding: 12px;
+        border: 1px solid #e9ecef;
+        font-size: 15px;
+      }
+      .info-table td:first-child {
+        background-color: #f8f9fa;
+        font-weight: 600;
+        color: #333;
+        width: 35%;
+      }
+      .info-table td:last-child {
+        color: #555;
+      }
+      .security {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+      }
+      .security p {
+        color: #721c24;
+        margin: 0;
+        font-size: 14px;
+      }
+      .button {
+        display: inline-block;
+        padding: 12px 30px;
+        background-color: #dc3545;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 600;
+        margin-top: 10px;
+      }
+      .footer {
+        background-color: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+        font-size: 13px;
+      }
+      .footer a {
+        color: #667eea;
+        text-decoration: none;
+      }
+      @media only screen and (max-width: 600px) {
+        .container {
+          margin: 20px 10px;
+        }
+        .content {
+          padding: 30px 20px;
+        }
+        .info-table td {
+          display: block;
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>{{APP_NAME}}</h1>
+      </div>
+      <div class="content">
+        <h2>New Login Detected 🔐</h2>
+        <p>Hi {{NAME}},</p>
+        <p>
+          We detected a new login to your {{APP_NAME}} account. Here are the
+          details:
+        </p>
+        <table class="info-table">
+          <tr>
+            <td>Time:</td>
+            <td>{{LOGIN_TIME}}</td>
+          </tr>
+          <tr>
+            <td>Device:</td>
+            <td>{{DEVICE}}</td>
+          </tr>
+          <tr>
+            <td>IP Address:</td>
+            <td>{{IP_ADDRESS}}</td>
+          </tr>
+          <tr>
+            <td>Location:</td>
+            <td>{{LOCATION}}</td>
+          </tr>
+        </table>
+        <p>If this was you, no action is needed. Your account is secure.</p>
+        <div class="security">
+          <p>
+            <strong>⚠️ Didn't recognize this login?</strong> If this wasn't you,
+            please secure your account immediately by changing your password.
+          </p>
+          <p style="margin-top: 10px; text-align: center">
+            <a href="{{RESET_PASSWORD_LINK}}" class="button"
+              >Secure My Account</a
+            >
+          </p>
+        </div>
+      </div>
+      <div class="footer">
+        <p>© {{YEAR}} {{APP_NAME}}. All rights reserved.</p>
+        <p>
+          Need help? Contact us at
+          <a href="mailto:{{SUPPORT_EMAIL}}">{{SUPPORT_EMAIL}}</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
