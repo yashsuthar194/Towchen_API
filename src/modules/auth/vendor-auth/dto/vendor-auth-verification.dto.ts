@@ -1,6 +1,14 @@
-import { IsNotEmpty, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class VendorAuthVerificationDto {
+  @IsString()
+  @IsNotEmpty()
+  number: string;
+
+  @IsString()
+  @IsNotEmpty()
+  email: string;
+
   @IsNumber()
   @IsNotEmpty()
   mobile_otp: number;

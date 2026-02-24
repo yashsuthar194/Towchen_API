@@ -113,25 +113,26 @@ model otp {
 }
 
 model driver {
-  id                 Int          @id @default(autoincrement())
-  formated_id        String       @unique
-  full_name          String       @db.VarChar(255)
-  number             String       @db.VarChar(20)
-  alternate_number   String       @db.VarChar(20)
-  email              String       @db.VarChar(255)
-  password           String       @db.VarChar(255)
-  is_email_verified  Boolean      @default(false)
-  is_number_verified Boolean      @default(false)
-  vendor_id          Int
-  // profile_image_url  String  @db.Text()
-  adhar_card_url     String       @db.Text()
-  pan_card_url       String       @db.Text()
-  driver_license_url String       @db.Text()
-  is_deleted         Boolean      @default(false)
-  created_at         DateTime     @default(now())
-  updated_at         DateTime     @default(now()) @updatedAt
+  id                 Int     @id @default(autoincrement())
+  formated_id          String           @unique
+  vendor_id Int
+  full_name          String  @db.VarChar(255)
+  number             String  @unique @db.VarChar(20)
+  alternate_number   String  @db.VarChar(20)
+  email              String  @unique @db.VarChar(255)
+  password           String  @db.VarChar(255)
+  is_email_verified  Boolean @default(false)
+  is_number_verified Boolean @default(false)
+  adhar_card_url     String  @db.Text()
+  pan_card_url       String  @db.Text()
+  driver_license_url String  @db.Text()
+  is_deleted         Boolean @default(false)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @default(now()) @updatedAt
   is_deleted_by      Int?
-  status             DriverStatus @default(Banned)
+  status             DriverStatus @default(Busy)
+  
+  @@index([id, formated_id])
 }
 
 model vehicle {
@@ -158,4 +159,6 @@ model vehicle {
   is_deleted          Boolean   @default(false)
   created_at          DateTime  @default(now())
   updated_at          DateTime  @default(now()) @updatedAt
+
+  @@index([id])
 }

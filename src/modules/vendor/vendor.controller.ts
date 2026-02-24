@@ -8,6 +8,7 @@ import {
   Put,
   UploadedFiles,
   UseInterceptors,
+  UseGuards,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
@@ -15,6 +16,7 @@ import {
   ApiBody,
   ApiExtraModels,
   getSchemaPath,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { VendorService } from './vendor.service';
 import { VendorListDto } from './dto/vendor-list.dto';
@@ -28,6 +30,10 @@ import {
   ApiResponseDto,
   ApiResponseDtoNull,
 } from 'src/core/response/decorators/api-response-dto.decorator';
+import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
+import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
+import { CurrentUser } from 'src/services/jwt/decorators/current-user.decorator';
+import { JwtPayload } from 'src/services/jwt/interfaces/jwt-payload.interface';
 
 @ApiExtraModels(
   VendorUploadFilesPostDto,
@@ -41,6 +47,25 @@ import {
 @Controller('vendor')
 export class VendorController {
   constructor(private readonly _vendorService: VendorService) {}
+
+  /**
+   * Get the current authenticated vendor's profile
+   * This is a protected route that requires JWT authentication
+   *
+   * @returns Promise resolving to the vendor's profile data
+   *
+   * @example
+   * The CallerService automatically extracts user info from the JWT token,
+   * so we don't need to pass any parameters to the service method
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponseDto(VendorDetailDto)
+  @Get('profile')
+  async getProfile(): Promise<ResponseDto<VendorDetailDto>> {
+    const vendor = await this._vendorService.getMyProfileAsync();
+    return ResponseDto.retrieved('Profile retrieved successfully', vendor);
+  }
 
   /**
    * Retrieves a list of all vendors with basic information

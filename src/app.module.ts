@@ -7,11 +7,13 @@ import { TypedConfigModule } from './core/config/typed-config.module';
 import { ResponseModule } from './core/response/response.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DriverModule } from './modules/driver/driver.module';
+import { JwtModule } from './services/jwt/jwt.module';
 
 @Module({
   imports: [
     ResponseModule,
     TypedConfigModule,
+    JwtModule,
     VendorModule,
     VendorBankDetailModule,
     AuthModule,
