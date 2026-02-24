@@ -6,6 +6,7 @@ import { VendorBankDetailModule } from './modules/vendor-bank-detail/vendor-bank
 import { TypedConfigModule } from './core/config/typed-config.module';
 import { ResponseModule } from './core/response/response.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DriverModule } from './modules/driver/driver.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
     VendorModule,
     VendorBankDetailModule,
     AuthModule,
+    DriverModule,
   ],
   controllers: [AppController],
   providers: [AppService],

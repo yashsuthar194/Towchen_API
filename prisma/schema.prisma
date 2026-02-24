@@ -38,8 +38,6 @@ enum Role {
   Customer
 }
 
-// #endregion
-
 // #region Tables
 model vendor {
   id                   Int              @id @default(autoincrement())
@@ -102,13 +100,13 @@ model otp {
 model driver {
   id                 Int     @id @default(autoincrement())
   full_name          String  @db.VarChar(255)
-  number             String  @db.VarChar(20)
+  number             String  @unique @db.VarChar(20)
   alternate_number   String  @db.VarChar(20)
   email              String  @unique @db.VarChar(255)
   password           String  @db.VarChar(255)
   is_email_verified  Boolean @default(false)
   is_number_verified Boolean @default(false)
-  profile_image_url  String  @db.Text()
+  // profile_image_url  String  @db.Text()
   adhar_card_url     String  @db.Text()
   pan_card_url       String  @db.Text()
   driver_license_url String  @db.Text()
