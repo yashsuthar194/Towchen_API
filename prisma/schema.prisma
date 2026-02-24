@@ -109,6 +109,7 @@ model otp {
 
 model driver {
   id                 Int     @id @default(autoincrement())
+  formated_id          String           @unique
   full_name          String  @db.VarChar(255)
   number             String  @unique @db.VarChar(20)
   alternate_number   String  @db.VarChar(20)
