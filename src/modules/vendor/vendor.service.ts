@@ -8,6 +8,8 @@ import { VendorUploadFilesPostDto } from './dto/vendor-upload-files.post.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { VendorUploadFilesPutDto } from './dto/vendor-upload-files.put.dto';
 import { OtpService } from '../otp/otp.service';
+import { Hash } from 'src/shared/helper/hash';
+import { CallerService } from 'src/services/jwt/caller.service';
 
 @Injectable()
 export class VendorService {
@@ -15,6 +17,7 @@ export class VendorService {
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
     private readonly _otpService: OtpService,
+    private readonly _callerService: CallerService,
   ) {}
 
   // #region Get
@@ -81,6 +84,30 @@ export class VendorService {
       },
     });
   }
+
+  /**
+   * Get the current authenticated vendor's profile
+   * Uses CallerService to automatically get the current user's ID from JWT token
+   *
+   * @returns Promise resolving to the authenticated vendor's profile
+   * @throws {UnauthorizedException} If no authentication token is present
+   * @throws {NotFoundException} If vendor is not found
+   *
+   * @example
+   * This method automatically extracts the user ID from the JWT token:
+   * ```typescript
+   * // In controller - no need to pass user ID
+   * @UseGuards(JwtAuthGuard)
+   * @Get('profile')
+   * async getProfile() {
+   *   return this.vendorService.getMyProfileAsync();
+   * }
+   * ```
+   */
+  async getMyProfileAsync(): Promise<VendorDetailDto> {
+    const userId = this._callerService.getUserId();
+    return this.getByIdAsync(userId);
+  }
   // #endregion
 
   // #region Create
@@ -115,6 +142,9 @@ export class VendorService {
    */
   private async createVendorRecord(dto: CreateVendorDto) {
     const vendorData = CreateVendorDto.toVendorData(dto);
+
+    vendorData.password = await Hash.hashAsync(dto.password);
+
     const bankDetail = CreateVendorDto.toBankDetail(dto);
 
     return this._prismaService.vendor.create({

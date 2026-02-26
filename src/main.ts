@@ -13,9 +13,20 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('API Documentation')
-    .setDescription('API description')
+    .setTitle('Towchen API Documentation')
+    .setDescription('Towchen Service API - Vendor and Driver Management')
     .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth', // This name here is important for matching up with @ApiBearerAuth() in your controllers
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

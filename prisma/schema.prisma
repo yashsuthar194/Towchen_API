@@ -30,6 +30,18 @@ enum VendorStatus {
   Approved
 }
 
+enum DriverStatus {
+  Available
+  Busy
+  UnderApproval
+  Banned
+}
+
+enum FleetType {
+  Private
+  Public
+}
+
 enum Role {
   SuperAdmin
   Admin
@@ -37,8 +49,6 @@ enum Role {
   Driver
   Customer
 }
-
-// #endregion
 
 // #region Tables
 model vendor {
@@ -48,7 +58,9 @@ model vendor {
   email                String           @unique @db.VarChar(255)
   number               String           @unique @db.VarChar(20)
   password             String           @db.VarChar(255)
-  is_email_verified    Boolean          @default(false)
+  is_email_verified    Boolean          @default(true)
+  is_number_verified   Boolean          @default(true)
+  is_gst_vendor        Boolean          @default(false)
   vendor_image_url     String           @db.Text()
   services             VendorServices[]
   pan_card_url         String           @db.Text()
@@ -65,6 +77,7 @@ model vendor {
   status               VendorStatus     @default(Pending)
   created_at           DateTime         @default(now())
   updated_at           DateTime         @default(now()) @updatedAt
+  is_deleted_by        Int?
 
   bank_detail vendor_bank_detail?
 
@@ -101,15 +114,51 @@ model otp {
 
 model driver {
   id                 Int     @id @default(autoincrement())
+  formated_id          String           @unique
+  vendor_id Int
   full_name          String  @db.VarChar(255)
-  number             String  @db.VarChar(20)
+  number             String  @unique @db.VarChar(20)
   alternate_number   String  @db.VarChar(20)
   email              String  @unique @db.VarChar(255)
   password           String  @db.VarChar(255)
   is_email_verified  Boolean @default(false)
   is_number_verified Boolean @default(false)
-  profile_image_url  String  @db.Text()
   adhar_card_url     String  @db.Text()
   pan_card_url       String  @db.Text()
   driver_license_url String  @db.Text()
+  is_deleted         Boolean @default(false)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @default(now()) @updatedAt
+  is_deleted_by      Int?
+  status             DriverStatus @default(Busy)
+  
+  @@index([id, formated_id])
+}
+
+model vehicle {
+  id                  Int       @id @default(autoincrement())
+  fleet_type          FleetType @default(Private)
+  vendor_id           Int
+  fleet_location      String    @db.VarChar(255)
+  registration_number String    @unique @db.VarChar(20)
+  make                String    @db.VarChar(255) // Company name
+  model               String    @db.VarChar(255)
+  owner_name          String    @db.VarChar(255)
+  chassis_number      String    @unique @db.VarChar(255)
+  engine_number       String    @unique @db.VarChar(255)
+  vehicle_validity    DateTime
+  insurance_validity  DateTime
+  fitness_validity    DateTime
+  puc_validity        DateTime
+  vehical_image_url   String[]
+  chassis_image_url   String[]
+  tax_image_url       String[]
+  insurance_image_url String[]
+  fitness_image_url   String[]
+  puc_image_url       String[]
+  is_deleted          Boolean   @default(false)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @default(now()) @updatedAt
+
+  @@index([id])
 }
