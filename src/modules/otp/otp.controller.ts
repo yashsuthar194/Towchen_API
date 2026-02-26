@@ -1,7 +1,7 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { OtpService } from './otp.service';
 import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
-import { OtpType } from 'generated/prisma/client';
+import { OtpType } from '@prisma/client';
 
 @ApiTags('OTP')
 @Controller('otp')

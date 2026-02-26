@@ -18,7 +18,7 @@ export class VendorService {
     private readonly _storageService: StorageService,
     private readonly _otpService: OtpService,
     private readonly _callerService: CallerService,
-  ) {}
+  ) { }
 
   // #region Get
   /**
@@ -291,9 +291,18 @@ export class VendorService {
 
   //#region Delete
   async deleteAsync(id: number) {
+    const vendor = await this._prismaService.vendor.findUniqueOrThrow({
+      where: { id },
+    });
+    const deletionTag = `_deleted_${Date.now()}_`;
     await this._prismaService.vendor.update({
       where: { id },
-      data: { is_deleted: true },
+      data: {
+        is_deleted: true,
+        email: `${deletionTag}${vendor.email}`,
+        number: `${deletionTag}${vendor.number}`,
+        org_email: `${deletionTag}${vendor.org_email}`,
+      },
     });
   }
   //#endregion

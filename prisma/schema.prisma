@@ -5,8 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -38,8 +37,11 @@ enum DriverStatus {
 }
 
 enum FleetType {
-  Private
-  Public
+  Flatbed
+  UnderLift
+  ZeroDegree
+  TwoWFlatbed
+  Hydra
 }
 
 enum Role {
@@ -113,31 +115,35 @@ model otp {
 }
 
 model driver {
-  id                 Int     @id @default(autoincrement())
-  formated_id          String           @unique
-  vendor_id Int
-  full_name          String  @db.VarChar(255)
-  number             String  @unique @db.VarChar(20)
-  alternate_number   String  @db.VarChar(20)
-  email              String  @unique @db.VarChar(255)
-  password           String  @db.VarChar(255)
-  is_email_verified  Boolean @default(false)
-  is_number_verified Boolean @default(false)
-  adhar_card_url     String  @db.Text()
-  pan_card_url       String  @db.Text()
-  driver_license_url String  @db.Text()
-  is_deleted         Boolean @default(false)
-  created_at         DateTime @default(now())
-  updated_at         DateTime @default(now()) @updatedAt
+  id                 Int          @id @default(autoincrement())
+  formated_id        String       @unique
+  vendor_id          Int
+  vehicle_id         Int?
+  full_name          String       @db.VarChar(255)
+  number             String       @unique @db.VarChar(20)
+  alternate_number   String       @db.VarChar(20)
+  email              String       @unique @db.VarChar(255)
+  password           String       @db.VarChar(255)
+  is_email_verified  Boolean      @default(false)
+  is_number_verified Boolean      @default(false)
+  adhar_card_url     String       @db.Text()
+  pan_card_url       String       @db.Text()
+  driver_license_url String       @db.Text()
+  is_deleted         Boolean      @default(false)
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @default(now()) @updatedAt
   is_deleted_by      Int?
   status             DriverStatus @default(Busy)
-  
+
+  vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
+
   @@index([id, formated_id])
+  @@index([vehicle_id])
 }
 
 model vehicle {
   id                  Int       @id @default(autoincrement())
-  fleet_type          FleetType @default(Private)
+  fleet_type          FleetType
   vendor_id           Int
   fleet_location      String    @db.VarChar(255)
   registration_number String    @unique @db.VarChar(20)
@@ -159,6 +165,8 @@ model vehicle {
   is_deleted          Boolean   @default(false)
   created_at          DateTime  @default(now())
   updated_at          DateTime  @default(now()) @updatedAt
+
+  drivers driver[]
 
   @@index([id])
 }

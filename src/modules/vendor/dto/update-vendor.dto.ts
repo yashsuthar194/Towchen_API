@@ -7,7 +7,7 @@ import {
   IsArray,
   IsEnum,
 } from 'class-validator';
-import { VendorServices } from 'generated/prisma/enums';
+import { VendorServices } from '@prisma/client';
 
 export class UpdateVendorDto {
   @IsNotEmpty()
