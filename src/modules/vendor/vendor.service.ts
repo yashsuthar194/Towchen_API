@@ -4,21 +4,30 @@ import { VendorListDto } from './dto/vendor-list.dto';
 import { VendorDetailDto } from './dto/vendor-detail.dto';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { StorageService } from 'src/services/storage/storage.service';
-import { VendorUploadFilesDto } from './dto/vendor-upload-files.dto';
+import { VendorUploadFilesPostDto } from './dto/vendor-upload-files.post.dto';
+import { UpdateVendorDto } from './dto/update-vendor.dto';
+import { VendorUploadFilesPutDto } from './dto/vendor-upload-files.put.dto';
+import { Hash } from 'src/shared/helper/hash';
+import { CallerService } from 'src/services/jwt/caller.service';
 
 @Injectable()
 export class VendorService {
   constructor(
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
+    private readonly _callerService: CallerService,
   ) {}
 
+  // #region Get
   /**
    * Get list data
    * @returns
    */
   async getListAsync(): Promise<VendorListDto[]> {
     return await this._prismaService.vendor.findMany({
+      where: {
+        is_deleted: false,
+      },
       orderBy: {
         id: 'asc',
       },
@@ -69,10 +78,37 @@ export class VendorService {
       },
       where: {
         id,
+        is_deleted: false,
       },
     });
   }
 
+  /**
+   * Get the current authenticated vendor's profile
+   * Uses CallerService to automatically get the current user's ID from JWT token
+   *
+   * @returns Promise resolving to the authenticated vendor's profile
+   * @throws {UnauthorizedException} If no authentication token is present
+   * @throws {NotFoundException} If vendor is not found
+   *
+   * @example
+   * This method automatically extracts the user ID from the JWT token:
+   * ```typescript
+   * // In controller - no need to pass user ID
+   * @UseGuards(JwtAuthGuard)
+   * @Get('profile')
+   * async getProfile() {
+   *   return this.vendorService.getMyProfileAsync();
+   * }
+   * ```
+   */
+  async getMyProfileAsync(): Promise<VendorDetailDto> {
+    const userId = this._callerService.getUserId();
+    return this.getByIdAsync(userId);
+  }
+  // #endregion
+
+  // #region Create
   /**
    * Creates a new vendor with uploaded documents
    *
@@ -83,94 +119,279 @@ export class VendorService {
    */
   async createAsync(
     dto: CreateVendorDto,
-    files: VendorUploadFilesDto,
+    files: VendorUploadFilesPostDto,
   ): Promise<VendorDetailDto> {
-    // Validate required files
     this.validateRequiredFiles(files);
 
-    // Step 1: Create vendor record (fast DB operation)
-    const vendor = await this._prismaService.vendor.create({
+    const vendor = await this.createVendorRecord(dto);
+
+    try {
+      const fileUrls = await this.uploadVendorFiles(vendor.id, files);
+      return await this.updateVendorWithFileUrls(vendor.id, fileUrls);
+    } catch (error) {
+      await this.rollbackVendorCreation(vendor.id);
+      throw error;
+    }
+  }
+
+  /**
+   * Creates the initial vendor and bank detail records with empty file URLs
+   * @private
+   */
+  private async createVendorRecord(dto: CreateVendorDto) {
+    const vendorData = CreateVendorDto.toVendorData(dto);
+
+    vendorData.password = await Hash.hashAsync(dto.password);
+
+    const bankDetail = CreateVendorDto.toBankDetail(dto);
+
+    return this._prismaService.vendor.create({
       data: {
-        ...dto,
+        ...vendorData,
+        formated_id: '',
         status: 'Pending',
         vendor_image_url: '',
         pan_card_url: '',
         adhar_card_url: '',
         gst_certificate_url: '',
         org_certificate_url: '',
+        bank_detail: {
+          create: {
+            ...bankDetail,
+            detail_url: '',
+          },
+        },
       },
     });
+  }
 
-    try {
-      // Step 2: Upload all files to storage in parallel (outside transaction to avoid timeout)
-      const [
-        vendorImageResult,
-        panCardResult,
-        adharCardResult,
-        gstCertResult,
-        orgCertResult,
-      ] = await Promise.all([
-        this.uploadFileAsync(files.vendor_image, `vendor/${vendor.id}/profile`),
-        this.uploadFileAsync(
-          files.pan_card,
-          `vendor/${vendor.id}/documents/pan`,
-        ),
-        this.uploadFileAsync(
-          files.adhar_card,
-          `vendor/${vendor.id}/documents/adhar`,
-        ),
-        this.uploadFileAsync(
-          files.gst_certification,
-          `vendor/${vendor.id}/documents/gst`,
-        ),
-        this.uploadFileAsync(
-          files.org_certification,
-          `vendor/${vendor.id}/documents/org`,
-        ),
-      ]);
-
-      // Step 3: Update vendor with uploaded file URLs
-      const entity = await this._prismaService.vendor.update({
-        data: {
-          vendor_image_url: vendorImageResult.url,
-          pan_card_url: panCardResult.url,
-          adhar_card_url: adharCardResult.url,
-          gst_certificate_url: gstCertResult.url,
-          org_certificate_url: orgCertResult.url,
+  /**
+   * Updates vendor record with uploaded file URLs
+   * @private
+   */
+  private async updateVendorWithFileUrls(
+    vendorId: number,
+    fileUrls: {
+      vendor_image_url: string;
+      pan_card_url: string;
+      adhar_card_url: string;
+      gst_certificate_url: string;
+      org_certificate_url: string;
+      bank_detail_url: string;
+    },
+  ): Promise<VendorDetailDto> {
+    return this._prismaService.vendor.update({
+      data: {
+        vendor_image_url: fileUrls.vendor_image_url,
+        pan_card_url: fileUrls.pan_card_url,
+        adhar_card_url: fileUrls.adhar_card_url,
+        gst_certificate_url: fileUrls.gst_certificate_url,
+        org_certificate_url: fileUrls.org_certificate_url,
+        bank_detail: {
+          update: {
+            detail_url: fileUrls.bank_detail_url,
+          },
         },
-        where: { id: vendor.id },
-        select: {
-          id: true,
-          formated_id: true,
-          full_name: true,
-          email: true,
-          number: true,
-          is_email_verified: true,
-          vendor_image_url: true,
-          services: true,
-          pan_card_url: true,
-          adhar_card_url: true,
-          org_name: true,
-          org_number: true,
-          org_alternate_number: true,
-          org_certificate_url: true,
-          org_email: true,
-          gst_number: true,
-          gst_certificate_url: true,
-          approved_by: true,
-          status: true,
-          created_at: true,
-          updated_at: true,
-          bank_detail: true,
-        },
-      });
+      },
+      where: { id: vendorId },
+      select: {
+        id: true,
+        formated_id: true,
+        full_name: true,
+        email: true,
+        number: true,
+        is_email_verified: true,
+        vendor_image_url: true,
+        services: true,
+        pan_card_url: true,
+        adhar_card_url: true,
+        org_name: true,
+        org_number: true,
+        org_alternate_number: true,
+        org_certificate_url: true,
+        org_email: true,
+        gst_number: true,
+        gst_certificate_url: true,
+        approved_by: true,
+        status: true,
+        created_at: true,
+        updated_at: true,
+        bank_detail: true,
+      },
+    });
+  }
 
-      return entity;
-    } catch (error) {
-      // Compensating action: delete the vendor if file upload or update fails
-      await this._prismaService.vendor.delete({ where: { id: vendor.id } });
-      throw error;
-    }
+  /**
+   * Compensating action: removes vendor and bank detail on failure
+   * @private
+   */
+  private async rollbackVendorCreation(vendorId: number): Promise<void> {
+    await this._prismaService.vendor_bank_detail.delete({
+      where: { vendor_id: vendorId },
+    });
+    await this._prismaService.vendor.delete({ where: { id: vendorId } });
+  }
+  //#endregion
+
+  //#region Update
+  async updateAsync(
+    dto: UpdateVendorDto,
+    files: VendorUploadFilesPutDto,
+    id: number,
+  ): Promise<VendorDetailDto> {
+    const { bank_detail_url, ...updatedFiles } = await this.updateVendorFiles(
+      id,
+      files,
+    );
+
+    const vendorData = UpdateVendorDto.toVendorData(dto);
+    const bankDetail = UpdateVendorDto.toBankDetail(dto);
+
+    return await this._prismaService.vendor.update({
+      data: {
+        ...vendorData,
+        bank_detail: {
+          update: {
+            ...bankDetail,
+            detail_url: bank_detail_url,
+          },
+        },
+        ...updatedFiles,
+      },
+      where: { id },
+      select: {
+        id: true,
+        formated_id: true,
+        full_name: true,
+        email: true,
+        number: true,
+        is_email_verified: true,
+        vendor_image_url: true,
+        services: true,
+        pan_card_url: true,
+        adhar_card_url: true,
+        org_name: true,
+        org_number: true,
+        org_alternate_number: true,
+        org_certificate_url: true,
+        org_email: true,
+        gst_number: true,
+        gst_certificate_url: true,
+        approved_by: true,
+        status: true,
+        created_at: true,
+        updated_at: true,
+        bank_detail: true,
+      },
+    });
+  }
+  //#endregion
+
+  //#region Delete
+  async deleteAsync(id: number) {
+    await this._prismaService.vendor.update({
+      where: { id },
+      data: { is_deleted: true },
+    });
+  }
+  //#endregion
+
+  // #region Files
+  private async updateVendorFiles(
+    vendorId: number,
+    files: VendorUploadFilesPutDto,
+  ) {
+    const [
+      vendorImageResult,
+      panCardResult,
+      adharCardResult,
+      gstCertResult,
+      orgCertResult,
+      bankDetailResult,
+    ] = await Promise.all([
+      this.updateFileAsync(
+        files.vendor_image?.[0],
+        `vendor/${vendorId}/profile`,
+      ),
+      this.updateFileAsync(
+        files.pan_card?.[0],
+        `vendor/${vendorId}/documents/pan`,
+      ),
+      this.updateFileAsync(
+        files.adhar_card?.[0],
+        `vendor/${vendorId}/documents/adhar`,
+      ),
+      this.updateFileAsync(
+        files.gst_certification?.[0],
+        `vendor/${vendorId}/documents/gst`,
+      ),
+      this.updateFileAsync(
+        files.org_certification?.[0],
+        `vendor/${vendorId}/documents/org`,
+      ),
+      this.updateFileAsync(
+        files.bank_detail?.[0],
+        `vendor/${vendorId}/documents/bank`,
+      ),
+    ]);
+
+    return {
+      vendor_image_url: vendorImageResult?.url || undefined,
+      pan_card_url: panCardResult?.url || undefined,
+      adhar_card_url: adharCardResult?.url || undefined,
+      gst_certificate_url: gstCertResult?.url || undefined,
+      org_certificate_url: orgCertResult?.url || undefined,
+      bank_detail_url: bankDetailResult?.url || undefined,
+    };
+  }
+
+  /**
+   * Uploads all vendor files to storage in parallel
+   * @private
+   */
+  private async uploadVendorFiles(
+    vendorId: number,
+    files: VendorUploadFilesPostDto,
+  ) {
+    const [
+      vendorImageResult,
+      panCardResult,
+      adharCardResult,
+      gstCertResult,
+      orgCertResult,
+      bankDetailResult,
+    ] = await Promise.all([
+      this.uploadFileAsync(files.vendor_image[0], `vendor/${vendorId}/profile`),
+      this.uploadFileAsync(
+        files.pan_card[0],
+        `vendor/${vendorId}/documents/pan`,
+      ),
+      this.uploadFileAsync(
+        files.adhar_card[0],
+        `vendor/${vendorId}/documents/adhar`,
+      ),
+      this.uploadFileAsync(
+        files.gst_certification[0],
+        `vendor/${vendorId}/documents/gst`,
+      ),
+      this.uploadFileAsync(
+        files.org_certification[0],
+        `vendor/${vendorId}/documents/org`,
+      ),
+      this.uploadFileAsync(
+        files.bank_detail[0],
+        `vendor/${vendorId}/documents/bank`,
+      ),
+    ]);
+
+    return {
+      vendor_image_url: vendorImageResult.url,
+      pan_card_url: panCardResult.url,
+      adhar_card_url: adharCardResult.url,
+      gst_certificate_url: gstCertResult.url,
+      org_certificate_url: orgCertResult.url,
+      bank_detail_url: bankDetailResult.url,
+    };
   }
 
   /**
@@ -180,13 +401,14 @@ export class VendorService {
    * @throws {BadRequestException} If any required file is missing
    * @private
    */
-  private validateRequiredFiles(files: VendorUploadFilesDto): void {
-    const requiredFiles: (keyof VendorUploadFilesDto)[] = [
+  private validateRequiredFiles(files: VendorUploadFilesPostDto): void {
+    const requiredFiles: (keyof VendorUploadFilesPostDto)[] = [
       'vendor_image',
       'pan_card',
       'adhar_card',
       'gst_certification',
       'org_certification',
+      'bank_detail',
     ];
 
     const missingFiles = requiredFiles.filter((field) => !files[field]);
@@ -220,4 +442,30 @@ export class VendorService {
       folderPath,
     });
   }
+
+  /**
+   * Updates a single file in storage
+   *
+   * @param file - Multer file object
+   * @param folderPath - Destination folder path in storage
+   * @returns Promise resolving to file upload result or null if no file is provided
+   */
+  private async updateFileAsync(
+    file: Express.Multer.File | Express.Multer.File[],
+    folderPath: string,
+  ) {
+    // FileFieldsInterceptor returns arrays, extract the first file
+    const singleFile = Array.isArray(file) ? file?.[0] : file;
+
+    if (!singleFile) return null;
+
+    return this._storageService.uploadFileAsync({
+      buffer: singleFile.buffer,
+      originalName: singleFile.originalname,
+      mimeType: singleFile.mimetype,
+      size: singleFile.size,
+      folderPath,
+    });
+  }
+  // #endregion
 }
