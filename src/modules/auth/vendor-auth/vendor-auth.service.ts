@@ -4,7 +4,7 @@ import { PrismaService } from 'src/core/prisma/prisma.service';
 import { SmsService } from 'src/services/sms/sms.service';
 import { MailService } from 'src/services/mail/mail.service';
 import { Utility } from 'src/shared/helper/utility';
-import { OtpType, Role } from 'generated/prisma/enums';
+import { OtpType, Role } from '@prisma/client';
 import { TemplateHelper } from 'src/shared/helper/template-helper';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { VendorAuthVerificationDto } from './dto/vendor-auth-verification.dto';
@@ -31,7 +31,7 @@ export class VendorAuthService {
     private readonly _smsService: SmsService,
     private readonly _emailService: MailService,
     private readonly _jwtService: JwtService,
-  ) {}
+  ) { }
 
   //#region OTP
   /**

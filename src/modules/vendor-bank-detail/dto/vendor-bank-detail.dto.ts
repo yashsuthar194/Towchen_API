@@ -1,4 +1,4 @@
-import { vendor_bank_detail } from 'generated/prisma/client';
+import { vendor_bank_detail } from '@prisma/client';
 
 export class VendorBankDetailDto implements vendor_bank_detail {
   id: number;

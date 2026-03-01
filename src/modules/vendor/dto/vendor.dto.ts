@@ -1,4 +1,4 @@
-import { vendor, VendorServices, VendorStatus } from 'generated/prisma/client';
+import { vendor, VendorServices, VendorStatus } from '@prisma/client';
 
 export class VendorDto implements vendor {
   id: number;

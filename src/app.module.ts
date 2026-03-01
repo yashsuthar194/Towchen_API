@@ -8,6 +8,7 @@ import { ResponseModule } from './core/response/response.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DriverModule } from './modules/driver/driver.module';
 import { JwtModule } from './services/jwt/jwt.module';
+import { VehicleModule } from './modules/vehicle/vehicle.module';
 
 @Module({
   imports: [
@@ -18,8 +19,9 @@ import { JwtModule } from './services/jwt/jwt.module';
     VendorBankDetailModule,
     AuthModule,
     DriverModule,
+    VehicleModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule { }

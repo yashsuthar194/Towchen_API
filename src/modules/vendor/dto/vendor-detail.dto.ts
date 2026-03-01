@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { VendorServices, VendorStatus } from 'generated/prisma/enums';
+import { VendorServices, VendorStatus } from '@prisma/client';
 import { VendorBankDetailDto } from '../../vendor-bank-detail/dto/vendor-bank-detail.dto';
 
 export class VendorDetailDto {
