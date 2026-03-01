@@ -22,6 +22,11 @@ export class CreateDriverDto {
     @IsInt()
     vehicle_id?: number;
 
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    vendor_id?: number;
+
     /**
      * Extracts driver-only data
      */

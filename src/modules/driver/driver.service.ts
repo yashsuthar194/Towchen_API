@@ -99,10 +99,19 @@ export class DriverService {
     const driverData = CreateDriverDto.toDriverData(dto);
     driverData.password = await Hash.hashAsync(dto.password);
 
+    // If Admin creates driver, require and use vendor_id from DTO
+    // If Vendor creates driver, use their own ID automatically
+    const isVendor = this._callerService.isVendor();
+    const vendorId = isVendor ? this._callerService.getUserId() : dto.vendor_id;
+
+    if (!vendorId) {
+      throw new BadRequestException('vendor_id is required when an Admin creates a driver.');
+    }
+
     return this._prismaService.driver.create({
       data: {
         ...driverData,
-        vendor_id: this._callerService.getUserId(),
+        vendor_id: vendorId,
         formated_id: '',
         adhar_card_url: '',
         pan_card_url: '',
@@ -181,20 +190,17 @@ export class DriverService {
 
   // #region Delete
   /**
-   * Soft deletes a driver by setting is_deleted to true and prefixing credentials
+   * Soft deletes a driver by setting is_deleted to true
    * @param id - Driver ID
    * @returns The deleted driver record
    */
   async deleteAsync(id: number) {
     // Check if exists
-    const driver = await this.getByIdAsync(id);
-    const deletionTag = `_deleted_${Date.now()}_`;
+    await this.getByIdAsync(id);
     return this._prismaService.driver.update({
       where: { id },
       data: {
         is_deleted: true,
-        email: `${deletionTag}${driver.email}`,
-        number: `${deletionTag}${driver.number}`,
       },
     });
   }

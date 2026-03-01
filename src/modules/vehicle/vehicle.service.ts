@@ -93,10 +93,20 @@ export class VehicleService {
    */
   private async _createVehicleRecord(dto: CreateVehicleDto) {
     const vehicleData = CreateVehicleDto.toVehicleData(dto);
+
+    // If Admin creates vehicle, require and use vendor_id from DTO
+    // If Vendor creates vehicle, use their own ID automatically
+    const isVendor = this._callerService.isVendor();
+    const vendorId = isVendor ? this._callerService.getUserId() : dto.vendor_id;
+
+    if (!vendorId) {
+      throw new BadRequestException('vendor_id is required when an Admin creates a vehicle.');
+    }
+
     return this._prismaService.vehicle.create({
       data: {
         ...vehicleData,
-        vendor_id: this._callerService.getUserId(),
+        vendor_id: vendorId,
         vehicle_validity: new Date(dto.vehicle_validity),
         insurance_validity: new Date(dto.insurance_validity),
         fitness_validity: new Date(dto.fitness_validity),
@@ -188,6 +198,7 @@ export class VehicleService {
       data: { is_deleted: true },
     });
   }
+  // #endregion
   // #endregion
 
   // #region Private Methods

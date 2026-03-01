@@ -57,8 +57,8 @@ model vendor {
   id                   Int              @id @default(autoincrement())
   formated_id          String           @unique
   full_name            String           @db.VarChar(255)
-  email                String           @unique @db.VarChar(255)
-  number               String           @unique @db.VarChar(20)
+  email                String           @db.VarChar(255)
+  number               String           @db.VarChar(20)
   password             String           @db.VarChar(255)
   is_email_verified    Boolean          @default(true)
   is_number_verified   Boolean          @default(true)
@@ -70,7 +70,7 @@ model vendor {
   org_name             String           @db.VarChar(255)
   org_number           String           @db.VarChar(20)
   org_alternate_number String           @db.VarChar(20)
-  org_email            String           @unique @db.VarChar(255)
+  org_email            String           @db.VarChar(255)
   org_certificate_url  String           @db.Text()
   gst_number           String           @db.VarChar(15)
   gst_certificate_url  String           @db.Text()
@@ -82,6 +82,8 @@ model vendor {
   is_deleted_by        Int?
 
   bank_detail vendor_bank_detail?
+  drivers     driver[]
+  vehicles    vehicle[]
 
   @@index([id, formated_id])
 }
@@ -120,9 +122,9 @@ model driver {
   vendor_id          Int
   vehicle_id         Int?
   full_name          String       @db.VarChar(255)
-  number             String       @unique @db.VarChar(20)
+  number             String       @db.VarChar(20)
   alternate_number   String       @db.VarChar(20)
-  email              String       @unique @db.VarChar(255)
+  email              String       @db.VarChar(255)
   password           String       @db.VarChar(255)
   is_email_verified  Boolean      @default(false)
   is_number_verified Boolean      @default(false)
@@ -136,9 +138,11 @@ model driver {
   status             DriverStatus @default(Busy)
 
   vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
+  vendor  vendor   @relation(fields: [vendor_id], references: [id])
 
   @@index([id, formated_id])
   @@index([vehicle_id])
+  @@index([vendor_id])
 }
 
 model vehicle {
@@ -146,12 +150,12 @@ model vehicle {
   fleet_type          FleetType
   vendor_id           Int
   fleet_location      String    @db.VarChar(255)
-  registration_number String    @unique @db.VarChar(20)
+  registration_number String    @db.VarChar(20)
   make                String    @db.VarChar(255) // Company name
   model               String    @db.VarChar(255)
   owner_name          String    @db.VarChar(255)
-  chassis_number      String    @unique @db.VarChar(255)
-  engine_number       String    @unique @db.VarChar(255)
+  chassis_number      String    @db.VarChar(255)
+  engine_number       String    @db.VarChar(255)
   vehicle_validity    DateTime
   insurance_validity  DateTime
   fitness_validity    DateTime
@@ -167,6 +171,8 @@ model vehicle {
   updated_at          DateTime  @default(now()) @updatedAt
 
   drivers driver[]
+  vendor  vendor   @relation(fields: [vendor_id], references: [id])
 
   @@index([id])
+  @@index([vendor_id])
 }

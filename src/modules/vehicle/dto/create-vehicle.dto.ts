@@ -1,7 +1,7 @@
-import { IsString, IsEnum, IsDate } from 'class-validator';
+import { IsString, IsEnum, IsDate, IsOptional, IsInt } from 'class-validator';
 import { FleetType } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateVehicleDto {
     @ApiProperty({ enum: FleetType })
@@ -85,10 +85,16 @@ export class CreateVehicleDto {
     })
     puc_validity: Date;
 
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    vendor_id?: number;
+
     /**
      * Extracts vehicle-only data
      */
     static toVehicleData(dto: CreateVehicleDto) {
-        return dto;
+        const { vendor_id, ...vehicleData } = dto;
+        return vehicleData;
     }
 }
