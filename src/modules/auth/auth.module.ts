@@ -5,6 +5,6 @@ import { SmsModule } from 'src/services/sms/sms.module';
 import { MailModule } from 'src/services/mail/mail.module';
 
 @Module({
-  imports: [VendorAuthModule, DriverAuthModule, SmsModule, MailModule],
+  imports: [VendorAuthModule, DriverAuthModule],
 })
 export class AuthModule {}

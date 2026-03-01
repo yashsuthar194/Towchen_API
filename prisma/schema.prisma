@@ -78,6 +78,8 @@ model vendor {
   created_at           DateTime         @default(now())
   updated_at           DateTime         @default(now()) @updatedAt
   is_deleted_by        Int?
+  agreement_status Boolean @default(false)
+  signature_url String @db.Text()
 
   bank_detail vendor_bank_detail?
 

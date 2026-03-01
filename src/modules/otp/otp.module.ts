@@ -9,8 +9,8 @@ import { SmsModule } from 'src/services/sms/sms.module';
 
 @Module({
   imports: [MailModule, SmsModule],
-  controllers: [OtpController, EmailOtpController, VerificationOtpController],
+  // controllers: [OtpController, EmailOtpController, VerificationOtpController],
   providers: [OtpService, PrismaService],
   exports: [OtpService],
 })
-export class OtpModule { }
+export class OtpModule {}

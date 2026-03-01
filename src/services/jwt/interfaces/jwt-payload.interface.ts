@@ -20,6 +20,16 @@ export interface JwtPayload {
   type: Role;
 
   /**
+   * Indicates if the user's email is verified
+   */
+  is_email_verified?: boolean;
+
+  /**
+   * Indicates if the user's phone number is verified
+   */
+  is_number_verified?: boolean;
+
+  /**
    * Token issued at timestamp (seconds since epoch)
    */
   iat?: number;

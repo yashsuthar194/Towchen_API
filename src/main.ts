@@ -6,6 +6,7 @@ import { TypedConfigService } from './core/config/typed-config.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors();
 
   const config = app.get(TypedConfigService);
   const { port } = config.app;

@@ -7,7 +7,6 @@ import { StorageService } from 'src/services/storage/storage.service';
 import { VendorUploadFilesPostDto } from './dto/vendor-upload-files.post.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { VendorUploadFilesPutDto } from './dto/vendor-upload-files.put.dto';
-import { OtpService } from '../otp/otp.service';
 import { Hash } from 'src/shared/helper/hash';
 import { CallerService } from 'src/services/jwt/caller.service';
 
@@ -16,7 +15,6 @@ export class VendorService {
   constructor(
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
-    private readonly _otpService: OtpService,
     private readonly _callerService: CallerService,
   ) {}
 

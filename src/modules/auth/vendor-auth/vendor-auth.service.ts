@@ -183,6 +183,7 @@ export class VendorAuthService {
       loginDto.password,
       vendor.password,
     );
+
     if (!isPasswordValid) {
       throw new BadRequestException('Invalid email or password');
     }
@@ -192,6 +193,8 @@ export class VendorAuthService {
       id: vendor.id,
       email: vendor.email,
       type: Role.Vendor,
+      is_email_verified: vendor.is_email_verified,
+      is_number_verified: vendor.is_number_verified,
     });
 
     return new ResponseDto<VendorLoginResponseDto>(
