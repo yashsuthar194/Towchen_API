@@ -4,7 +4,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
  * DTO defining the structure of uploaded files for vendor creation
  * Used with NestJS FileFieldsInterceptor for handling multiple file fields
  */
-export class VendorUploadFilesDto {
+export class VendorUploadFilesPostDto {
   /** Vendor profile image file (JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
   vendor_image: Express.Multer.File;
@@ -24,4 +24,7 @@ export class VendorUploadFilesDto {
   /** Organization Certificate document file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
   org_certification: Express.Multer.File;
+
+  @ApiPropertyOptional({ type: 'string', format: 'binary' })
+  bank_detail: Express.Multer.File;
 }

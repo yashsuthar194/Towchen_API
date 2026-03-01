@@ -66,4 +66,53 @@ export class CreateVendorDto {
 
   @IsNotEmpty()
   gst_number: string;
+
+  // Bank detail fields (flattened for FormData compatibility)
+  @IsNotEmpty()
+  @IsString()
+  bank_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  account_number: string;
+
+  @IsNotEmpty()
+  @IsString()
+  ifsc_code: string;
+
+  @IsNotEmpty()
+  @IsString()
+  branch_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  account_holder_name: string;
+
+  /**
+   * Extracts vendor-only data (without bank detail fields)
+   */
+  static toVendorData(dto: CreateVendorDto) {
+    const {
+      bank_name,
+      account_number,
+      ifsc_code,
+      branch_name,
+      account_holder_name,
+      ...vendorData
+    } = dto;
+    return vendorData;
+  }
+
+  /**
+   * Extracts bank detail fields from the flat DTO
+   */
+  static toBankDetail(dto: CreateVendorDto) {
+    return {
+      bank_name: dto.bank_name,
+      account_number: dto.account_number,
+      ifsc_code: dto.ifsc_code,
+      branch_name: dto.branch_name,
+      account_holder_name: dto.account_holder_name,
+    };
+  }
 }

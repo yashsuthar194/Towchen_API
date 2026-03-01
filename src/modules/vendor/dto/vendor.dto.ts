@@ -8,6 +8,8 @@ export class VendorDto implements vendor {
   number: string;
   password: string;
   is_email_verified: boolean;
+  is_number_verified: boolean;
+  is_gst_vendor: boolean;
   vendor_image_url: string;
   services: VendorServices[];
   pan_card_url: string;
@@ -21,6 +23,7 @@ export class VendorDto implements vendor {
   gst_certificate_url: string;
   approved_by: number | null;
   is_deleted: boolean;
+  is_deleted_by: number | null;
   status: VendorStatus;
   created_at: Date;
   updated_at: Date;

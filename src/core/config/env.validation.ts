@@ -11,8 +11,8 @@ import {
   MinLength,
   validateSync,
 } from 'class-validator';
-import { NodeEnv } from './envs/app.env';
-import { StorageProvider } from './envs/storage.env';
+import { NodeEnv } from './namespaces/app.config';
+import { StorageProvider } from './namespaces/storage.config';
 
 // ─── Flat class covering ALL env vars ────────────────────────────────────────
 // class-validator works on a flat object, so we mirror every env var here.
@@ -84,6 +84,41 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   R2_PUBLIC_URL: string;
+
+  // #region Verification
+  @IsString()
+  @IsNotEmpty()
+  TWILIO_ACCOUNT_SID: string;
+
+  @IsString()
+  @IsNotEmpty()
+  TWILIO_AUTH_TOKEN: string;
+
+  @IsString()
+  @IsNotEmpty()
+  TWILIO_PHONE_NUMBER: string;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_HOST: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  @IsNotEmpty()
+  MAIL_PORT: number;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_USER: string;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_PASS: string;
+
+  @IsString()
+  @IsOptional()
+  MAIL_FROM?: string;
 }
 
 // ─── Validation function passed to ConfigModule ───────────────────────────────
