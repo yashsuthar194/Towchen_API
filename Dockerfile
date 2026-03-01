@@ -1,48 +1,41 @@
 # ============================================
-# Stage 1: Install dependencies
-# ============================================
-FROM node:20-alpine AS deps
-
-# argon2 requires native compilation tools
-RUN apk add --no-cache python3 make g++
-
-WORKDIR /app
-
-COPY package.json package-lock.json ./
-RUN npm ci
-
-# ============================================
-# Stage 2: Build the application
+# Stage 1: Build the application
 # ============================================
 FROM node:20-alpine AS build
 
+# Build tools needed for argon2 + SWC native binaries
+RUN apk add --no-cache python3 make g++ libstdc++
+
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
+# Install all dependencies (including devDependencies for build)
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy source code
 COPY . .
 
 # Generate Prisma Client
 RUN npx prisma generate
 
-# Build NestJS
-RUN npm run build
+# Build NestJS and verify output
+RUN npm run build && ls -la dist/
 
 # ============================================
-# Stage 3: Production image
+# Stage 2: Production image
 # ============================================
 FROM node:20-alpine AS production
 
-# argon2 requires libstdc++ at runtime
+# argon2 + SWC require libstdc++ at runtime
 RUN apk add --no-cache libstdc++
 
 WORKDIR /app
 
 # Copy package files and install production-only deps
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
 
-# argon2 needs to be rebuilt for the clean production node_modules
 RUN apk add --no-cache --virtual .build-deps python3 make g++ \
+    && npm ci --omit=dev \
     && npm rebuild argon2 \
     && apk del .build-deps
 
