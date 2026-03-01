@@ -1,0 +1,17 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.md
+test
+coverage
+.vscode
+.idea
+.prettierrc
+eslint.config.mjs
+*.sql
+.temp
+.tmp
