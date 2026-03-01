@@ -75,6 +75,7 @@ export class VendorService {
         created_at: true,
         updated_at: true,
         bank_detail: true,
+        signature_url: true,
       },
       where: {
         id,
@@ -155,6 +156,7 @@ export class VendorService {
         adhar_card_url: '',
         gst_certificate_url: '',
         org_certificate_url: '',
+        signature_url: '',
         bank_detail: {
           create: {
             ...bankDetail,
@@ -178,6 +180,7 @@ export class VendorService {
       gst_certificate_url: string;
       org_certificate_url: string;
       bank_detail_url: string;
+      signature_url: string;
     },
   ): Promise<VendorDetailDto> {
     return this._prismaService.vendor.update({
@@ -187,6 +190,7 @@ export class VendorService {
         adhar_card_url: fileUrls.adhar_card_url,
         gst_certificate_url: fileUrls.gst_certificate_url,
         org_certificate_url: fileUrls.org_certificate_url,
+        signature_url: fileUrls.signature_url,
         bank_detail: {
           update: {
             detail_url: fileUrls.bank_detail_url,
@@ -217,6 +221,7 @@ export class VendorService {
         created_at: true,
         updated_at: true,
         bank_detail: true,
+        signature_url: true,
       },
     });
   }
@@ -308,6 +313,7 @@ export class VendorService {
       gstCertResult,
       orgCertResult,
       bankDetailResult,
+      signatureUrlResult,
     ] = await Promise.all([
       this.updateFileAsync(
         files.vendor_image?.[0],
@@ -333,6 +339,10 @@ export class VendorService {
         files.bank_detail?.[0],
         `vendor/${vendorId}/documents/bank`,
       ),
+      this.updateFileAsync(
+        files.signature_url?.[0],
+        `vendor/${vendorId}/documents/signature`,
+      ),
     ]);
 
     return {
@@ -342,6 +352,7 @@ export class VendorService {
       gst_certificate_url: gstCertResult?.url || undefined,
       org_certificate_url: orgCertResult?.url || undefined,
       bank_detail_url: bankDetailResult?.url || undefined,
+      signature_url: signatureUrlResult?.url || undefined,
     };
   }
 
@@ -360,6 +371,7 @@ export class VendorService {
       gstCertResult,
       orgCertResult,
       bankDetailResult,
+      signature_url,
     ] = await Promise.all([
       this.uploadFileAsync(files.vendor_image[0], `vendor/${vendorId}/profile`),
       this.uploadFileAsync(
@@ -382,6 +394,10 @@ export class VendorService {
         files.bank_detail[0],
         `vendor/${vendorId}/documents/bank`,
       ),
+      this.uploadFileAsync(
+        files.signature_url[0],
+        `vendor/${vendorId}/documents/signature`,
+      ),
     ]);
 
     return {
@@ -391,6 +407,7 @@ export class VendorService {
       gst_certificate_url: gstCertResult.url,
       org_certificate_url: orgCertResult.url,
       bank_detail_url: bankDetailResult.url,
+      signature_url: signature_url.url,
     };
   }
 
@@ -409,6 +426,7 @@ export class VendorService {
       'gst_certification',
       'org_certification',
       'bank_detail',
+      'signature_url',
     ];
 
     const missingFiles = requiredFiles.filter((field) => !files[field]);

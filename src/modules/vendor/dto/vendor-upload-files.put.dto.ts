@@ -24,4 +24,8 @@ export class VendorUploadFilesPutDto {
   /** Bacnk detail file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
   bank_detail: Express.Multer.File;
+
+  /** Signature file (PDF, JPEG, PNG) */
+  @ApiPropertyOptional({ type: 'string', format: 'binary' })
+  signature_url: Express.Multer.File;
 }

@@ -25,6 +25,8 @@ export class VendorDto implements vendor {
   is_deleted: boolean;
   is_deleted_by: number | null;
   status: VendorStatus;
+  signature_url: string;
+  agreement_status: boolean;
   created_at: Date;
   updated_at: Date;
 }
