@@ -9,7 +9,7 @@ import { DriverLoginDto } from './dto/driver-login.dto';
 import { Hash } from 'src/shared/helper/hash';
 import { DriverLoginResponseDto } from './dto/driver-login-response.dto';
 import { JwtService } from 'src/services/jwt/jwt.service';
-import { OtpType, Role } from 'generated/prisma/enums';
+import { OtpType, Role } from '@prisma/client';
 import { Utility } from 'src/shared/helper/utility';
 import { MailService } from 'src/services/mail/mail.service';
 import { SmsService } from 'src/services/sms/sms.service';
