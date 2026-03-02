@@ -190,15 +190,23 @@ export class DriverAuthService {
       throw new BadRequestException('Email OTP expired');
     }
 
+    const vendor = await this._prismaService.driver.findFirst({
+      where: {
+        number: request.number,
+        email: request.email,
+        is_deleted: false,
+      },
+    });
+
+    if (!vendor) throw new NotFoundException('Driver not found');
+
     await this._prismaService.driver.update({
       data: {
         is_email_verified: true,
         is_number_verified: true,
       },
       where: {
-        number: request.number,
-        email: request.email,
-        is_deleted: false,
+        id: vendor.id,
       },
     });
 

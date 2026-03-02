@@ -1,4 +1,4 @@
-import { Role } from 'generated/prisma/enums';
+import { Role } from '@prisma/client';
 
 /**
  * Interface representing the payload structure of a JWT token

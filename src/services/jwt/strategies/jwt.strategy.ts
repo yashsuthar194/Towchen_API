@@ -4,7 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { TypedConfigService } from 'src/core/config/typed-config.service';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 import { PrismaService } from 'src/core/prisma/prisma.service';
-import { Role } from 'generated/prisma/enums';
+import { Role } from '@prisma/client';
 
 /**
  * JWT authentication strategy for Passport
