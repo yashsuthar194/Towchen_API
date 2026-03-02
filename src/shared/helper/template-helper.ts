@@ -20,8 +20,10 @@ export type EmailTemplateName =
  */
 export class TemplateHelper {
   private static readonly TEMPLATE_DIR = path.join(
-    process.cwd(),
-    'src',
+    __dirname,
+    '..',
+    '..',
+    '..',
     'shared',
     'templates',
   );
