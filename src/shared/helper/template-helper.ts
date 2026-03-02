@@ -22,9 +22,6 @@ export class TemplateHelper {
   private static readonly TEMPLATE_DIR = path.join(
     __dirname,
     '..',
-    '..',
-    '..',
-    'shared',
     'templates',
   );
 
