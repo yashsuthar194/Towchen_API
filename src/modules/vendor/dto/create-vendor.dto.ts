@@ -88,6 +88,10 @@ export class CreateVendorDto {
   @IsString()
   account_holder_name: string;
 
+  @IsNotEmpty()
+  @Transform(({ value }) => value === 'true' || value === true)
+  agreement_status: boolean = false;
+
   /**
    * Extracts vendor-only data (without bank detail fields)
    */

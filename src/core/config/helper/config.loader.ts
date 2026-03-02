@@ -1,6 +1,6 @@
 import { registerAs } from '@nestjs/config';
 import { plainToInstance } from 'class-transformer';
-import { validateSync, ValidationError } from 'class-validator';
+import { validateSync, ValidationError, getMetadataStorage } from 'class-validator';
 import { getConfigNamespace, getDefaultValue } from './config.decorator';
 
 /**
@@ -63,13 +63,30 @@ export function createConfigLoader<T extends object>(
     const instance = new ConfigClass();
     const proto = Object.getPrototypeOf(instance);
 
-    // Apply default values from @Default decorator
-    for (const key of Object.keys(instance)) {
+    // Collect all property names:
+    // 1. From Object.keys (initialized properties)
+    // 2. From class-validator metadata (all decorated properties, even uninitialized)
+    const knownKeys = new Set<string>(Object.keys(instance));
+
+    // Get all validated property names from class-validator metadata
+    const metadataStorage = getMetadataStorage();
+    const validationMetadatas = metadataStorage.getTargetValidationMetadatas(
+      ConfigClass,
+      ConfigClass.name,
+      true,
+      false,
+    );
+    for (const metadata of validationMetadatas) {
+      knownKeys.add(metadata.propertyName);
+    }
+
+    // Apply env values and defaults for all known keys
+    for (const key of knownKeys) {
       const defaultValue = getDefaultValue(proto, key);
-      if (defaultValue !== undefined && process.env[key] === undefined) {
-        (instance as any)[key] = defaultValue;
-      } else if (process.env[key] !== undefined) {
+      if (process.env[key] !== undefined) {
         (instance as any)[key] = process.env[key];
+      } else if (defaultValue !== undefined && (instance as any)[key] === undefined) {
+        (instance as any)[key] = defaultValue;
       }
     }
 
