@@ -3,7 +3,7 @@ import { PrismaService } from 'src/core/prisma/prisma.service';
 import { SmsService } from 'src/services/sms/sms.service';
 import { MailService } from 'src/services/mail/mail.service';
 import { TemplateHelper } from 'src/shared/helper/template-helper';
-import { OtpType } from 'generated/prisma/client';
+import { OtpType } from '@prisma/client';
 
 @Injectable()
 export class OtpService {
@@ -11,7 +11,7 @@ export class OtpService {
     private readonly _prismaService: PrismaService,
     private readonly _smsService: SmsService,
     private readonly _mailService: MailService,
-  ) {}
+  ) { }
 
   /**
    * Generates a 6-character random alphanumeric OTP
