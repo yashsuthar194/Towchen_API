@@ -39,9 +39,9 @@ RUN apk add --no-cache --virtual .build-deps python3 make g++ \
     && npm rebuild argon2 \
     && apk del .build-deps
 
-# Copy built app and generated Prisma client
+# Copy built app and Prisma generated client
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/generated ./generated
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
 # Copy Prisma schema & migrations (needed for runtime migrations)
 COPY prisma ./prisma
