@@ -40,8 +40,8 @@ export class CreateVendorDto {
   @MinLength(8, { message: 'password must be at least 8 characters' })
   password: string;
 
-  @IsBoolean()
   @IsNotEmpty()
+  @Transform(({ value }) => value === 'true' || value === true)
   is_gst_vendor: boolean;
 
   @ApiProperty({
