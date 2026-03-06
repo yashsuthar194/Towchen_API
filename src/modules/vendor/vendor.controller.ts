@@ -144,7 +144,7 @@ export class VendorController {
       { name: 'gst_certification', maxCount: 1 },
       { name: 'org_certification', maxCount: 1 },
       { name: 'bank_detail', maxCount: 1 },
-      { name: 'signature_url' },
+      { name: 'signature_url', maxCount: 1 },
     ]),
   )
   async createAsync(

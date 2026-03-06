@@ -403,10 +403,12 @@ export class VendorService {
         files.bank_detail[0],
         `vendor/${vendorId}/documents/bank`,
       ),
-      this.uploadFileAsync(
-        files.signature_url[0],
-        `vendor/${vendorId}/documents/signature`,
-      ),
+      files.signature_url?.[0]
+        ? this.uploadFileAsync(
+            files.signature_url[0],
+            `vendor/${vendorId}/documents/signature`,
+          )
+        : Promise.resolve(null),
     ]);
 
     return {
@@ -416,7 +418,7 @@ export class VendorService {
       gst_certificate_url: gstCertResult.url,
       org_certificate_url: orgCertResult.url,
       bank_detail_url: bankDetailResult.url,
-      signature_url: signature_url.url,
+      signature_url: signature_url?.url ?? '',
     };
   }
 
@@ -435,7 +437,6 @@ export class VendorService {
       'gst_certification',
       'org_certification',
       'bank_detail',
-      'signature_url',
     ];
 
     const missingFiles = requiredFiles.filter((field) => !files[field]);
