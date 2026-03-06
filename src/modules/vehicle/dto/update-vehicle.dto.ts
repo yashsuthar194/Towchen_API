@@ -6,6 +6,7 @@ export class UpdateVehicleDto extends PartialType(CreateVehicleDto) {
      * Extracts vehicle-only data
      */
     static toVehicleData(dto: UpdateVehicleDto) {
-        return dto;
+        const { vendor_id, ...vehicleData } = dto;
+        return vehicleData;
     }
 }

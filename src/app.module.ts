@@ -9,6 +9,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { DriverModule } from './modules/driver/driver.module';
 import { JwtModule } from './services/jwt/jwt.module';
 import { VehicleModule } from './modules/vehicle/vehicle.module';
+import { CustomerModule } from './modules/customer/customer.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
     AuthModule,
     DriverModule,
     VehicleModule,
+    CustomerModule,
   ],
   controllers: [AppController],
   providers: [AppService],

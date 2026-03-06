@@ -6,6 +6,7 @@ import {
   IsEmail,
   IsArray,
   IsEnum,
+  Matches,
 } from 'class-validator';
 import { VendorServices } from '@prisma/client';
 
@@ -19,6 +20,10 @@ export class UpdateVendorDto {
   email: string;
 
   @IsNotEmpty()
+  @IsString()
+  @Matches(/^[6-9]\d{9}$/, {
+    message: 'number must be a valid 10-digit Indian mobile number',
+  })
   number: string;
 
   @ApiProperty({
@@ -49,12 +54,22 @@ export class UpdateVendorDto {
   services: VendorServices[];
 
   @IsNotEmpty()
+  @IsString()
   org_name: string;
 
   @IsNotEmpty()
+  @IsString()
+  @Matches(/^[6-9]\d{9}$/, {
+    message: 'org_number must be a valid 10-digit Indian mobile number',
+  })
   org_number: string;
 
   @IsNotEmpty()
+  @IsString()
+  @Matches(/^[6-9]\d{9}$/, {
+    message:
+      'org_alternate_number must be a valid 10-digit Indian mobile number',
+  })
   org_alternate_number: string;
 
   @IsNotEmpty()
@@ -62,6 +77,10 @@ export class UpdateVendorDto {
   org_email: string;
 
   @IsNotEmpty()
+  @IsString()
+  @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, {
+    message: 'gst_number must be a valid GST number',
+  })
   gst_number: string;
 
   // Bank detail fields (flattened for FormData compatibility)
@@ -71,10 +90,16 @@ export class UpdateVendorDto {
 
   @IsNotEmpty()
   @IsString()
+  @Matches(/^\d{9,18}$/, {
+    message: 'account_number must be a valid bank account number (9-18 digits)',
+  })
   account_number: string;
 
   @IsNotEmpty()
   @IsString()
+  @Matches(/^[A-Z]{4}0[A-Z0-9]{6}$/i, {
+    message: 'ifsc_code must be a valid IFSC code (e.g. SBIN0001234)',
+  })
   ifsc_code: string;
 
   @IsNotEmpty()
