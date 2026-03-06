@@ -21,6 +21,7 @@ import {
   ApiExtraModels,
   getSchemaPath,
   ApiBearerAuth,
+  ApiTags,
 } from '@nestjs/swagger';
 import { VehicleUploadFilesPostDto } from './dto/vehicle-upload-files.post.dto';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
@@ -29,19 +30,38 @@ import { VehicleDetailDto } from './dto/vehicle-detail.dto';
 import { VehicleListDto } from './dto/vehicle-list.dto';
 import { VehicleUploadFilesPutDto } from './dto/vehicle-upload-files.put.dto';
 
-@ApiExtraModels(VehicleUploadFilesPostDto, CreateVehicleDto, UpdateVehicleDto, VehicleUploadFilesPutDto)
+import {
+  ResponseDto,
+} from 'src/core/response/dto/response.dto';
+import {
+  ApiResponseDto,
+  ApiResponseDtoNull,
+} from 'src/core/response/decorators/api-response-dto.decorator';
+
+@ApiExtraModels(
+  VehicleUploadFilesPostDto,
+  CreateVehicleDto,
+  UpdateVehicleDto,
+  VehicleUploadFilesPutDto,
+  ResponseDto,
+  VehicleListDto,
+  VehicleDetailDto,
+)
 @Controller('vehicle')
 @UseGuards(JwtAuthGuard, VendorGuard)
 @ApiBearerAuth('JWT-auth')
+@ApiTags('Vehicle')
 export class VehicleController {
   constructor(private readonly _vehicleService: VehicleService) { }
 
+  // #region Create
   /**
    * Register a new vehicle with documents
    * @param createVehicleDto 
    * @param files 
    */
   @Post()
+  @ApiResponseDto(VehicleDetailDto, false, 201)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -64,16 +84,21 @@ export class VehicleController {
   async create(
     @Body() createVehicleDto: CreateVehicleDto,
     @UploadedFiles() files: VehicleUploadFilesPostDto,
-  ): Promise<VehicleDetailDto> {
-    return await this._vehicleService.createAsync(createVehicleDto, files);
+  ): Promise<ResponseDto<VehicleDetailDto>> {
+    const vehicle = await this._vehicleService.createAsync(createVehicleDto, files);
+    return ResponseDto.created('Vehicle registered successfully', vehicle);
   }
+  // #endregion
 
+  // #region Get
   /**
    * Get all vehicles belonging to the vendor
    */
   @Get()
-  async findAll(): Promise<VehicleListDto[]> {
-    return await this._vehicleService.getListAsync();
+  @ApiResponseDto(VehicleListDto, true)
+  async findAll(): Promise<ResponseDto<VehicleListDto[]>> {
+    const vehicles = await this._vehicleService.getListAsync();
+    return ResponseDto.retrieved('Vehicles retrieved successfully', vehicles);
   }
 
   /**
@@ -81,10 +106,14 @@ export class VehicleController {
    * @param id Vehicle ID
    */
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<VehicleDetailDto> {
-    return await this._vehicleService.getByIdAsync(id);
+  @ApiResponseDto(VehicleDetailDto)
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<VehicleDetailDto>> {
+    const vehicle = await this._vehicleService.getByIdAsync(id);
+    return ResponseDto.retrieved('Vehicle details retrieved successfully', vehicle);
   }
+  // #endregion
 
+  // #region Update
   /**
    * Update vehicle information
    * @param id Vehicle ID
@@ -92,6 +121,7 @@ export class VehicleController {
    * @param files Optional image updates
    */
   @Put(':id')
+  @ApiResponseDto(VehicleDetailDto)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -115,16 +145,22 @@ export class VehicleController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateVehicleDto: UpdateVehicleDto,
     @UploadedFiles() files: VehicleUploadFilesPutDto,
-  ): Promise<VehicleDetailDto> {
-    return await this._vehicleService.updateAsync(id, updateVehicleDto, files);
+  ): Promise<ResponseDto<VehicleDetailDto>> {
+    const vehicle = await this._vehicleService.updateAsync(id, updateVehicleDto, files);
+    return ResponseDto.updated('Vehicle updated successfully', vehicle);
   }
+  // #endregion
 
+  // #region Delete
   /**
    * Delete a vehicle (Soft delete)
    * @param id Vehicle ID
    */
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number) {
-    return await this._vehicleService.deleteAsync(id);
+  @ApiResponseDtoNull()
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<null>> {
+    await this._vehicleService.deleteAsync(id);
+    return ResponseDto.deleted('Vehicle deleted successfully');
   }
+  // #endregion
 }

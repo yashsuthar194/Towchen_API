@@ -178,3 +178,36 @@ model vehicle {
   @@index([id])
   @@index([vendor_id])
 }
+
+model customer {
+  id            Int      @id @default(autoincrement())
+  formated_id   String   @unique
+  full_name     String   @db.VarChar(255)
+  is_verified   Boolean  @default(false)
+  number        String   @db.VarChar(20)
+  email         String   @db.VarChar(255)
+  is_deleted    Boolean  @default(false)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now()) @updatedAt
+  is_deleted_by Int?
+
+  customer_vehicles customer_vehicle[]
+}
+
+model customer_vehicle {
+  id                  Int      @id @default(autoincrement())
+  customer_id         Int
+  make                String   @db.VarChar(255)
+  model               String   @db.VarChar(255)
+  registration_number String   @db.VarChar(20)
+  class               String   @db.VarChar(255)
+  fuel_type           String   @db.VarChar(255)
+  is_deleted          Boolean  @default(false)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @default(now()) @updatedAt
+  is_deleted_by       Int?
+
+  customer customer @relation(fields: [customer_id], references: [id])
+
+  @@index([customer_id])
+}

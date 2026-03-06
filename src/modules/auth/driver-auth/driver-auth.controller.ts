@@ -4,11 +4,17 @@ import { DriverAuthService } from './driver-auth.service';
 import { DriverLoginResponseDto } from './dto/driver-login-response.dto';
 import { DriverVerificationRequestDto } from './dto/driver-verification-request.dto';
 import { DriverVerificationDto } from './dto/driver-verification.dto';
+import { DriverOtpLoginDto } from './dto/driver-otp-login.dto';
+import { DriverOtpVerificationDto } from './dto/driver-otp-verification.dto';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
+import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
+import { ApiResponseDto, ApiResponseDtoNull } from 'src/core/response/decorators/api-response-dto.decorator';
 
+
+@ApiTags('Driver Auth')
 @Controller('driver-auth')
 export class DriverAuthController {
-  constructor(private readonly _driverAuthService: DriverAuthService) {}
+  constructor(private readonly _driverAuthService: DriverAuthService) { }
 
   /**
    * Login a driver.
@@ -44,5 +50,33 @@ export class DriverAuthController {
     @Body() request: DriverVerificationDto,
   ): Promise<ResponseDto<null>> {
     return this._driverAuthService.verifyVerificationOtpAsync(request);
+  }
+
+  /**
+   * Request a login OTP for a driver.
+   * @param request The request containing the driver's mobile number.
+   */
+  @Post('login/otp')
+  @ApiOperation({ summary: 'Request a login OTP for a driver' })
+  @ApiBody({ type: DriverOtpLoginDto })
+  @ApiResponseDtoNull(201)
+  async sendLoginOtpAsync(
+    @Body() request: DriverOtpLoginDto,
+  ): Promise<ResponseDto<null>> {
+    return this._driverAuthService.sendLoginOtpAsync(request);
+  }
+
+  /**
+   * Verifies the login OTP and returns JWT tokens.
+   * @param request The request containing the number and OTP.
+   */
+  @Post('login/otp/verify')
+  @ApiOperation({ summary: 'Verify login OTP and get JWT tokens' })
+  @ApiBody({ type: DriverOtpVerificationDto })
+  @ApiResponseDto(DriverLoginResponseDto)
+  async verifyLoginOtpAsync(
+    @Body() request: DriverOtpVerificationDto,
+  ): Promise<ResponseDto<DriverLoginResponseDto>> {
+    return this._driverAuthService.verifyLoginOtpAsync(request);
   }
 }

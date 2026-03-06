@@ -27,14 +27,18 @@ export class VehicleService {
    * @returns Array of vehicles
    */
   async getListAsync(): Promise<VehicleListDto[]> {
+    const vendorId = this._callerService.getUserId();
     return this._prismaService.vehicle.findMany({
-      where: { is_deleted: false, vendor_id: this._callerService.getUserId() },
+      where: { is_deleted: false, vendor_id: vendorId },
       select: {
         id: true,
         registration_number: true,
         chassis_number: true,
         engine_number: true,
         created_at: true,
+        fleet_type: true,
+        make: true,
+        model: true,
       },
     });
   }
@@ -199,7 +203,6 @@ export class VehicleService {
     });
   }
   // #endregion
-  // #endregion
 
   // #region Private Methods
   /**
@@ -231,15 +234,16 @@ export class VehicleService {
 
     for (const check of checks) {
       if (check.value) {
-        const existing = await this._prismaService.vehicle.findUnique({
-          where: { [check.field]: check.value } as any,
+        const existing = await this._prismaService.vehicle.findFirst({
+          where: {
+            [check.field]: check.value,
+            is_deleted: false,
+          } as any,
           select: { id: true },
         });
 
-        if (existing) {
-          if (existing.id !== excludeVehicleId) {
-            throw new BadRequestException(`${check.label} is already registered.`);
-          }
+        if (existing && existing.id !== excludeVehicleId) {
+          throw new BadRequestException(`${check.label} is already registered.`);
         }
       }
     }
@@ -297,7 +301,6 @@ export class VehicleService {
       folderPath,
     });
   }
-
-
   // #endregion
+
 }
