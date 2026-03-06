@@ -16,7 +16,7 @@ export class VendorService {
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
     private readonly _callerService: CallerService,
-  ) { }
+  ) {}
 
   // #region Get
   /**
@@ -58,6 +58,7 @@ export class VendorService {
         full_name: true,
         email: true,
         number: true,
+        alternate_number: true,
         is_email_verified: true,
         vendor_image_url: true,
         services: true,
@@ -65,7 +66,6 @@ export class VendorService {
         adhar_card_url: true,
         org_name: true,
         org_number: true,
-        org_alternate_number: true,
         org_certificate_url: true,
         org_email: true,
         gst_number: true,
@@ -76,6 +76,7 @@ export class VendorService {
         updated_at: true,
         bank_detail: true,
         signature_url: true,
+        is_gst_vendor: true,
       },
       where: {
         id,
@@ -204,14 +205,16 @@ export class VendorService {
         full_name: true,
         email: true,
         number: true,
+        alternate_number: true,
         is_email_verified: true,
+        is_number_verified: true,
+        is_gst_vendor: true,
         vendor_image_url: true,
         services: true,
         pan_card_url: true,
         adhar_card_url: true,
         org_name: true,
         org_number: true,
-        org_alternate_number: true,
         org_certificate_url: true,
         org_email: true,
         gst_number: true,
@@ -270,6 +273,7 @@ export class VendorService {
         full_name: true,
         email: true,
         number: true,
+        alternate_number: true,
         is_email_verified: true,
         vendor_image_url: true,
         services: true,
@@ -277,7 +281,6 @@ export class VendorService {
         adhar_card_url: true,
         org_name: true,
         org_number: true,
-        org_alternate_number: true,
         org_certificate_url: true,
         org_email: true,
         gst_number: true,
@@ -287,6 +290,7 @@ export class VendorService {
         created_at: true,
         updated_at: true,
         bank_detail: true,
+        is_gst_vendor: true,
       },
     });
   }

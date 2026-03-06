@@ -17,6 +17,8 @@ import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { TemplateHelper } from 'src/shared/helper/template-helper';
 import { DriverVerificationRequestDto } from './dto/driver-verification-request.dto';
 import { DriverVerificationDto } from './dto/driver-verification.dto';
+import { DriverOtpLoginDto } from './dto/driver-otp-login.dto';
+import { DriverOtpVerificationDto } from './dto/driver-otp-verification.dto';
 
 /** OTP code length */
 const OTP_LENGTH = 6;
@@ -31,7 +33,7 @@ export class DriverAuthService {
     private readonly _jwtService: JwtService,
     private readonly _smsService: SmsService,
     private readonly _emailService: MailService,
-  ) {}
+  ) { }
 
   /**
    * Logs in a driver.
@@ -210,11 +212,113 @@ export class DriverAuthService {
       },
     });
 
+    if (!vendor) throw new NotFoundException('Driver not found');
+
+    await this._prismaService.driver.updateMany({
+      data: {
+        is_email_verified: true,
+        is_number_verified: true,
+      },
+      where: {
+        id: vendor.id,
+      },
+    });
+
     return new ResponseDto<null>(
       true,
       HttpStatus.OK,
       'OTPs verified successfully',
       null,
     );
+  }
+
+  /**
+   * Sends a login OTP to the driver's mobile number
+   * @param dto Contains the driver's mobile number
+   */
+  async sendLoginOtpAsync(dto: DriverOtpLoginDto): Promise<ResponseDto<null>> {
+    const driver = await this._prismaService.driver.findFirst({
+      where: {
+        number: dto.number,
+        is_deleted: false,
+      },
+    });
+
+    if (!driver) {
+      throw new NotFoundException('No driver found with this mobile number. Please register first.');
+    }
+
+    const otpCode = Utility.generateOtp(OTP_LENGTH);
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await this._prismaService.otp.create({
+      data: {
+        otp: otpCode.toString(),
+        number: dto.number,
+        type: OtpType.Number,
+        expires_at: expiresAt,
+      },
+    });
+
+    const smsResponse = await this._smsService.sendSmsAsync({
+      to: `+91${dto.number}`,
+      message: `Your login OTP for Towchen is ${otpCode}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+    });
+
+    if (!smsResponse?.success) {
+      throw new BadRequestException('Failed to send OTP. Please try again.');
+    }
+
+    return ResponseDto.success('OTP sent successfully');
+  }
+
+  /**
+   * Verifies the login OTP and returns JWT tokens
+   * @param dto Contains the number and OTP
+   */
+  async verifyLoginOtpAsync(
+    dto: DriverOtpVerificationDto,
+  ): Promise<ResponseDto<DriverLoginResponseDto>> {
+    const driver = await this._prismaService.driver.findFirst({
+      where: {
+        number: dto.number,
+        is_deleted: false,
+      },
+    });
+
+    if (!driver) {
+      throw new NotFoundException('Driver not found');
+    }
+
+    const dbOtp = await this._prismaService.otp.findFirst({
+      where: {
+        number: dto.number,
+        type: OtpType.Number,
+      },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+
+    if (!dbOtp || dbOtp.otp !== dto.otp) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    if (dbOtp.expires_at < new Date()) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const tokens = await this._jwtService.generateTokens({
+      id: driver.id,
+      email: driver.email,
+      type: Role.Driver,
+    });
+
+    return ResponseDto.success('Login successful', {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      is_email_verified: driver.is_email_verified,
+      is_number_verified: driver.is_number_verified,
+    });
   }
 }
