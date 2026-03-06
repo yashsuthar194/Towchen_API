@@ -8,14 +8,15 @@ export class VendorDetailDto {
   full_name: string;
   email: string;
   number: string;
+  alternate_number: string;
   is_email_verified: boolean;
   vendor_image_url: string;
+  is_gst_vendor: boolean;
 
   pan_card_url: string;
   adhar_card_url: string;
   org_name: string;
   org_number: string;
-  org_alternate_number: string;
   org_certificate_url: string;
   org_email: string;
   gst_number: string;

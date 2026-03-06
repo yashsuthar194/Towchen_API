@@ -44,6 +44,15 @@ enum FleetType {
   Hydra
 }
 
+enum FuelType {
+  Petrol
+  Diesel
+  CNG
+  Electric
+  Hybrid
+  LPG
+}
+
 enum Role {
   SuperAdmin
   Admin
@@ -59,6 +68,7 @@ model vendor {
   full_name            String           @db.VarChar(255)
   email                String           @db.VarChar(255)
   number               String           @db.VarChar(20)
+  alternate_number String           @db.VarChar(20)
   password             String           @db.VarChar(255)
   is_email_verified    Boolean          @default(true)
   is_number_verified   Boolean          @default(true)
@@ -67,13 +77,15 @@ model vendor {
   services             VendorServices[]
   pan_card_url         String           @db.Text()
   adhar_card_url       String           @db.Text()
+  
   org_name             String           @db.VarChar(255)
   org_number           String           @db.VarChar(20)
-  org_alternate_number String           @db.VarChar(20)
   org_email            String           @db.VarChar(255)
   org_certificate_url  String           @db.Text()
+
   gst_number           String           @db.VarChar(15)
   gst_certificate_url  String           @db.Text()
+  
   approved_by          Int? // Admin id 
   is_deleted           Boolean          @default(false)
   status               VendorStatus     @default(Pending)
@@ -81,7 +93,7 @@ model vendor {
   updated_at           DateTime         @default(now()) @updatedAt
   is_deleted_by        Int?
   agreement_status     Boolean          @default(false)
-  signature_url        String           @db.Text()
+  signature_url        String?           @db.Text()
 
   bank_detail vendor_bank_detail?
   drivers     driver[]
@@ -201,7 +213,7 @@ model customer_vehicle {
   model               String   @db.VarChar(255)
   registration_number String   @db.VarChar(20)
   class               String   @db.VarChar(255)
-  fuel_type           String   @db.VarChar(255)
+  fuel_type           FuelType
   is_deleted          Boolean  @default(false)
   created_at          DateTime @default(now())
   updated_at          DateTime @default(now()) @updatedAt

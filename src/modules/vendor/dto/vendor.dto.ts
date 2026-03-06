@@ -6,6 +6,7 @@ export class VendorDto implements vendor {
   full_name: string;
   email: string;
   number: string;
+  alternate_number: string;
   password: string;
   is_email_verified: boolean;
   is_number_verified: boolean;
@@ -16,7 +17,6 @@ export class VendorDto implements vendor {
   adhar_card_url: string;
   org_name: string;
   org_number: string;
-  org_alternate_number: string;
   org_certificate_url: string;
   org_email: string;
   gst_number: string;
