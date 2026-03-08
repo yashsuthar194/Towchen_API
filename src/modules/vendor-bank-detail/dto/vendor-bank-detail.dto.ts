@@ -8,7 +8,7 @@ export class VendorBankDetailDto implements vendor_bank_detail {
   ifsc_code: string;
   branch_name: string;
   account_holder_name: string;
-  detail_url: string;
+  passbook_or_cancel_check_url: string;
 
   created_at: Date;
   updated_at: Date;

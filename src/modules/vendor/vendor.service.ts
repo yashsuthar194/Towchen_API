@@ -34,9 +34,9 @@ export class VendorService {
       select: {
         id: true,
         formated_id: true,
-        full_name: true,
+        vendor_name: true,
         email: true,
-        number: true,
+        mobile_number: true,
         services: true,
         approved_by: true,
         status: true,
@@ -55,19 +55,17 @@ export class VendorService {
       select: {
         id: true,
         formated_id: true,
-        full_name: true,
+        vendor_name: true,
         email: true,
-        number: true,
+        mobile_number: true,
         alternate_number: true,
         is_email_verified: true,
-        vendor_image_url: true,
+        vendor_profile_image_url: true,
         services: true,
         pan_card_url: true,
-        adhar_card_url: true,
-        org_name: true,
-        org_number: true,
-        org_certificate_url: true,
-        org_email: true,
+        aadhar_card_url: true,
+        organization_name: true,
+        organization_certificate_url: true,
         gst_number: true,
         gst_certificate_url: true,
         approved_by: true,
@@ -152,16 +150,16 @@ export class VendorService {
         ...vendorData,
         formated_id: '',
         status: 'Pending',
-        vendor_image_url: '',
+        vendor_profile_image_url: '',
         pan_card_url: '',
-        adhar_card_url: '',
+        aadhar_card_url: '',
         gst_certificate_url: '',
-        org_certificate_url: '',
+        organization_certificate_url: '',
         signature_url: '',
         bank_detail: {
           create: {
             ...bankDetail,
-            detail_url: '',
+            passbook_or_cancel_check_url: '',
           },
         },
       },
@@ -175,26 +173,26 @@ export class VendorService {
   private async updateVendorWithFileUrls(
     vendorId: number,
     fileUrls: {
-      vendor_image_url: string;
+      vendor_profile_image_url: string;
       pan_card_url: string;
-      adhar_card_url: string;
+      aadhar_card_url: string;
       gst_certificate_url: string;
-      org_certificate_url: string;
-      bank_detail_url: string;
+      organization_certificate_url: string;
+      passbook_or_cancel_check_url: string;
       signature_url: string;
     },
   ): Promise<VendorDetailDto> {
     return this._prismaService.vendor.update({
       data: {
-        vendor_image_url: fileUrls.vendor_image_url,
+        vendor_profile_image_url: fileUrls.vendor_profile_image_url,
         pan_card_url: fileUrls.pan_card_url,
-        adhar_card_url: fileUrls.adhar_card_url,
+        aadhar_card_url: fileUrls.aadhar_card_url,
         gst_certificate_url: fileUrls.gst_certificate_url,
-        org_certificate_url: fileUrls.org_certificate_url,
+        organization_certificate_url: fileUrls.organization_certificate_url,
         signature_url: fileUrls.signature_url,
         bank_detail: {
           update: {
-            detail_url: fileUrls.bank_detail_url,
+            passbook_or_cancel_check_url: fileUrls.passbook_or_cancel_check_url,
           },
         },
       },
@@ -202,21 +200,19 @@ export class VendorService {
       select: {
         id: true,
         formated_id: true,
-        full_name: true,
+        vendor_name: true,
         email: true,
-        number: true,
+        mobile_number: true,
         alternate_number: true,
         is_email_verified: true,
         is_number_verified: true,
         is_gst_vendor: true,
-        vendor_image_url: true,
+        vendor_profile_image_url: true,
         services: true,
         pan_card_url: true,
-        adhar_card_url: true,
-        org_name: true,
-        org_number: true,
-        org_certificate_url: true,
-        org_email: true,
+        aadhar_card_url: true,
+        organization_name: true,
+        organization_certificate_url: true,
         gst_number: true,
         gst_certificate_url: true,
         approved_by: true,
@@ -261,7 +257,7 @@ export class VendorService {
         bank_detail: {
           update: {
             ...bankDetail,
-            detail_url: bank_detail_url,
+            passbook_or_cancel_check_url: bank_detail_url,
           },
         },
         ...updatedFiles,
@@ -270,19 +266,17 @@ export class VendorService {
       select: {
         id: true,
         formated_id: true,
-        full_name: true,
+        vendor_name: true,
         email: true,
-        number: true,
+        mobile_number: true,
         alternate_number: true,
         is_email_verified: true,
-        vendor_image_url: true,
+        vendor_profile_image_url: true,
         services: true,
         pan_card_url: true,
-        adhar_card_url: true,
-        org_name: true,
-        org_number: true,
-        org_certificate_url: true,
-        org_email: true,
+        aadhar_card_url: true,
+        organization_name: true,
+        organization_certificate_url: true,
         gst_number: true,
         gst_certificate_url: true,
         approved_by: true,
@@ -357,9 +351,9 @@ export class VendorService {
     return {
       vendor_image_url: vendorImageResult?.url || undefined,
       pan_card_url: panCardResult?.url || undefined,
-      adhar_card_url: adharCardResult?.url || undefined,
+      aadhar_card_url: adharCardResult?.url || undefined,
       gst_certificate_url: gstCertResult?.url || undefined,
-      org_certificate_url: orgCertResult?.url || undefined,
+      organization_certificate_url: orgCertResult?.url || undefined,
       bank_detail_url: bankDetailResult?.url || undefined,
       signature_url: signatureUrlResult?.url || undefined,
     };
@@ -376,49 +370,52 @@ export class VendorService {
     const [
       vendorImageResult,
       panCardResult,
-      adharCardResult,
+      aadharCardResult,
       gstCertResult,
-      orgCertResult,
-      bankDetailResult,
-      signature_url,
+      organizationCertResult,
+      passbookOrCancelCheckResult,
+      signatureUrlResult,
     ] = await Promise.all([
-      this.uploadFileAsync(files.vendor_image[0], `vendor/${vendorId}/profile`),
+      this.uploadFileAsync(
+        files.vendor_profile_image[0],
+        `vendor/${vendorId}/profile`,
+      ),
       this.uploadFileAsync(
         files.pan_card[0],
         `vendor/${vendorId}/documents/pan`,
       ),
       this.uploadFileAsync(
-        files.adhar_card[0],
-        `vendor/${vendorId}/documents/adhar`,
+        files.aadhar_card[0],
+        `vendor/${vendorId}/documents/aadhar`,
       ),
       this.uploadFileAsync(
-        files.gst_certification[0],
+        files.gst_certificate[0],
         `vendor/${vendorId}/documents/gst`,
       ),
       this.uploadFileAsync(
-        files.org_certification[0],
+        files.organization_certificate[0],
         `vendor/${vendorId}/documents/org`,
       ),
       this.uploadFileAsync(
-        files.bank_detail[0],
+        files.passbook_or_cancel_check[0],
         `vendor/${vendorId}/documents/bank`,
       ),
-      files.signature_url?.[0]
+      files.signature?.[0]
         ? this.uploadFileAsync(
-            files.signature_url[0],
+            files.signature[0],
             `vendor/${vendorId}/documents/signature`,
           )
         : Promise.resolve(null),
     ]);
 
     return {
-      vendor_image_url: vendorImageResult.url,
+      vendor_profile_image_url: vendorImageResult.url,
       pan_card_url: panCardResult.url,
-      adhar_card_url: adharCardResult.url,
+      aadhar_card_url: aadharCardResult.url,
       gst_certificate_url: gstCertResult.url,
-      org_certificate_url: orgCertResult.url,
-      bank_detail_url: bankDetailResult.url,
-      signature_url: signature_url?.url ?? '',
+      organization_certificate_url: organizationCertResult.url,
+      passbook_or_cancel_check_url: passbookOrCancelCheckResult.url,
+      signature_url: signatureUrlResult?.url ?? '',
     };
   }
 
@@ -431,12 +428,12 @@ export class VendorService {
    */
   private validateRequiredFiles(files: VendorUploadFilesPostDto): void {
     const requiredFiles: (keyof VendorUploadFilesPostDto)[] = [
-      'vendor_image',
+      'vendor_profile_image',
       'pan_card',
-      'adhar_card',
-      'gst_certification',
-      'org_certification',
-      'bank_detail',
+      'aadhar_card',
+      'gst_certificate',
+      'organization_certificate',
+      'passbook_or_cancel_check',
     ];
 
     const missingFiles = requiredFiles.filter((field) => !files[field]);

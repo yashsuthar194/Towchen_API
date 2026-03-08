@@ -33,7 +33,7 @@ export class DriverAuthService {
     private readonly _jwtService: JwtService,
     private readonly _smsService: SmsService,
     private readonly _emailService: MailService,
-  ) { }
+  ) {}
 
   /**
    * Logs in a driver.
@@ -80,7 +80,7 @@ export class DriverAuthService {
   async sendVerificationOtpAsync(request: DriverVerificationRequestDto) {
     const driver = await this._prismaService.driver.findFirst({
       where: {
-        number: request.number,
+        mobile_number: request.number,
         email: request.email,
         is_deleted: false,
       },
@@ -194,7 +194,7 @@ export class DriverAuthService {
 
     const vendor = await this._prismaService.driver.findFirst({
       where: {
-        number: request.number,
+        mobile_number: request.number,
         email: request.email,
         is_deleted: false,
       },
@@ -239,13 +239,15 @@ export class DriverAuthService {
   async sendLoginOtpAsync(dto: DriverOtpLoginDto): Promise<ResponseDto<null>> {
     const driver = await this._prismaService.driver.findFirst({
       where: {
-        number: dto.number,
+        mobile_number: dto.number,
         is_deleted: false,
       },
     });
 
     if (!driver) {
-      throw new NotFoundException('No driver found with this mobile number. Please register first.');
+      throw new NotFoundException(
+        'No driver found with this mobile number. Please register first.',
+      );
     }
 
     const otpCode = Utility.generateOtp(OTP_LENGTH);
@@ -281,7 +283,7 @@ export class DriverAuthService {
   ): Promise<ResponseDto<DriverLoginResponseDto>> {
     const driver = await this._prismaService.driver.findFirst({
       where: {
-        number: dto.number,
+        mobile_number: dto.number,
         is_deleted: false,
       },
     });

@@ -10,12 +10,17 @@ import {
   Matches,
   MinLength,
 } from 'class-validator';
-import { VendorServices } from '@prisma/client';
+import {
+  OrganizationType,
+  SignatureType,
+  VendorServices,
+} from '@prisma/client';
+import { VendorDto } from './vendor.dto';
 
-export class CreateVendorDto {
+export class CreateVendorDto implements Partial<VendorDto> {
   @IsNotEmpty()
   @IsString()
-  full_name: string;
+  vendor_name: string;
 
   @IsNotEmpty()
   @IsEmail()
@@ -24,9 +29,9 @@ export class CreateVendorDto {
   @IsNotEmpty()
   @IsString()
   @Matches(/^[6-9]\d{9}$/, {
-    message: 'number must be a valid 10-digit Indian mobile number',
+    message: 'mobile_number must be a valid 10-digit Indian mobile number',
   })
-  number: string;
+  mobile_number: string;
 
   @IsNotEmpty()
   @IsString()
@@ -40,15 +45,10 @@ export class CreateVendorDto {
   @MinLength(8, { message: 'password must be at least 8 characters' })
   password: string;
 
-  @IsBoolean()
-  @IsNotEmpty()
-  @Transform(({ value }) => value === 'true' || value === true)
-  is_gst_vendor: boolean;
-
   @ApiProperty({
     type: [String],
     enum: Object.values(VendorServices),
-    example: [VendorServices.ROS],
+    example: [VendorServices.Towing],
     description: 'Send as JSON string, e.g. \'["ROS","CATERING"]\'',
   })
   @Transform(({ value }) => {
@@ -70,22 +70,25 @@ export class CreateVendorDto {
   })
   @IsArray()
   @IsEnum(VendorServices, { each: true })
-  services: VendorServices[];
+  select_services: VendorServices[];
 
   @IsNotEmpty()
   @IsString()
-  org_name: string;
+  organization_name: string;
 
-  @IsNotEmpty()
-  @IsString()
-  @Matches(/^[6-9]\d{9}$/, {
-    message: 'org_number must be a valid 10-digit Indian mobile number',
+  @ApiProperty({
+    type: 'string',
+    enum: OrganizationType,
+    example: OrganizationType.Cooperative,
+    description: 'Organization type',
   })
-  org_number: string;
+  @IsEnum(OrganizationType)
+  organization_type: OrganizationType;
 
+  @IsBoolean()
   @IsNotEmpty()
-  @IsEmail()
-  org_email: string;
+  @Transform(({ value }) => value === 'true' || value === true)
+  is_gst_vendor: boolean;
 
   @IsNotEmpty()
   @IsString()
@@ -93,6 +96,23 @@ export class CreateVendorDto {
     message: 'gst_number must be a valid GST number',
   })
   gst_number: string;
+
+  @IsString()
+  @IsNotEmpty()
+  representative_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  representative_designation: string;
+
+  @ApiProperty({
+    type: 'string',
+    enum: SignatureType,
+    example: SignatureType.Upload,
+    description: 'Signature type',
+  })
+  @IsEnum(SignatureType)
+  signature_type: SignatureType;
 
   // Bank detail fields (flattened for FormData compatibility)
   @IsNotEmpty()
@@ -126,6 +146,10 @@ export class CreateVendorDto {
   @Transform(({ value }) => value === 'true' || value === true)
   agreement_status: boolean = false;
 
+  @IsString()
+  @IsNotEmpty()
+  pan_number: string;
+
   /**
    * Extracts vendor-only data (without bank detail fields)
    */
@@ -136,9 +160,10 @@ export class CreateVendorDto {
       ifsc_code,
       branch_name,
       account_holder_name,
+      select_services,
       ...vendorData
     } = dto;
-    return vendorData;
+    return { services: select_services, ...vendorData };
   }
 
   /**

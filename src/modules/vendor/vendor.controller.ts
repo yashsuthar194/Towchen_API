@@ -138,13 +138,13 @@ export class VendorController {
   })
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'vendor_image', maxCount: 1 },
+      { name: 'vendor_profile_image', maxCount: 1 },
       { name: 'pan_card', maxCount: 1 },
-      { name: 'adhar_card', maxCount: 1 },
-      { name: 'gst_certification', maxCount: 1 },
-      { name: 'org_certification', maxCount: 1 },
-      { name: 'bank_detail', maxCount: 1 },
-      { name: 'signature_url', maxCount: 1 },
+      { name: 'aadhar_card', maxCount: 1 },
+      { name: 'gst_certificate', maxCount: 1 },
+      { name: 'organization_certificate', maxCount: 1 },
+      { name: 'passbook_or_cancel_check', maxCount: 1 },
+      { name: 'signature', maxCount: 1 },
     ]),
   )
   async createAsync(
@@ -176,13 +176,13 @@ export class VendorController {
   })
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'vendor_image' },
+      { name: 'vendor_profile_image' },
       { name: 'pan_card' },
-      { name: 'adhar_card' },
-      { name: 'gst_certification' },
-      { name: 'org_certification' },
-      { name: 'bank_detail' },
-      { name: 'signature_url' },
+      { name: 'aadhar_card' },
+      { name: 'gst_certificate' },
+      { name: 'organization_certificate' },
+      { name: 'passbook_or_cancel_check' },
+      { name: 'signature' },
     ]),
   )
   async updateAsync(

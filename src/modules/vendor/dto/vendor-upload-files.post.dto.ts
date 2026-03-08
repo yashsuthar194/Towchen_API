@@ -7,7 +7,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 export class VendorUploadFilesPostDto {
   /** Vendor profile image file (JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
-  vendor_image: Express.Multer.File;
+  vendor_profile_image: Express.Multer.File;
 
   /** PAN Card document file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
@@ -15,21 +15,21 @@ export class VendorUploadFilesPostDto {
 
   /** Aadhaar Card document file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
-  adhar_card: Express.Multer.File;
+  aadhar_card: Express.Multer.File;
 
   /** GST Certificate document file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
-  gst_certification: Express.Multer.File;
+  gst_certificate: Express.Multer.File;
 
   /** Organization Certificate document file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
-  org_certification: Express.Multer.File;
+  organization_certificate: Express.Multer.File;
 
-  /** Bank detail file (PDF, JPEG, PNG) */
+  /** Passbook or Cancel Check file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
-  bank_detail: Express.Multer.File;
+  passbook_or_cancel_check: Express.Multer.File;
 
   /** Signature file (PDF, JPEG, PNG) */
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
-  signature_url: Express.Multer.File;
+  signature: Express.Multer.File;
 }

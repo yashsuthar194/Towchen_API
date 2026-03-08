@@ -9,25 +9,27 @@ import {
   MinLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { driver } from '@prisma/client';
 
-export class CreateDriverDto {
+export class CreateDriverDto implements Partial<driver> {
   @IsNotEmpty()
   @IsString()
-  full_name: string;
-
-  @IsNotEmpty()
-  @IsString()
-  @Matches(/^[6-9]\d{9}$/, {
-    message: 'number must be a valid 10-digit Indian mobile number',
-  })
-  number: string;
+  driver_name: string;
 
   @IsNotEmpty()
   @IsString()
   @Matches(/^[6-9]\d{9}$/, {
-    message: 'alternate_number must be a valid 10-digit Indian mobile number',
+    message: 'mobile_number must be a valid 10-digit Indian mobile number',
   })
-  alternate_number: string;
+  mobile_number: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^[6-9]\d{9}$/, {
+    message:
+      'alternate_mobile_number must be a valid 10-digit Indian mobile number',
+  })
+  alternate_mobile_number: string;
 
   @IsNotEmpty()
   @IsEmail()

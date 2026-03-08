@@ -1,17 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { VendorServices, VendorStatus } from '@prisma/client';
-import { VendorBankDetailDto } from 'src/modules/vendor-bank-detail/dto/vendor-bank-detail.dto';
+import { VendorDto } from './vendor.dto';
 
-export class VendorListDto {
+export class VendorListDto implements Partial<VendorDto> {
   id: number;
   formated_id: string;
-  full_name: string;
+  vendor_name: string;
   email: string;
-  number: string;
+  mobile_number: string;
 
   @ApiProperty({
     enum: Object.values(VendorServices),
-    example: [VendorServices.ROS],
+    example: [VendorServices.Towing],
   })
   services: VendorServices[];
 

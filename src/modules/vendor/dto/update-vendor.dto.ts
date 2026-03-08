@@ -7,13 +7,18 @@ import {
   IsArray,
   IsEnum,
   Matches,
+  IsBoolean,
 } from 'class-validator';
-import { VendorServices } from '@prisma/client';
+import {
+  OrganizationType,
+  SignatureType,
+  VendorServices,
+} from '@prisma/client';
 
 export class UpdateVendorDto {
   @IsNotEmpty()
   @IsString()
-  full_name: string;
+  vendor_name: string;
 
   @IsNotEmpty()
   @IsEmail()
@@ -24,13 +29,20 @@ export class UpdateVendorDto {
   @Matches(/^[6-9]\d{9}$/, {
     message: 'number must be a valid 10-digit Indian mobile number',
   })
-  number: string;
+  mobile_number: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^[6-9]\d{9}$/, {
+    message: 'alternate_number must be a valid 10-digit Indian mobile number',
+  })
+  alternate_number: string;
 
   @ApiProperty({
     type: [String],
     enum: Object.values(VendorServices),
-    example: [VendorServices.ROS],
-    description: 'Send as JSON string, e.g. \'["ROS","CATERING"]\'',
+    example: [VendorServices.Towing],
+    description: 'Send as JSON string, e.g. \'["Towing"]\'',
   })
   @Transform(({ value }) => {
     // Already an array (e.g., from repeated form fields: services=ROS&services=CATERING)
@@ -51,30 +63,25 @@ export class UpdateVendorDto {
   })
   @IsArray()
   @IsEnum(VendorServices, { each: true })
-  services: VendorServices[];
+  select_services: VendorServices[];
 
   @IsNotEmpty()
   @IsString()
-  org_name: string;
+  organization_name: string;
 
-  @IsNotEmpty()
-  @IsString()
-  @Matches(/^[6-9]\d{9}$/, {
-    message: 'org_number must be a valid 10-digit Indian mobile number',
+  @ApiProperty({
+    type: 'string',
+    enum: OrganizationType,
+    example: OrganizationType.Cooperative,
+    description: 'Organization type',
   })
-  org_number: string;
+  @IsEnum(OrganizationType)
+  organization_type: OrganizationType;
 
+  @IsBoolean()
   @IsNotEmpty()
-  @IsString()
-  @Matches(/^[6-9]\d{9}$/, {
-    message:
-      'org_alternate_number must be a valid 10-digit Indian mobile number',
-  })
-  org_alternate_number: string;
-
-  @IsNotEmpty()
-  @IsEmail()
-  org_email: string;
+  @Transform(({ value }) => value === 'true' || value === true)
+  is_gst_vendor: boolean;
 
   @IsNotEmpty()
   @IsString()
@@ -82,6 +89,23 @@ export class UpdateVendorDto {
     message: 'gst_number must be a valid GST number',
   })
   gst_number: string;
+
+  @IsString()
+  @IsNotEmpty()
+  representative_name: string;
+
+  @IsNotEmpty()
+  @IsString()
+  representative_designation: string;
+
+  @ApiProperty({
+    type: 'string',
+    enum: SignatureType,
+    example: SignatureType.Upload,
+    description: 'Signature type',
+  })
+  @IsEnum(SignatureType)
+  signature_type: SignatureType;
 
   // Bank detail fields (flattened for FormData compatibility)
   @IsNotEmpty()
@@ -110,6 +134,11 @@ export class UpdateVendorDto {
   @IsString()
   account_holder_name: string;
 
+  @IsNotEmpty()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true' || value === true)
+  agreement_status: boolean = false;
+
   /**
    * Extracts vendor-only data (without bank detail fields)
    */
@@ -120,9 +149,10 @@ export class UpdateVendorDto {
       ifsc_code,
       branch_name,
       account_holder_name,
+      select_services,
       ...vendorData
     } = dto;
-    return vendorData;
+    return { services: select_services, ...vendorData };
   }
 
   /**

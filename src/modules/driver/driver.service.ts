@@ -20,7 +20,7 @@ export class DriverService {
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
     private readonly _callerService: CallerService,
-  ) { }
+  ) {}
 
   // #region Get
   /**
@@ -33,9 +33,9 @@ export class DriverService {
       select: {
         id: true,
         formated_id: true,
-        full_name: true,
+        driver_name: true,
         email: true,
-        number: true,
+        alternate_mobile_number: true,
         status: true,
         created_at: true,
       },
@@ -59,7 +59,7 @@ export class DriverService {
     if (!driver) {
       throw new NotFoundException(`Driver with ID ${id} not found`);
     }
-    return driver as DriverDetailDto;
+    return driver as unknown as DriverDetailDto;
   }
   // #endregion
 
@@ -75,10 +75,7 @@ export class DriverService {
     files: DriverUploadFilesPostDto,
   ): Promise<DriverDetailDto> {
     this._validateRequiredFiles(files);
-    await this._validateUniqueness(
-      dto.email,
-      dto.number,
-    );
+    await this._validateUniqueness(dto.email, dto.mobile_number);
 
     const driver = await this._createDriverRecord(dto);
 
@@ -105,7 +102,9 @@ export class DriverService {
     const vendorId = isVendor ? this._callerService.getUserId() : dto.vendor_id;
 
     if (!vendorId) {
-      throw new BadRequestException('vendor_id is required when an Admin creates a driver.');
+      throw new BadRequestException(
+        'vendor_id is required when an Admin creates a driver.',
+      );
     }
 
     return this._prismaService.driver.create({
@@ -127,7 +126,7 @@ export class DriverService {
   private async _updateDriverWithFileUrls(
     driverId: number,
     fileUrls: {
-      adhar_card_url: string;
+      aadhar_card_url: string;
       pan_card_url: string;
       driver_license_url: string;
     },
@@ -164,13 +163,11 @@ export class DriverService {
     // Check if exists
     await this.getByIdAsync(id);
 
-    await this._validateUniqueness(
-      dto.email,
-      dto.number,
-      id,
-    );
+    await this._validateUniqueness(dto.email, dto.mobile_number, id);
 
-    const updatedFiles = files ? await this._updateDriverFilesAsync(id, files) : {};
+    const updatedFiles = files
+      ? await this._updateDriverFilesAsync(id, files)
+      : {};
 
     const driverData = UpdateDriverDto.toDriverData(dto);
     if (driverData.password) {
@@ -218,7 +215,7 @@ export class DriverService {
     const [adharCardResult, panCardResult, driverLicenseResult] =
       await Promise.all([
         this._updateFileAsync(
-          files.adhar_card?.[0],
+          files.aadhar_card?.[0],
           `driver/${driverId}/documents/adhar`,
         ),
         this._updateFileAsync(
@@ -232,7 +229,7 @@ export class DriverService {
       ]);
 
     return {
-      adhar_card_url: adharCardResult?.url || undefined,
+      aadhar_card_url: adharCardResult?.url || undefined,
       pan_card_url: panCardResult?.url || undefined,
       driver_license_url: driverLicenseResult?.url || undefined,
     };
@@ -280,7 +277,7 @@ export class DriverService {
       promises.push(
         this._prismaService.vendor
           .findFirst({
-            where: { number, is_deleted: false },
+            where: { mobile_number: number, is_deleted: false },
             select: { id: true },
           })
           .then((vendor) => {
@@ -291,7 +288,7 @@ export class DriverService {
           }),
         this._prismaService.driver
           .findFirst({
-            where: { number, is_deleted: false },
+            where: { mobile_number: number, is_deleted: false },
             select: { id: true },
           })
           .then((driver) => {
@@ -314,7 +311,7 @@ export class DriverService {
    */
   private _validateRequiredFiles(files: DriverUploadFilesPostDto): void {
     const requiredFiles: (keyof DriverUploadFilesPostDto)[] = [
-      'adhar_card',
+      'aadhar_card',
       'pan_card',
       'driver_license',
     ];
@@ -339,7 +336,7 @@ export class DriverService {
     const [adharCardResult, panCardResult, driverLicenseResult] =
       await Promise.all([
         this._uploadFileAsync(
-          files.adhar_card[0],
+          files.aadhar_card[0],
           `driver/${driverId}/documents/adhar`,
         ),
         this._uploadFileAsync(
@@ -353,7 +350,7 @@ export class DriverService {
       ]);
 
     return {
-      adhar_card_url: adharCardResult.url,
+      aadhar_card_url: adharCardResult.url,
       pan_card_url: panCardResult.url,
       driver_license_url: driverLicenseResult.url,
     };
