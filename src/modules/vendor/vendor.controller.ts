@@ -46,10 +46,6 @@ import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 export class VendorController {
   constructor(private readonly _vendorService: VendorService) {}
 
-  // ────────────────────────────────────────────────────────
-  //  Profile & Read (static routes first)
-  // ────────────────────────────────────────────────────────
-
   /**
    * Retrieves the currently authenticated vendor's own profile.
    *
@@ -83,10 +79,6 @@ export class VendorController {
     return ResponseDto.retrieved('Vendors retrieved successfully', vendors);
   }
 
-  // ────────────────────────────────────────────────────────
-  //  Create (POST — no param conflict)
-  // ────────────────────────────────────────────────────────
-
   /**
    * Creates a new vendor account.
    *
@@ -106,10 +98,6 @@ export class VendorController {
     const result = await this._vendorService.createAsync(dto);
     return ResponseDto.created('Vendor created successfully', result);
   }
-
-  // ────────────────────────────────────────────────────────
-  //  Agreement (static PUT — must be before PUT :id)
-  // ────────────────────────────────────────────────────────
 
   /**
    * Submits or updates the vendor's agreement details.
@@ -141,18 +129,6 @@ export class VendorController {
     );
     return ResponseDto.updated('Agreement submitted successfully', vendor);
   }
-
-  // ────────────────────────────────────────────────────────
-  //  Individual Document Uploads (static PUTs — before :id)
-  // ────────────────────────────────────────────────────────
-  //
-  // Each endpoint accepts a single file via multipart/form-data
-  // with the field name "file". If the document already exists
-  // for this vendor, it is replaced (upsert behaviour).
-  //
-  // All endpoints require a valid JWT token for a Vendor role.
-  // The vendor ID is extracted from the JWT — no ID in the URL.
-  // ────────────────────────────────────────────────────────
 
   /**
    * Uploads or replaces the vendor's profile image.
@@ -340,10 +316,6 @@ export class VendorController {
     return ResponseDto.updated('Signature uploaded successfully', result);
   }
 
-  // ────────────────────────────────────────────────────────
-  //  Parameterized routes (MUST come after all static routes)
-  // ────────────────────────────────────────────────────────
-
   /**
    * Retrieves full details for a specific vendor, including bank details,
    * all document URLs, and approval status.
@@ -399,10 +371,6 @@ export class VendorController {
     await this._vendorService.deleteAsync(id);
     return ResponseDto.deleted('Vendor deleted successfully');
   }
-
-  // ────────────────────────────────────────────────────────
-  //  Helpers
-  // ────────────────────────────────────────────────────────
 
   /**
    * Validates that a file was actually included in the multipart request.
