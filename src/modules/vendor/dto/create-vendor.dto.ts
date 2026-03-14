@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -12,146 +11,155 @@ import {
 } from 'class-validator';
 import {
   OrganizationType,
-  SignatureType,
   VendorServices,
 } from '@prisma/client';
 import { VendorDto } from './vendor.dto';
+import { Match } from 'src/shared/validators/match.decorator';
 
+/**
+ * DTO for creating a new vendor account.
+ *
+ * Accepts a plain JSON payload. Agreement and document uploads
+ * are handled via separate endpoints after registration.
+ *
+ * @remarks
+ * - Agreement fields (`signature_type`, `agreement_status`,
+ *   `representative_name`, `representative_designation`) are submitted
+ *   via `PUT /vendor/agreement`.
+ * - Documents (PAN, Aadhaar, etc.) are uploaded via
+ *   `PUT /vendor/document/*` endpoints.
+ */
 export class CreateVendorDto implements Partial<VendorDto> {
+  /** Full name of the vendor or business owner */
   @IsNotEmpty()
   @IsString()
+  @ApiProperty({ example: 'Rajesh Kumar' })
   vendor_name: string;
 
+  /** Vendor's email address (must be unique across vendors) */
   @IsNotEmpty()
   @IsEmail()
+  @ApiProperty({ example: 'rajesh@example.com' })
   email: string;
 
+  /** Primary 10-digit Indian mobile number */
   @IsNotEmpty()
   @IsString()
   @Matches(/^[6-9]\d{9}$/, {
     message: 'mobile_number must be a valid 10-digit Indian mobile number',
   })
+  @ApiProperty({ example: '9876543210' })
   mobile_number: string;
 
+  /** Alternate 10-digit Indian mobile number */
   @IsNotEmpty()
   @IsString()
   @Matches(/^[6-9]\d{9}$/, {
     message: 'alternate_number must be a valid 10-digit Indian mobile number',
   })
+  @ApiProperty({ example: '8765432109' })
   alternate_number: string;
 
+  /** Account password (minimum 8 characters) */
   @IsNotEmpty()
   @IsString()
   @MinLength(8, { message: 'password must be at least 8 characters' })
+  @ApiProperty({ example: 'StrongP@ss1' })
   password: string;
 
-  @ApiProperty({
-    type: [String],
-    enum: Object.values(VendorServices),
-    example: [VendorServices.Towing],
-    description: 'Send as JSON string, e.g. \'["ROS","CATERING"]\'',
-  })
-  @Transform(({ value }) => {
-    // Already an array (e.g., from repeated form fields: services=ROS&services=CATERING)
-    if (Array.isArray(value)) return value;
+  /** Must exactly match the `password` field */
+  @IsNotEmpty({ message: 'confirm_password is required' })
+  @IsString()
+  @Match('password', { message: 'confirm_password must match password' })
+  @ApiProperty({ example: 'StrongP@ss1' })
+  confirm_password: string;
 
-    if (typeof value === 'string') {
-      try {
-        // Try JSON string: '["ROS","CATERING"]'
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [parsed];
-      } catch {
-        // Plain string: 'ROS' → ['ROS']
-        return [value];
-      }
-    }
-
-    return [value];
-  })
+  /** Services the vendor provides */
   @IsArray()
   @IsEnum(VendorServices, { each: true })
+  @ApiProperty({
+    type: [String],
+    enum: VendorServices,
+    example: [VendorServices.Towing],
+  })
   select_services: VendorServices[];
 
+  /** Name of the vendor's organization or business */
   @IsNotEmpty()
   @IsString()
+  @ApiProperty({ example: 'Kumar Towing Services Pvt Ltd' })
   organization_name: string;
 
-  @ApiProperty({
-    type: 'string',
-    enum: OrganizationType,
-    example: OrganizationType.Cooperative,
-    description: 'Organization type',
-  })
+  /** Type of organization */
   @IsEnum(OrganizationType)
+  @ApiProperty({ enum: OrganizationType, example: OrganizationType.Cooperative })
   organization_type: OrganizationType;
 
+  /** Whether the vendor is GST-registered */
   @IsBoolean()
   @IsNotEmpty()
-  @Transform(({ value }) => value === 'true' || value === true)
+  @ApiProperty({ example: true })
   is_gst_vendor: boolean;
 
+  /** GST identification number (15-character alphanumeric format) */
   @IsNotEmpty()
   @IsString()
   @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, {
     message: 'gst_number must be a valid GST number',
   })
+  @ApiProperty({ example: '27AAPFU0939F1ZV' })
   gst_number: string;
 
-  @IsString()
-  @IsNotEmpty()
-  representative_name: string;
+  // ── Bank detail fields (flattened for JSON compatibility) ──
 
-  @IsNotEmpty()
-  @IsString()
-  representative_designation: string;
-
-  @ApiProperty({
-    type: 'string',
-    enum: SignatureType,
-    example: SignatureType.Upload,
-    description: 'Signature type',
-  })
-  @IsEnum(SignatureType)
-  signature_type: SignatureType;
-
-  // Bank detail fields (flattened for FormData compatibility)
+  /** Name of the vendor's bank */
   @IsNotEmpty()
   @IsString()
+  @ApiProperty({ example: 'State Bank of India' })
   bank_name: string;
 
+  /** Bank account number (9–18 digits) */
   @IsNotEmpty()
   @IsString()
   @Matches(/^\d{9,18}$/, {
     message: 'account_number must be a valid bank account number (9-18 digits)',
   })
+  @ApiProperty({ example: '20235678901234' })
   account_number: string;
 
+  /** IFSC code of the bank branch (e.g. SBIN0001234) */
   @IsNotEmpty()
   @IsString()
   @Matches(/^[A-Z]{4}0[A-Z0-9]{6}$/i, {
     message: 'ifsc_code must be a valid IFSC code (e.g. SBIN0001234)',
   })
+  @ApiProperty({ example: 'SBIN0001234' })
   ifsc_code: string;
 
+  /** Name of the bank branch */
   @IsNotEmpty()
   @IsString()
+  @ApiProperty({ example: 'Andheri West Branch' })
   branch_name: string;
 
+  /** Name of the bank account holder */
   @IsNotEmpty()
   @IsString()
+  @ApiProperty({ example: 'Rajesh Kumar' })
   account_holder_name: string;
 
-  @IsNotEmpty()
-  @IsBoolean()
-  @Transform(({ value }) => value === 'true' || value === true)
-  agreement_status: boolean = false;
-
+  /** PAN card number */
   @IsString()
   @IsNotEmpty()
+  @ApiProperty({ example: 'ABCDE1234F' })
   pan_number: string;
 
   /**
-   * Extracts vendor-only data (without bank detail fields)
+   * Extracts vendor-only data from the DTO (excludes bank detail fields
+   * and the `select_services` rename).
+   *
+   * @returns An object suitable for Prisma's `vendor.create({ data })`,
+   *          with `services` mapped from `select_services`.
    */
   static toVendorData(dto: CreateVendorDto) {
     const {
@@ -161,13 +169,16 @@ export class CreateVendorDto implements Partial<VendorDto> {
       branch_name,
       account_holder_name,
       select_services,
+      confirm_password,
       ...vendorData
     } = dto;
     return { services: select_services, ...vendorData };
   }
 
   /**
-   * Extracts bank detail fields from the flat DTO
+   * Extracts bank detail fields from the flat DTO.
+   *
+   * @returns An object suitable for Prisma's `vendor_bank_detail.create({ data })`.
    */
   static toBankDetail(dto: CreateVendorDto) {
     return {
