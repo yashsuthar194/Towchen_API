@@ -67,13 +67,6 @@ export class CreateVendorDto implements Partial<VendorDto> {
   @ApiProperty({ example: 'StrongP@ss1' })
   password: string;
 
-  /** Must exactly match the `password` field */
-  @IsNotEmpty({ message: 'confirm_password is required' })
-  @IsString()
-  @Match('password', { message: 'confirm_password must match password' })
-  @ApiProperty({ example: 'StrongP@ss1' })
-  confirm_password: string;
-
   /** Services the vendor provides */
   @IsArray()
   @IsEnum(VendorServices, { each: true })
@@ -169,7 +162,6 @@ export class CreateVendorDto implements Partial<VendorDto> {
       branch_name,
       account_holder_name,
       select_services,
-      confirm_password,
       ...vendorData
     } = dto;
     return { services: select_services, ...vendorData };

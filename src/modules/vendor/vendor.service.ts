@@ -147,13 +147,6 @@ export class VendorService {
   async createAsync(
     dto: CreateVendorDto,
   ): Promise<VendorRegistrationResponseDto> {
-    // Validate password confirmation
-    if (dto.password !== dto.confirm_password) {
-      throw new BadRequestException(
-        'password and confirm_password do not match',
-      );
-    }
-
     const vendor = await this.createVendorRecord(dto);
     const vendorDetail = await this.getByIdAsync(vendor.id);
 
