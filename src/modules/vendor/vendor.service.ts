@@ -82,7 +82,7 @@ export class VendorService {
    * @throws {NotFoundException} If no active vendor with the given ID exists
    */
   async getByIdAsync(id: number): Promise<VendorDetailDto> {
-    return await this._prismaService.vendor.findFirstOrThrow({
+    const vendor = await this._prismaService.vendor.findFirstOrThrow({
       select: {
         id: true,
         formated_id: true,
@@ -113,6 +113,8 @@ export class VendorService {
         is_deleted: false,
       },
     });
+
+    return {...vendor, select_services: vendor.services}
   }
 
   /**
@@ -307,7 +309,7 @@ export class VendorService {
     const vendorData = UpdateVendorDto.toVendorData(dto);
     const bankDetail = UpdateVendorDto.toBankDetail(dto);
 
-    return await this._prismaService.vendor.update({
+    const vendor = await this._prismaService.vendor.update({
       data: {
         ...vendorData,
         bank_detail: {
@@ -341,6 +343,8 @@ export class VendorService {
         is_gst_vendor: true,
       },
     });
+
+    return {...vendor, select_services: vendor.services}
   }
 
   // ────────────────────────────────────────────────────────
