@@ -97,6 +97,7 @@ export class VendorService {
         aadhar_card_url: true,
         organization_name: true,
         organization_certificate_url: true,
+        organization_type: true,
         gst_number: true,
         gst_certificate_url: true,
         approved_by: true,
