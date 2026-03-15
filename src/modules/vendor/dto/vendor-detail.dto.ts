@@ -28,7 +28,7 @@ export class VendorDetailDto implements Partial<VendorDto> {
     enum: Object.values(VendorServices),
     example: [VendorServices.Towing],
   })
-  select_services: VendorServices[];
+  services: VendorServices[];
 
   @ApiProperty({
     enum: Object.values(VendorStatus),
