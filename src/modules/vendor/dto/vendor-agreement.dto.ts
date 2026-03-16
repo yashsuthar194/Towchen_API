@@ -69,6 +69,12 @@ export class VendorAgreementDto {
   @ApiProperty({ example: true })
   agreement_status: boolean;
 
+    /** PAN card number */
+  @IsString()
+  @IsNotEmpty()
+  @ApiProperty({ example: 'ABCDE1234F' })
+  pan_number: string;
+
   /** Optional signature document file (only for Swagger schema) */
   @ApiProperty({
     type: 'string',
