@@ -53,7 +53,7 @@ export class DriverController {
   })
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'adhar_card', maxCount: 1 },
+      { name: 'aadhar_card', maxCount: 1 },
       { name: 'pan_card', maxCount: 1 },
       { name: 'driver_license', maxCount: 1 },
     ]),
@@ -100,7 +100,7 @@ export class DriverController {
   })
   @UseInterceptors(
     FileFieldsInterceptor([
-      { name: 'adhar_card', maxCount: 1 },
+      { name: 'aadhar_card', maxCount: 1 },
       { name: 'pan_card', maxCount: 1 },
       { name: 'driver_license', maxCount: 1 },
     ]),

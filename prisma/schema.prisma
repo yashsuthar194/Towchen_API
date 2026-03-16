@@ -163,7 +163,7 @@ model driver {
   password           String       @db.VarChar(255)
   is_email_verified  Boolean      @default(false)
   is_number_verified Boolean      @default(false)
-  adhar_card_url     String       @db.Text()
+  aadhar_card_url     String       @db.Text()
   pan_card_url       String       @db.Text()
   driver_license_url String       @db.Text()
   is_deleted         Boolean      @default(false)
@@ -171,6 +171,8 @@ model driver {
   updated_at         DateTime     @default(now()) @updatedAt
   is_deleted_by      Int?
   status             DriverStatus @default(Busy)
+  start_location     Int?      @db.Integer
+  end_location       Int?      @db.Integer
 
   vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
   vendor  vendor   @relation(fields: [vendor_id], references: [id])
@@ -243,4 +245,23 @@ model customer_vehicle {
   customer customer @relation(fields: [customer_id], references: [id])
 
   @@index([customer_id])
+}
+
+model driver_location {
+  id        Int     @id @default(autoincrement())
+
+  address   String?
+  street    String?
+  area      String?
+  city      String?
+  state     String?
+  pincode   String?
+  country   String?
+
+  latitude  Float
+  longitude Float
+
+  landmark  String?
+
+  created_at DateTime @default(now())
 }
