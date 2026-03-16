@@ -13,6 +13,7 @@ export class VendorDetailDto implements Partial<VendorDto> {
   is_email_verified: boolean;
   vendor_profile_image_url: string;
   is_gst_vendor: boolean;
+  is_a_gst_vendor: "Yes" | "No";
 
   pan_card_url: string;
   aadhar_card_url: string;

@@ -43,10 +43,7 @@ export class VendorService {
     private readonly _jwtService: JwtService,
   ) {}
 
-  // ────────────────────────────────────────────────────────
-  //  Read
-  // ────────────────────────────────────────────────────────
-
+  //#region Get
   /**
    * Retrieves a summary list of all active (non-deleted) vendors.
    *
@@ -82,7 +79,7 @@ export class VendorService {
    * @throws {NotFoundException} If no active vendor with the given ID exists
    */
   async getByIdAsync(id: number): Promise<VendorDetailDto> {
-    return await this._prismaService.vendor.findFirstOrThrow({
+    const vendor = await this._prismaService.vendor.findFirstOrThrow({
       select: {
         id: true,
         formated_id: true,
@@ -113,6 +110,11 @@ export class VendorService {
         is_deleted: false,
       },
     });
+
+    return {
+      ...vendor,
+      is_a_gst_vendor: vendor.is_gst_vendor ? 'Yes' : 'No',
+    };
   }
 
   /**
@@ -129,11 +131,9 @@ export class VendorService {
     const userId = this._callerService.getUserId();
     return this.getByIdAsync(userId);
   }
+  //#endregion
 
-  // ────────────────────────────────────────────────────────
-  //  Create
-  // ────────────────────────────────────────────────────────
-
+  //#region Add
   /**
    * Creates a new vendor account and returns JWT tokens.
    *
@@ -183,6 +183,7 @@ export class VendorService {
     return this._prismaService.vendor.create({
       data: {
         ...vendorData,
+        pan_number: '',
         formated_id: '',
         status: 'Pending',
         // Document URLs — filled via PUT /vendor/document/* endpoints
@@ -276,11 +277,9 @@ export class VendorService {
 
     return this.getByIdAsync(vendorId);
   }
+  //#endregion
 
-  // ────────────────────────────────────────────────────────
-  //  Update
-  // ────────────────────────────────────────────────────────
-
+  //#region Update
   /**
    * Updates a vendor's profile and bank details with a plain JSON payload.
    *
@@ -300,7 +299,7 @@ export class VendorService {
     const vendorData = UpdateVendorDto.toVendorData(dto);
     const bankDetail = UpdateVendorDto.toBankDetail(dto);
 
-    return await this._prismaService.vendor.update({
+    const vendor = await this._prismaService.vendor.update({
       data: {
         ...vendorData,
         bank_detail: {
@@ -334,12 +333,15 @@ export class VendorService {
         is_gst_vendor: true,
       },
     });
+
+    return {
+      ...vendor,
+      is_a_gst_vendor: vendor.is_gst_vendor ? 'Yes' : 'No',
+    };
   }
+  //#endregion
 
-  // ────────────────────────────────────────────────────────
-  //  Delete
-  // ────────────────────────────────────────────────────────
-
+  //#region Delete
   /**
    * Soft-deletes a vendor by setting `is_deleted = true`.
    *
@@ -357,11 +359,9 @@ export class VendorService {
       },
     });
   }
+  //#endregion
 
-  // ────────────────────────────────────────────────────────
-  //  Document Upload
-  // ────────────────────────────────────────────────────────
-
+  //#region Document Upload
   /**
    * Uploads (or replaces) a single vendor document.
    *
@@ -437,10 +437,6 @@ export class VendorService {
     return mapping[type];
   }
 
-  // ────────────────────────────────────────────────────────
-  //  File Helpers
-  // ────────────────────────────────────────────────────────
-
   /**
    * Uploads a single file to the configured cloud storage.
    *
@@ -462,4 +458,5 @@ export class VendorService {
       folderPath,
     });
   }
+  //#endregion
 }

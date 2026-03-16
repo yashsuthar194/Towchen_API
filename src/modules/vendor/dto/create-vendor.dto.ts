@@ -141,12 +141,6 @@ export class CreateVendorDto implements Partial<VendorDto> {
   @ApiProperty({ example: 'Rajesh Kumar' })
   account_holder_name: string;
 
-  /** PAN card number */
-  @IsString()
-  @IsNotEmpty()
-  @ApiProperty({ example: 'ABCDE1234F' })
-  pan_number: string;
-
   /**
    * Extracts vendor-only data from the DTO (excludes bank detail fields
    * and the `select_services` rename).
