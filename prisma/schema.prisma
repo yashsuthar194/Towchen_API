@@ -121,6 +121,8 @@ model vendor {
   vehicles    vehicle[]
 
   @@index([id, formated_id])
+  @@index([email, is_deleted])
+  @@index([mobile_number, is_deleted])
 }
 
 model vendor_bank_detail {
@@ -194,6 +196,8 @@ model driver {
   @@index([vehicle_id])
   @@index([start_location_id])
   @@index([end_location_id])
+  @@index([email, is_deleted])
+  @@index([mobile_number, is_deleted])
 }
 
 model vehicle {
