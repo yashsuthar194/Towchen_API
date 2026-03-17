@@ -53,4 +53,18 @@ export class CreateDriverLocationDto {
   @IsOptional()
   @IsString()
   landmark?: string;
+
+  @ApiPropertyOptional({ description: 'Location description' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({
+    description: 'Category of the location',
+    enum: ['Driver', 'Order'],
+    default: 'Driver',
+  })
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

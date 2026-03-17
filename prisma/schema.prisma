@@ -76,6 +76,11 @@ enum SignatureType {
   E_Sign
 }
 
+enum LocationCategory {
+  Driver
+  Order
+}
+
 // #region Tables
 model vendor {
   id                   Int              @id @default(autoincrement())
@@ -180,8 +185,8 @@ model driver {
   end_location_id    Int?
 
   // 🔗 Relations
-  startLocation driver_location? @relation("DriverStartLocation", fields: [start_location_id], references: [id])
-  endLocation   driver_location? @relation("DriverEndLocation", fields: [end_location_id], references: [id])
+  startLocation location? @relation("DriverStartLocation", fields: [start_location_id], references: [id])
+  endLocation   location? @relation("DriverEndLocation", fields: [end_location_id], references: [id])
 
   vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
   vendor  vendor   @relation(fields: [vendor_id], references: [id])
@@ -265,7 +270,7 @@ model customer_vehicle {
   @@index([customer_id])
 }
 
-model driver_location {
+model location {
   id        Int     @id @default(autoincrement())
 
   address   String?
@@ -281,11 +286,17 @@ model driver_location {
 
   landmark  String?
 
+  description String?
+
+  category  LocationCategory @default(Driver) // ✅ NEW
+
   created_at DateTime @default(now())
 
+  // 🔗 Driver relations
   startDrivers driver[] @relation("DriverStartLocation")
   endDrivers   driver[] @relation("DriverEndLocation")
 
   @@index([city])
   @@index([state])
+  @@index([category]) // ✅ important for filtering
 }

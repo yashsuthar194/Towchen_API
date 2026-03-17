@@ -45,7 +45,7 @@ export class DriverLocationController {
   @Get()
   @ApiOperation({ summary: 'Get all driver locations' })
   async findAll() {
-    return await this.driverLocationService.findAllAsync();
+    return await this.driverLocationService.findAllDriverLocationsAsync();
   }
 
   /**
