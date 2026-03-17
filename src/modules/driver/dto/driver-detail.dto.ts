@@ -42,10 +42,10 @@ export class DriverDetailDto implements Partial<driver> {
   driver_license_url: string;
 
   @ApiProperty({ description: 'ID of the start location', nullable: true })
-  start_location: number | null;
+  start_location_id: number | null;
 
   @ApiProperty({ description: 'ID of the end location', nullable: true })
-  end_location: number | null;
+  end_location_id: number | null;
 
   @ApiProperty({ enum: DriverStatus, description: 'Current status of the driver' })
   status: DriverStatus;
@@ -58,6 +58,12 @@ export class DriverDetailDto implements Partial<driver> {
 
   @ApiProperty({ description: 'Assigned vehicle details', required: false })
   vehicle?: any;
+
+  @ApiProperty({ description: 'Start location details', required: false })
+  startLocation?: any;
+
+  @ApiProperty({ description: 'End location details', required: false })
+  endLocation?: any;
 
   @ApiProperty({ description: 'ID of the user who deleted this record', nullable: true, required: false })
   is_deleted_by?: number | null | undefined;
