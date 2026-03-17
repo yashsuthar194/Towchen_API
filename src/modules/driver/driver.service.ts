@@ -67,7 +67,7 @@ export class DriverService {
   /**
    * Creates a new driver with uploaded documents and hashes the password
    * @param dto - Driver creation data
-   * @param files - Uploaded documents (adhar, pan, license)
+   * @param files - Uploaded documents (aadhar, pan, license)
    * @returns The created driver with vehicle details
    */
   async createAsync(
@@ -112,7 +112,7 @@ export class DriverService {
         ...driverData,
         vendor_id: vendorId,
         formated_id: '',
-        adhar_card_url: '',
+        aadhar_card_url: '',
         pan_card_url: '',
         driver_license_url: '',
       },
@@ -131,11 +131,11 @@ export class DriverService {
       driver_license_url: string;
     },
   ): Promise<DriverDetailDto> {
-    return this._prismaService.driver.update({
+    return (await this._prismaService.driver.update({
       where: { id: driverId },
       data: fileUrls,
       include: { vehicle: true },
-    }) as Promise<DriverDetailDto>;
+    })) as unknown as DriverDetailDto;
   }
 
   /**
@@ -174,14 +174,14 @@ export class DriverService {
       driverData.password = await Hash.hashAsync(driverData.password);
     }
 
-    return this._prismaService.driver.update({
+    return (await this._prismaService.driver.update({
       where: { id },
       data: {
         ...driverData,
         ...updatedFiles,
       },
       include: { vehicle: true },
-    }) as Promise<DriverDetailDto>;
+    })) as unknown as DriverDetailDto;
   }
   // #endregion
 
@@ -216,7 +216,7 @@ export class DriverService {
       await Promise.all([
         this._updateFileAsync(
           files.aadhar_card?.[0],
-          `driver/${driverId}/documents/adhar`,
+          `driver/${driverId}/documents/aadhar`,
         ),
         this._updateFileAsync(
           files.pan_card?.[0],
@@ -337,7 +337,7 @@ export class DriverService {
       await Promise.all([
         this._uploadFileAsync(
           files.aadhar_card[0],
-          `driver/${driverId}/documents/adhar`,
+          `driver/${driverId}/documents/aadhar`,
         ),
         this._uploadFileAsync(
           files.pan_card[0],
