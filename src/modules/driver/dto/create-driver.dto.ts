@@ -62,19 +62,18 @@ export class CreateDriverDto implements Partial<driver> {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  start_location?: number;
+  start_location_id?: number | null;
 
   @ApiPropertyOptional({ description: 'ID of the driver location for ending point' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  end_location?: number;
+  end_location_id?: number | null;
 
   /**
    * Extracts driver-only data
    */
   static toDriverData(dto: CreateDriverDto) {
-    const { vehicle_id, ...driverData } = dto;
-    return driverData;
+    return { ...dto };
   }
 }

@@ -154,32 +154,46 @@ model otp {
 model driver {
   id                 Int          @id @default(autoincrement())
   formated_id        String       @unique
+
   vendor_id          Int
   vehicle_id         Int?
-  driver_name          String       @db.VarChar(255)
-  mobile_number             String       @db.VarChar(20)
-  alternate_mobile_number   String       @db.VarChar(20)
+
+  driver_name        String       @db.VarChar(255)
+  mobile_number      String       @db.VarChar(20)
+  alternate_mobile_number String  @db.VarChar(20)
   email              String       @db.VarChar(255)
   password           String       @db.VarChar(255)
+
   is_email_verified  Boolean      @default(false)
   is_number_verified Boolean      @default(false)
-  aadhar_card_url     String       @db.Text()
+
+  aadhar_card_url    String       @db.Text()
   pan_card_url       String       @db.Text()
   driver_license_url String       @db.Text()
-  is_deleted         Boolean      @default(false)
-  created_at         DateTime     @default(now())
-  updated_at         DateTime     @default(now()) @updatedAt
-  is_deleted_by      Int?
+
   status             DriverStatus @default(Busy)
-  start_location     Int?      @db.Integer
-  end_location       Int?      @db.Integer
+
+  // 🔑 Location References
+  start_location_id  Int?
+  end_location_id    Int?
+
+  // 🔗 Relations
+  startLocation driver_location? @relation("DriverStartLocation", fields: [start_location_id], references: [id])
+  endLocation   driver_location? @relation("DriverEndLocation", fields: [end_location_id], references: [id])
 
   vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
   vendor  vendor   @relation(fields: [vendor_id], references: [id])
 
-  @@index([id, formated_id])
-  @@index([vehicle_id])
+  is_deleted        Boolean      @default(false)
+  is_deleted_by     Int?
+
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt
+
   @@index([vendor_id])
+  @@index([vehicle_id])
+  @@index([start_location_id])
+  @@index([end_location_id])
 }
 
 model vehicle {
@@ -264,4 +278,10 @@ model driver_location {
   landmark  String?
 
   created_at DateTime @default(now())
+
+  startDrivers driver[] @relation("DriverStartLocation")
+  endDrivers   driver[] @relation("DriverEndLocation")
+
+  @@index([city])
+  @@index([state])
 }

@@ -54,7 +54,11 @@ export class DriverService {
         id,
         is_deleted: false,
       },
-      include: { vehicle: true },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
     });
     if (!driver) {
       throw new NotFoundException(`Driver with ID ${id} not found`);
@@ -116,7 +120,12 @@ export class DriverService {
         pan_card_url: '',
         driver_license_url: '',
       },
-    });
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    }) as unknown as Promise<DriverDetailDto>;
   }
 
   /**
@@ -134,7 +143,11 @@ export class DriverService {
     return (await this._prismaService.driver.update({
       where: { id: driverId },
       data: fileUrls,
-      include: { vehicle: true },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
     })) as unknown as DriverDetailDto;
   }
 
@@ -180,7 +193,11 @@ export class DriverService {
         ...driverData,
         ...updatedFiles,
       },
-      include: { vehicle: true },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
     })) as unknown as DriverDetailDto;
   }
   // #endregion
