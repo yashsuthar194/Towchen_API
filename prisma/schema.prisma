@@ -81,6 +81,21 @@ enum LocationCategory {
   Order
 }
 
+enum OrderStatus {
+  New
+  Assigned
+  InProgress
+  Completed
+  Closed
+}
+
+enum LocationType {
+  Start
+  Breakdown
+  Drop
+  End
+}
+
 // #region Tables
 model vendor {
   id                   Int              @id @default(autoincrement())
@@ -124,6 +139,7 @@ model vendor {
   bank_detail vendor_bank_detail?
   drivers     driver[]
   vehicles    vehicle[]
+  orders      order[]
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -197,6 +213,8 @@ model driver {
   created_at        DateTime     @default(now())
   updated_at        DateTime     @updatedAt
 
+  orders            order[]
+
   @@index([vendor_id])
   @@index([vehicle_id])
   @@index([start_location_id])
@@ -232,6 +250,7 @@ model vehicle {
 
   drivers driver[]
   vendor  vendor   @relation(fields: [vendor_id], references: [id])
+  orders  order[]
 
   @@index([id])
   @@index([vendor_id])
@@ -250,6 +269,7 @@ model customer {
   is_deleted_by Int?
 
   customer_vehicles customer_vehicle[]
+  orders            order[]
 }
 
 model customer_vehicle {
@@ -266,6 +286,7 @@ model customer_vehicle {
   is_deleted_by       Int?
 
   customer customer @relation(fields: [customer_id], references: [id])
+  orders   order[]
 
   @@index([customer_id])
 }
@@ -296,7 +317,74 @@ model location {
   startDrivers driver[] @relation("DriverStartLocation")
   endDrivers   driver[] @relation("DriverEndLocation")
 
+  // 🔗 Order relations
+  orders       order_location[]
+
   @@index([city])
   @@index([state])
   @@index([category]) // ✅ important for filtering
+}
+
+model order {
+  id               Int    @id @default(autoincrement())
+  formated_id      String @unique
+
+  customer_id      Int
+  customer_vehicle_id Int?
+
+  vendor_id        Int?
+  driver_id        Int?
+  vehicle_id       Int?
+
+  service_type     VendorServices
+  fleet_type       FleetType   // ✅ NEW (important)
+
+  status           OrderStatus @default(New)
+
+  // timeline
+  assign_time      DateTime?
+  start_time       DateTime?
+  completion_time  DateTime?
+
+  remarks          String?
+  cancel_reason    String?
+
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  customer         customer @relation(fields: [customer_id], references: [id])
+  customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
+
+  vendor  vendor?  @relation(fields: [vendor_id], references: [id])
+  driver  driver?  @relation(fields: [driver_id], references: [id])
+  vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
+
+  locations order_location[]
+
+  @@index([customer_id])
+  @@index([driver_id])
+  @@index([vehicle_id])
+  @@index([vendor_id])
+  @@index([status, created_at])
+}
+
+model order_location {
+  id Int @id @default(autoincrement())
+
+  order_id    Int
+  location_id Int
+
+  type LocationType
+  
+  contact_name String? @db.VarChar(255)
+  contact_number String? @db.VarChar(20)
+
+  created_at DateTime @default(now())
+
+  order    order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  location location @relation(fields: [location_id], references: [id])
+
+  @@index([order_id])
+  @@index([location_id])
+  @@unique([order_id, type])
 }
