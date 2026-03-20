@@ -65,6 +65,9 @@ export class DriverDetailDto implements Partial<driver> {
   @ApiProperty({ description: 'End location details', required: false })
   endLocation?: any;
 
+  @ApiProperty({ description: 'Vendor details', required: false })
+  vendor?: any;
+
   @ApiProperty({ description: 'ID of the user who deleted this record', nullable: true, required: false })
   is_deleted_by?: number | null | undefined;
 }
