@@ -84,6 +84,7 @@ enum LocationCategory {
 enum OrderStatus {
   New
   Assigned
+  OtpPending
   InProgress
   Completed
   Closed
@@ -94,6 +95,11 @@ enum LocationType {
   Breakdown
   Drop
   End
+}
+
+enum OrderOtpType {
+  START
+  COMPLETE
 }
 
 // #region Tables
@@ -359,7 +365,8 @@ model order {
   driver  driver?  @relation(fields: [driver_id], references: [id])
   vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
 
-  locations order_location[]
+  locations  order_location[]
+  order_otps order_otp[]
 
   @@index([customer_id])
   @@index([driver_id])
@@ -388,3 +395,26 @@ model order_location {
   @@index([location_id])
   @@unique([order_id, type])
 }
+
+model order_otp {
+  id          Int      @id @default(autoincrement())
+
+  order_id    Int      
+  type        OrderOtpType @default(START)
+  otp         String   @db.VarChar(6)
+
+  expires_at  DateTime
+  verified_at DateTime?
+
+  is_verified Boolean  @default(false)
+
+  attempts    Int      @default(0) 
+
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  order order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+  @@unique([order_id, type])
+}

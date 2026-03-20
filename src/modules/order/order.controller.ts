@@ -12,6 +12,8 @@ import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderListDto } from './dto/order-list.dto';
 import { OrderDetailDto } from './dto/order-detail.dto';
+import { SendOrderOtpDto } from './dto/send-order-otp.dto';
+import { VerifyOrderOtpDto } from './dto/verify-order-otp.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 
@@ -61,4 +63,33 @@ export class OrderController {
   async accept(@Param('id', ParseIntPipe) id: number): Promise<OrderDetailDto> {
     return await this._orderService.acceptOrderAsync(id);
   }
+
+  /**
+   * Request an OTP for starting or completing an order
+   * @param id Order ID
+   * @param dto Send OTP type
+   */
+  @Post(':id/send-otp')
+  @ApiOperation({ summary: 'Request an OTP for starting or completing an order' })
+  async sendOtp(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SendOrderOtpDto,
+  ): Promise<{ message: string }> {
+    return await this._orderService.sendOrderOtpAsync(id, dto.type);
+  }
+
+  /**
+   * Verify an order OTP and update status
+   * @param id Order ID
+   * @param dto Verify OTP details
+   */
+  @Post(':id/verify-otp')
+  @ApiOperation({ summary: 'Verify an order OTP and update status' })
+  async verifyOtp(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: VerifyOrderOtpDto,
+  ): Promise<{ message: string }> {
+    return await this._orderService.verifyOrderOtpAsync(id, dto.type, dto.otp);
+  }
 }
+
