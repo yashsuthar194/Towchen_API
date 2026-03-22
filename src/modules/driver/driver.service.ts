@@ -54,7 +54,11 @@ export class DriverService {
         id,
         is_deleted: false,
       },
-      include: { vehicle: true },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
     });
     if (!driver) {
       throw new NotFoundException(`Driver with ID ${id} not found`);
@@ -67,7 +71,7 @@ export class DriverService {
   /**
    * Creates a new driver with uploaded documents and hashes the password
    * @param dto - Driver creation data
-   * @param files - Uploaded documents (adhar, pan, license)
+   * @param files - Uploaded documents (aadhar, pan, license)
    * @returns The created driver with vehicle details
    */
   async createAsync(
@@ -112,11 +116,16 @@ export class DriverService {
         ...driverData,
         vendor_id: vendorId,
         formated_id: '',
-        adhar_card_url: '',
+        aadhar_card_url: '',
         pan_card_url: '',
         driver_license_url: '',
       },
-    });
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    }) as unknown as Promise<DriverDetailDto>;
   }
 
   /**
@@ -131,11 +140,15 @@ export class DriverService {
       driver_license_url: string;
     },
   ): Promise<DriverDetailDto> {
-    return this._prismaService.driver.update({
+    return (await this._prismaService.driver.update({
       where: { id: driverId },
       data: fileUrls,
-      include: { vehicle: true },
-    }) as Promise<DriverDetailDto>;
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    })) as unknown as DriverDetailDto;
   }
 
   /**
@@ -147,9 +160,93 @@ export class DriverService {
   }
   // #endregion
 
-  // #region Update
   /**
-   * Updates an existing driver's information and hashes the password if provided
+   * Gets the full profile for a driver, including vendor and vehicle details
+   * @param id - Driver ID
+   * @returns Detailed driver profile
+   */
+  async getProfileAsync(id: number): Promise<DriverDetailDto> {
+    const driver = await this._prismaService.driver.findUnique({
+      where: { id, is_deleted: false },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            formated_id: true,
+            vendor_name: true,
+          },
+        },
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver with ID ${id} not found`);
+    }
+
+    return driver as unknown as DriverDetailDto;
+  }
+
+  /**
+   * Updates the driver's own profile information
+   * @param id - Driver ID
+   * @param dto - Profile update data
+   * @param files - Optional document updates
+   */
+  async updateProfileAsync(
+    id: number,
+    dto: any, // Using any here to facilitate internal mapping, but Controller uses UpdateDriverProfileDto
+    files?: DriverUploadFilesPutDto,
+  ): Promise<DriverDetailDto> {
+    const currentDriver = await this._prismaService.driver.findUnique({
+      where: { id },
+    });
+
+    if (!currentDriver) {
+      throw new NotFoundException(`Driver with ID ${id} not found`);
+    }
+
+    const updateData: any = { ...dto };
+
+    // Reset verification if email or mobile number changes
+    if (dto.email && dto.email !== currentDriver.email) {
+      updateData.is_email_verified = false;
+    }
+
+    if (dto.mobile_number && dto.mobile_number !== currentDriver.mobile_number) {
+      updateData.is_number_verified = false;
+    }
+
+    // Reuse existing file update logic
+    const updatedFiles = files
+      ? await this._updateDriverFilesAsync(id, files)
+      : {};
+
+    return (await this._prismaService.driver.update({
+      where: { id },
+      data: {
+        ...updateData,
+        ...updatedFiles,
+      },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            formated_id: true,
+            vendor_name: true,
+          },
+        },
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    })) as unknown as DriverDetailDto;
+  }
+
+  /**
+   * Updates an existing driver's information (Vendor/Admin use)
    * @param id - Driver ID
    * @param dto - Data to update
    * @param files - Optional file updates
@@ -174,16 +271,19 @@ export class DriverService {
       driverData.password = await Hash.hashAsync(driverData.password);
     }
 
-    return this._prismaService.driver.update({
+    return (await this._prismaService.driver.update({
       where: { id },
       data: {
         ...driverData,
         ...updatedFiles,
       },
-      include: { vehicle: true },
-    }) as Promise<DriverDetailDto>;
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    })) as unknown as DriverDetailDto;
   }
-  // #endregion
 
   // #region Delete
   /**
@@ -216,7 +316,7 @@ export class DriverService {
       await Promise.all([
         this._updateFileAsync(
           files.aadhar_card?.[0],
-          `driver/${driverId}/documents/adhar`,
+          `driver/${driverId}/documents/aadhar`,
         ),
         this._updateFileAsync(
           files.pan_card?.[0],
@@ -337,7 +437,7 @@ export class DriverService {
       await Promise.all([
         this._uploadFileAsync(
           files.aadhar_card[0],
-          `driver/${driverId}/documents/adhar`,
+          `driver/${driverId}/documents/aadhar`,
         ),
         this._uploadFileAsync(
           files.pan_card[0],

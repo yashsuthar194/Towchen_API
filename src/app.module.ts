@@ -10,6 +10,7 @@ import { DriverModule } from './modules/driver/driver.module';
 import { JwtModule } from './services/jwt/jwt.module';
 import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { CustomerModule } from './modules/customer/customer.module';
+import { DriverLocationModule } from './modules/driver-location/driver-location.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CustomerModule } from './modules/customer/customer.module';
     DriverModule,
     VehicleModule,
     CustomerModule,
+    DriverLocationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
