@@ -76,6 +76,11 @@ enum SignatureType {
   E_Sign
 }
 
+enum LocationCategory {
+  Driver
+  Order
+}
+
 // #region Tables
 model vendor {
   id                   Int              @id @default(autoincrement())
@@ -121,6 +126,8 @@ model vendor {
   vehicles    vehicle[]
 
   @@index([id, formated_id])
+  @@index([email, is_deleted])
+  @@index([mobile_number, is_deleted])
 }
 
 model vendor_bank_detail {
@@ -154,30 +161,48 @@ model otp {
 model driver {
   id                 Int          @id @default(autoincrement())
   formated_id        String       @unique
+
   vendor_id          Int
   vehicle_id         Int?
-  driver_name          String       @db.VarChar(255)
-  mobile_number             String       @db.VarChar(20)
-  alternate_mobile_number   String       @db.VarChar(20)
+
+  driver_name        String       @db.VarChar(255)
+  mobile_number      String       @db.VarChar(20)
+  alternate_mobile_number String  @db.VarChar(20)
   email              String       @db.VarChar(255)
   password           String       @db.VarChar(255)
+
   is_email_verified  Boolean      @default(false)
   is_number_verified Boolean      @default(false)
-  adhar_card_url     String       @db.Text()
+
+  aadhar_card_url    String       @db.Text()
   pan_card_url       String       @db.Text()
   driver_license_url String       @db.Text()
-  is_deleted         Boolean      @default(false)
-  created_at         DateTime     @default(now())
-  updated_at         DateTime     @default(now()) @updatedAt
-  is_deleted_by      Int?
+
   status             DriverStatus @default(Busy)
+
+  // 🔑 Location References
+  start_location_id  Int?
+  end_location_id    Int?
+
+  // 🔗 Relations
+  startLocation location? @relation("DriverStartLocation", fields: [start_location_id], references: [id])
+  endLocation   location? @relation("DriverEndLocation", fields: [end_location_id], references: [id])
 
   vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
   vendor  vendor   @relation(fields: [vendor_id], references: [id])
 
-  @@index([id, formated_id])
-  @@index([vehicle_id])
+  is_deleted        Boolean      @default(false)
+  is_deleted_by     Int?
+
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @updatedAt
+
   @@index([vendor_id])
+  @@index([vehicle_id])
+  @@index([start_location_id])
+  @@index([end_location_id])
+  @@index([email, is_deleted])
+  @@index([mobile_number, is_deleted])
 }
 
 model vehicle {
@@ -243,4 +268,35 @@ model customer_vehicle {
   customer customer @relation(fields: [customer_id], references: [id])
 
   @@index([customer_id])
+}
+
+model location {
+  id        Int     @id @default(autoincrement())
+
+  address   String?
+  street    String?
+  area      String?
+  city      String?
+  state     String?
+  pincode   String?
+  country   String?
+
+  latitude  Float
+  longitude Float
+
+  landmark  String?
+
+  description String?
+
+  category  LocationCategory @default(Driver) // ✅ NEW
+
+  created_at DateTime @default(now())
+
+  // 🔗 Driver relations
+  startDrivers driver[] @relation("DriverStartLocation")
+  endDrivers   driver[] @relation("DriverEndLocation")
+
+  @@index([city])
+  @@index([state])
+  @@index([category]) // ✅ important for filtering
 }

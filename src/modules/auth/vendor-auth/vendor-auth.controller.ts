@@ -6,6 +6,9 @@ import { VendorAuthVerificationDto } from './dto/vendor-auth-verification.dto';
 import { VendorLoginDto } from './dto/vendor-login.dto';
 import { VendorLoginResponseDto } from './dto/vendor-login-response.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordOtpDto } from './dto/forgot-password-otp.dto';
+import { ForgotPasswordVerifyDto } from './dto/forgot-password-verify.dto';
+import { ForgotPasswordResetDto } from './dto/forgot-password-reset.dto';
 
 /**
  * Controller for vendor authentication operations
@@ -67,4 +70,48 @@ export class VendorAuthController {
   ): Promise<ResponseDto<VendorLoginResponseDto>> {
     return this._vendorAuthService.refreshTokenAsync(refreshTokenDto);
   }
+
+  /**
+   * Sends a password-reset OTP to the vendor's registered
+   * mobile number via SMS.
+   * 
+   * @param dto - Contains the vendor's registered mobile number.
+   * @returns A generic success response.
+   */
+  @Post('forgot-password/otp')
+  async sendForgotPasswordOtp(
+    @Body() dto: ForgotPasswordOtpDto,
+  ): Promise<ResponseDto<null>> {
+    return this._vendorAuthService.sendForgotPasswordOtpAsync(dto);
+  }
+
+  /**
+   * Verifies the OTP sent to the vendor's mobile number.
+   *
+   * @param dto - Contains the vendor's mobile number and the 6-digit OTP.
+   * @returns A success response confirming the OTP is valid.
+   * @throws {BadRequestException} If the OTP is missing, expired, or invalid.
+   */
+  @Post('forgot-password/verify')
+  async verifyForgotPasswordOtp(
+    @Body() dto: ForgotPasswordVerifyDto,
+  ): Promise<ResponseDto<null>> {
+    return this._vendorAuthService.verifyForgotPasswordOtpAsync(dto);
+  }
+
+  /**
+   * Resets the vendor's password.
+   *
+   * @param dto - Contains mobile number, OTP, and new password.
+   * @returns A success response confirming the password was reset.
+   * @throws {BadRequestException} If the OTP is invalid/expired, the
+   *   vendor is not found, or the new password matches the old one.
+   */
+  @Post('forgot-password/reset')
+  async resetPassword(
+    @Body() dto: ForgotPasswordResetDto,
+  ): Promise<ResponseDto<null>> {
+    return this._vendorAuthService.resetPasswordAsync(dto);
+  }
+  //#endregion
 }
