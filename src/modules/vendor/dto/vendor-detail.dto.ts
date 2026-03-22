@@ -1,9 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { VendorServices, VendorStatus } from '@prisma/client';
+import { OrganizationType, VendorServices, VendorStatus } from '@prisma/client';
 import { VendorBankDetailDto } from '../../vendor-bank-detail/dto/vendor-bank-detail.dto';
-import { VendorDto } from './vendor.dto';
 
-export class VendorDetailDto implements Partial<VendorDto> {
+/**
+ * Response DTO for vendor detail endpoints.
+ *
+ * NOTE: `is_gst_vendor` is intentionally typed as `boolean[]` (a single-element
+ * array) in the API response so that consumers can distinguish a present-false
+ * value from an absent field. The underlying DB column remains a plain boolean;
+ * the wrap happens in the service layer.
+ *
+ * NOT using `implements Partial<VendorDto>` here because we deliberately change
+ * the type of `is_gst_vendor` from `boolean` to `boolean[]`.
+ */
+export class VendorDetailDto {
   id: number;
   formated_id: string;
   vendor_name: string;
@@ -12,15 +22,29 @@ export class VendorDetailDto implements Partial<VendorDto> {
   alternate_number: string;
   is_email_verified: boolean;
   vendor_profile_image_url: string;
-  is_gst_vendor: boolean;
-  is_a_gst_vendor: "Yes" | "No";
 
   pan_card_url: string;
   aadhar_card_url: string;
   organization_name: string;
   organization_certificate_url: string;
+
+  @ApiProperty({
+    enum: Object.values(OrganizationType),
+    example: OrganizationType.SoleProprietorship,
+  })
+  organization_type: OrganizationType;
+
   gst_number: string;
   gst_certificate_url: string;
+
+  /**
+   * The GST-vendor flag wrapped in a single-element boolean array.
+   * e.g. `[true]` or `[false]`.
+   * The underlying DB column is a plain `boolean`.
+   */
+  @ApiProperty({ type: [Boolean], example: [true] })
+  is_gst_vendor: boolean[];
+
   approved_by: number | null;
   created_at: Date;
   updated_at: Date;

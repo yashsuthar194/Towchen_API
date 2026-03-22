@@ -113,7 +113,7 @@ export class VendorService {
 
     return {
       ...vendor,
-      is_a_gst_vendor: vendor.is_gst_vendor ? 'Yes' : 'No',
+      is_gst_vendor: [vendor.is_gst_vendor],
     };
   }
 
@@ -323,6 +323,7 @@ export class VendorService {
         aadhar_card_url: true,
         organization_name: true,
         organization_certificate_url: true,
+        organization_type: true,
         gst_number: true,
         gst_certificate_url: true,
         approved_by: true,
@@ -336,7 +337,7 @@ export class VendorService {
 
     return {
       ...vendor,
-      is_a_gst_vendor: vendor.is_gst_vendor ? 'Yes' : 'No',
+      is_gst_vendor: [vendor.is_gst_vendor],
     };
   }
   //#endregion
