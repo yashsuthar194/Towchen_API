@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Length, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Length, Matches } from 'class-validator';
 
 /**
  * Request body for verifying the forgot-password OTP.
@@ -6,12 +6,9 @@ import { IsNotEmpty, IsString, Length, Matches } from 'class-validator';
  * that was sent via SMS in the previous step.
  */
 export class ForgotPasswordVerifyDto {
-  @IsString()
+  @IsEmail()
   @IsNotEmpty()
-  @Matches(/^[6-9]\d{9}$/, {
-    message: 'Number must be a valid 10-digit Indian mobile number',
-  })
-  number: string;
+  email: string;
 
   @IsString()
   @IsNotEmpty()

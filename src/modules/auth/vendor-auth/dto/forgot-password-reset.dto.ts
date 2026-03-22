@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, Length, Matches, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, Length, Matches, MinLength } from 'class-validator';
 
 /**
  * Request body for resetting the vendor's password.
@@ -8,12 +8,9 @@ import { IsNotEmpty, IsString, Length, Matches, MinLength } from 'class-validato
  * the password.
  */
 export class ForgotPasswordResetDto {
-  @IsString()
+  @IsEmail()
   @IsNotEmpty()
-  @Matches(/^[6-9]\d{9}$/, {
-    message: 'Number must be a valid 10-digit Indian mobile number',
-  })
-  number: string;
+  email: string;
 
   @IsString()
   @IsNotEmpty()

@@ -42,8 +42,8 @@ export class VendorDetailDto {
    * e.g. `[true]` or `[false]`.
    * The underlying DB column is a plain `boolean`.
    */
-  @ApiProperty({ type: [Boolean], example: [true] })
-  is_gst_vendor: boolean[];
+  @ApiProperty({ type: [String], example: ['true'] })
+  is_gst_vendor: string[];
 
   approved_by: number | null;
   created_at: Date;

@@ -181,8 +181,7 @@ export class VendorAuthService {
     // Check vendor exists with this number (but respond generically either way
     // to prevent mobile-number enumeration attacks).
     const vendor = await this._prismaService.vendor.findFirst({
-      where: { mobile_number: dto.number, is_deleted: false },
-      select: { id: true },
+      where: { email: dto.email, is_deleted: false }
     });
 
     if (!vendor) {
@@ -201,25 +200,37 @@ export class VendorAuthService {
     await this._prismaService.otp.create({
       data: {
         otp: otp.toString(),
-        number: dto.number,
-        type: OtpType.Number,
+        email: dto.email,
+        type: OtpType.Email,
         expires_at: expiresAt,
       },
     });
 
-    const smsResponse = await this._smsService.sendSmsAsync({
-      to: `+91${dto.number}`,
-      message: `Your Towchen password reset OTP is ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this OTP.`,
+    const template = TemplateHelper.replaceVariables(
+      TemplateHelper.getTemplate('otp'),
+      {
+        APP_NAME: 'Towchen Service',
+        OTP: otp,
+        EXPIRY_MINUTES: OTP_EXPIRY_MINUTES,
+        SUPPORT_EMAIL: 'support@towchen.com',
+      },
+    );
+
+    const emailResponse = await this._emailService.sendMailAsync({
+      to: dto.email,
+      subject: 'Password reset OTP',
+      text: `Your Towchen password reset OTP is ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+      html: template,
     });
 
-    if (!smsResponse?.success) {
+    if (!emailResponse?.success) {
       throw new BadRequestException('Failed to send OTP. Please try again.');
     }
 
     return new ResponseDto<null>(
       true,
       HttpStatus.OK,
-      'If this number is registered, an OTP has been sent',
+      'If this email is registered, an OTP has been sent',
       null,
     );
   }
@@ -239,12 +250,12 @@ export class VendorAuthService {
     dto: ForgotPasswordVerifyDto,
   ): Promise<ResponseDto<null>> {
     const otpRecord = await this._prismaService.otp.findFirst({
-      where: { number: dto.number, type: OtpType.Number },
+      where: { email: dto.email, type: OtpType.Email },
       orderBy: { created_at: 'desc' },
     });
 
     if (!otpRecord) {
-      throw new BadRequestException('No OTP found for this number. Please request a new one.');
+      throw new BadRequestException('No OTP found for this email. Please request a new one.');
     }
 
     if (otpRecord.expires_at < new Date()) {
@@ -282,12 +293,12 @@ export class VendorAuthService {
   ): Promise<ResponseDto<null>> {
     // Verify OTP once more (stateless – avoids skipping the verify step)
     const otpRecord = await this._prismaService.otp.findFirst({
-      where: { number: dto.number, type: OtpType.Number },
+      where: { email: dto.email, type: OtpType.Email },
       orderBy: { created_at: 'desc' },
     });
 
     if (!otpRecord) {
-      throw new BadRequestException('No OTP found for this number. Please request a new one.');
+      throw new BadRequestException('No OTP found for this email. Please request a new one.');
     }
 
     if (otpRecord.expires_at < new Date()) {
@@ -298,14 +309,14 @@ export class VendorAuthService {
       throw new BadRequestException('Invalid OTP. Please check and try again.');
     }
 
-    // Confirm vendor with this number exists and is active
+    // Confirm vendor with this email exists and is active
     const vendor = await this._prismaService.vendor.findFirst({
-      where: { mobile_number: dto.number, is_deleted: false },
+      where: { email: dto.email, is_deleted: false },
       select: { id: true, password: true },
     });
 
     if (!vendor) {
-      throw new BadRequestException('No active vendor found with this number.');
+      throw new BadRequestException('No active vendor found with this email.');
     }
 
     // Prevent setting the same password
