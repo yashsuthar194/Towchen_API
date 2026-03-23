@@ -7,10 +7,12 @@ import {
   IsInt,
   Matches,
   MinLength,
+  IsEnum,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { driver } from '@prisma/client';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { driver, VendorServices } from '@prisma/client';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 
 export class CreateDriverDto implements Partial<driver> {
   @ApiProperty({ description: 'Full name of the driver', example: 'John Doe' })
@@ -46,11 +48,17 @@ export class CreateDriverDto implements Partial<driver> {
   @MinLength(8, { message: 'password must be at least 8 characters' })
   password: string;
 
-  @ApiPropertyOptional({ description: 'Associated vehicle ID' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  vehicle_id?: number;
+  @ApiProperty({
+    description: 'Services provided by the driver',
+    type: [String],
+    enum: VendorServices,
+    example: [VendorServices.Towing],
+  })
+  @IsArray()
+  @IsEnum(VendorServices, { each: true })
+  select_services: VendorServices[];
+
+
 
   @ApiPropertyOptional({ description: 'Associated vendor ID (required if Admin creates driver)' })
   @IsOptional()
@@ -58,22 +66,23 @@ export class CreateDriverDto implements Partial<driver> {
   @IsInt()
   vendor_id?: number;
 
-  @ApiPropertyOptional({ description: 'ID of the driver location for starting point' })
+  @ApiPropertyOptional({ description: 'ID of the driver location (used for both start and end locations)' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  start_location_id?: number | null;
-
-  @ApiPropertyOptional({ description: 'ID of the driver location for ending point' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  end_location_id?: number | null;
+  location_spot?: number | null;
 
   /**
    * Extracts driver-only data
    */
   static toDriverData(dto: CreateDriverDto) {
-    return { ...dto };
+    const { location_spot, select_services, ...rest } = dto;
+    return {
+      ...rest,
+      services: select_services,
+      ...(location_spot !== undefined ? { start_location_id: location_spot, end_location_id: location_spot } : {})
+    };
   }
 }
+
+export class VendorCreateDriverDto extends OmitType(CreateDriverDto, ['vendor_id'] as const) {}

@@ -12,8 +12,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { VehicleService } from './vehicle.service';
-import { CreateVehicleDto } from './dto/create-vehicle.dto';
-import { UpdateVehicleDto } from './dto/update-vehicle.dto';
+import { CreateVehicleDto, VendorCreateVehicleDto } from './dto/create-vehicle.dto';
+import { UpdateVehicleDto, VendorUpdateVehicleDto } from './dto/update-vehicle.dto';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import {
   ApiConsumes,
@@ -82,10 +82,10 @@ export class VehicleController {
     ]),
   )
   async create(
-    @Body() createVehicleDto: CreateVehicleDto,
+    @Body() createVehicleDto: VendorCreateVehicleDto,
     @UploadedFiles() files: VehicleUploadFilesPostDto,
   ): Promise<ResponseDto<VehicleDetailDto>> {
-    const vehicle = await this._vehicleService.createAsync(createVehicleDto, files);
+    const vehicle = await this._vehicleService.createAsync(createVehicleDto as CreateVehicleDto, files);
     return ResponseDto.created('Vehicle registered successfully', vehicle);
   }
   // #endregion
@@ -143,10 +143,10 @@ export class VehicleController {
   )
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateVehicleDto: UpdateVehicleDto,
+    @Body() updateVehicleDto: VendorUpdateVehicleDto,
     @UploadedFiles() files: VehicleUploadFilesPutDto,
   ): Promise<ResponseDto<VehicleDetailDto>> {
-    const vehicle = await this._vehicleService.updateAsync(id, updateVehicleDto, files);
+    const vehicle = await this._vehicleService.updateAsync(id, updateVehicleDto as UpdateVehicleDto, files);
     return ResponseDto.updated('Vehicle updated successfully', vehicle);
   }
   // #endregion

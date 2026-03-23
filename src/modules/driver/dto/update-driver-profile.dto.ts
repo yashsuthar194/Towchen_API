@@ -34,4 +34,9 @@ export class UpdateDriverProfileDto {
   @Type(() => Number)
   @IsInt()
   vehicle_id?: number;
+  @ApiPropertyOptional({ description: 'ID of the driver location (used for both start and end locations)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  location_spot?: number | null;
 }

@@ -171,6 +171,12 @@ export class VehicleService {
     const updatedFiles = files ? await this._updateVehicleFilesAsync(id, files) : {};
 
     const vehicleData = UpdateVehicleDto.toVehicleData(dto);
+
+    // Prevent vendors from altering the vendor_id of a vehicle
+    if (this._callerService.isVendor()) {
+      delete (vehicleData as any).vendor_id;
+    }
+
     const data: any = {
       ...vehicleData,
       ...updatedFiles,
