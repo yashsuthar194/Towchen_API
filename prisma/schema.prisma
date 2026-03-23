@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,7 +7,249 @@ datasource db {
   relationMode = "prisma"
 }
 
-// #region Enums
+model vendor {
+  id                           Int                 @id @default(autoincrement())
+  formated_id                  String              @unique
+  email                        String              @db.VarChar(255)
+  password                     String              @db.VarChar(255)
+  is_email_verified            Boolean             @default(true)
+  services                     VendorServices[]
+  pan_card_url                 String
+  gst_number                   String              @db.VarChar(15)
+  gst_certificate_url          String
+  approved_by                  Int?
+  is_deleted                   Boolean             @default(false)
+  status                       VendorStatus        @default(Pending)
+  created_at                   DateTime            @default(now())
+  updated_at                   DateTime            @default(now()) @updatedAt
+  is_deleted_by                Int?
+  is_gst_vendor                Boolean             @default(false)
+  is_number_verified           Boolean             @default(true)
+  agreement_status             Boolean             @default(false)
+  signature_url                String?
+  alternate_number             String              @db.VarChar(20)
+  aadhar_card_url              String
+  mobile_number                String              @db.VarChar(20)
+  organization_certificate_url String
+  organization_name            String              @db.VarChar(255)
+  organization_type            OrganizationType
+  pan_number                   String              @db.VarChar(100)
+  representative_designation   String              @db.VarChar(100)
+  representative_name          String              @db.VarChar(255)
+  signature_type               SignatureType
+  vendor_name                  String              @db.VarChar(255)
+  vendor_profile_image_url     String
+  bank_detail                  vendor_bank_detail?
+  drivers                      driver[]
+  vehicles                     vehicle[]
+
+  @@index([id, formated_id])
+  @@index([email, is_deleted])
+  @@index([mobile_number, is_deleted])
+}
+
+model vendor_bank_detail {
+  id                           Int      @id @default(autoincrement())
+  vendor_id                    Int      @unique
+  account_number               String
+  ifsc_code                    String
+  bank_name                    String
+  branch_name                  String
+  account_holder_name          String
+  created_at                   DateTime @default(now())
+  updated_at                   DateTime @default(now()) @updatedAt
+  passbook_or_cancel_check_url String
+  vendor                       vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+
+  @@index([vendor_id])
+}
+
+model otp {
+  number     String?  @db.VarChar(20)
+  otp        String   @db.VarChar(6)
+  expires_at DateTime
+  created_at DateTime @default(now())
+  email      String?  @db.VarChar(255)
+  id         Int      @id @default(autoincrement())
+  type       OtpType
+}
+
+model driver {
+  id                      Int          @id @default(autoincrement())
+  email                   String       @db.VarChar(255)
+  password                String       @db.VarChar(255)
+  is_email_verified       Boolean      @default(false)
+  is_number_verified      Boolean      @default(false)
+  pan_card_url            String?
+  driver_license_url      String?
+  created_at              DateTime     @default(now())
+  is_deleted              Boolean      @default(false)
+  is_deleted_by           Int?
+  status                  DriverStatus @default(Busy)
+  updated_at              DateTime     @updatedAt
+  formated_id             String       @unique
+  vendor_id               Int
+  vehicle_id              Int?
+  alternate_mobile_number String       @db.VarChar(20)
+  driver_name             String       @db.VarChar(255)
+  mobile_number           String       @db.VarChar(20)
+  aadhar_card_url         String?
+  end_location_id         Int?
+  start_location_id       Int?
+  startLocation           location?    @relation("DriverStartLocation", fields: [start_location_id], references: [id])
+  endLocation             location?    @relation("DriverEndLocation", fields: [end_location_id], references: [id])
+  vehicle                 vehicle?     @relation(fields: [vehicle_id], references: [id])
+  vendor                  vendor       @relation(fields: [vendor_id], references: [id])
+
+  @@index([vendor_id])
+  @@index([vehicle_id])
+  @@index([start_location_id])
+  @@index([end_location_id])
+  @@index([email, is_deleted])
+  @@index([mobile_number, is_deleted])
+}
+
+model vehicle {
+  id                  Int       @id @default(autoincrement())
+  fleet_type          FleetType
+  vendor_id           Int
+  fleet_location      String    @db.VarChar(255)
+  registration_number String    @db.VarChar(20)
+  make                String    @db.VarChar(255)
+  model               String    @db.VarChar(255)
+  owner_name          String    @db.VarChar(255)
+  chassis_number      String    @db.VarChar(255)
+  engine_number       String    @db.VarChar(255)
+  vehicle_validity    DateTime
+  insurance_validity  DateTime
+  fitness_validity    DateTime
+  puc_validity        DateTime
+  vehical_image_url   String[]
+  chassis_image_url   String[]
+  tax_image_url       String[]
+  insurance_image_url String[]
+  fitness_image_url   String[]
+  puc_image_url       String[]
+  is_deleted          Boolean   @default(false)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @default(now()) @updatedAt
+  drivers             driver[]
+  vendor              vendor    @relation(fields: [vendor_id], references: [id])
+
+  @@index([id])
+  @@index([vendor_id])
+}
+
+model customer {
+  id                Int                @id @default(autoincrement())
+  formated_id       String             @unique
+  full_name         String             @db.VarChar(255)
+  is_verified       Boolean            @default(false)
+  number            String             @db.VarChar(20)
+  email             String             @db.VarChar(255)
+  is_deleted        Boolean            @default(false)
+  created_at        DateTime           @default(now())
+  updated_at        DateTime           @default(now()) @updatedAt
+  is_deleted_by     Int?
+  customer_vehicles customer_vehicle[]
+}
+
+model customer_vehicle {
+  id                  Int      @id @default(autoincrement())
+  customer_id         Int
+  make                String   @db.VarChar(255)
+  model               String   @db.VarChar(255)
+  registration_number String   @db.VarChar(20)
+  class               String   @db.VarChar(255)
+  fuel_type           FuelType
+  is_deleted          Boolean  @default(false)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @default(now()) @updatedAt
+  is_deleted_by       Int?
+  customer            customer @relation(fields: [customer_id], references: [id])
+
+  @@index([customer_id])
+}
+
+model location {
+  id           Int              @id @default(autoincrement())
+  address      String?
+  street       String?
+  area         String?
+  city         String?
+  state        String?
+  pincode      String?
+  country      String?
+  latitude     Float
+  longitude    Float
+  landmark     String?
+  description  String?
+  category     LocationCategory @default(Driver)
+  created_at   DateTime         @default(now())
+  startDrivers driver[]         @relation("DriverStartLocation")
+  endDrivers   driver[]         @relation("DriverEndLocation")
+
+  @@index([city])
+  @@index([state])
+  @@index([category])
+}
+
+model order {
+  id                  Int            @id @default(autoincrement())
+  formated_id         String         @unique
+  customer_id         Int
+  customer_vehicle_id Int?
+  vendor_id           Int?
+  driver_id           Int?
+  vehicle_id          Int?
+  service_type        VendorServices
+  fleet_type          FleetType
+  status              OrderStatus    @default(New)
+  assign_time         DateTime?
+  start_time          DateTime?
+  completion_time     DateTime?
+  remarks             String?
+  cancel_reason       String?
+  created_at          DateTime       @default(now())
+  updated_at          DateTime
+
+  @@index([customer_id])
+  @@index([driver_id])
+  @@index([status, created_at])
+  @@index([vehicle_id])
+  @@index([vendor_id])
+}
+
+model order_location {
+  id             Int          @id @default(autoincrement())
+  order_id       Int
+  location_id    Int
+  type           LocationType
+  created_at     DateTime     @default(now())
+  contact_name   String?      @db.VarChar(255)
+  contact_number String?      @db.VarChar(20)
+
+  @@unique([order_id, type])
+  @@index([location_id])
+  @@index([order_id])
+}
+
+model order_otp {
+  id          Int          @id @default(autoincrement())
+  order_id    Int
+  type        OrderOtpType @default(START)
+  otp         String       @db.VarChar(6)
+  expires_at  DateTime
+  verified_at DateTime?
+  is_verified Boolean      @default(false)
+  attempts    Int          @default(0)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime
+
+  @@unique([order_id, type])
+  @@index([order_id])
+}
+
 enum VendorServices {
   Towing
   Technician
@@ -81,222 +317,23 @@ enum LocationCategory {
   Order
 }
 
-// #region Tables
-model vendor {
-  id                   Int              @id @default(autoincrement())
-  formated_id          String           @unique
-  vendor_name            String           @db.VarChar(255)
-  email                String           @db.VarChar(255)
-  mobile_number               String           @db.VarChar(20)
-  alternate_number String           @db.VarChar(20)
-  password             String           @db.VarChar(255)
-  is_email_verified    Boolean          @default(true)
-  is_number_verified   Boolean          @default(true)
-  vendor_profile_image_url     String           @db.Text()
-  services             VendorServices[]
-  pan_card_url         String           @db.Text()
-  aadhar_card_url       String           @db.Text()
-  
-  organization_name             String           @db.VarChar(255)
-  organization_certificate_url  String           @db.Text()
-  organization_type OrganizationType
-
-  gst_number           String           @db.VarChar(15)
-  is_gst_vendor        Boolean          @default(false)
-  gst_certificate_url  String           @db.Text()
-  
-  status               VendorStatus     @default(Pending)
-  agreement_status     Boolean          @default(false)
-
-  pan_number String @db.VarChar(100)
-  representative_name String @db.VarChar(255)
-  representative_designation String @db.VarChar(100)
-
-  signature_type SignatureType
-  signature_url        String?           @db.Text()
-
-  approved_by          Int? // Admin id 
-  is_deleted           Boolean          @default(false)
-  created_at           DateTime         @default(now())
-  updated_at           DateTime         @default(now()) @updatedAt
-  is_deleted_by        Int?
-
-  bank_detail vendor_bank_detail?
-  drivers     driver[]
-  vehicles    vehicle[]
-
-  @@index([id, formated_id])
-  @@index([email, is_deleted])
-  @@index([mobile_number, is_deleted])
+enum LocationType {
+  Start
+  Breakdown
+  Drop
+  End
 }
 
-model vendor_bank_detail {
-  id                  Int    @id @default(autoincrement())
-  vendor_id           Int    @unique
-  account_number      String
-  ifsc_code           String
-  bank_name           String
-  branch_name         String
-  account_holder_name String
-  passbook_or_cancel_check_url          String @db.Text()
-
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
-
-  vendor vendor @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
-
-  @@index([vendor_id])
+enum OrderOtpType {
+  START
+  COMPLETE
 }
 
-model otp {
-  id         Int      @id @default(autoincrement())
-  otp        String   @db.VarChar(6)
-  number     String?  @db.VarChar(20)
-  email      String?  @db.VarChar(255)
-  type       OtpType
-  expires_at DateTime
-  created_at DateTime @default(now())
-}
-
-model driver {
-  id                 Int          @id @default(autoincrement())
-  formated_id        String       @unique
-
-  vendor_id          Int
-  vehicle_id         Int?
-
-  driver_name        String       @db.VarChar(255)
-  mobile_number      String       @db.VarChar(20)
-  alternate_mobile_number String  @db.VarChar(20)
-  email              String       @db.VarChar(255)
-  password           String       @db.VarChar(255)
-
-  is_email_verified  Boolean      @default(false)
-  is_number_verified Boolean      @default(false)
-
-  aadhar_card_url    String       @db.Text()
-  pan_card_url       String       @db.Text()
-  driver_license_url String       @db.Text()
-
-  status             DriverStatus @default(Busy)
-
-  // 🔑 Location References
-  start_location_id  Int?
-  end_location_id    Int?
-
-  // 🔗 Relations
-  startLocation location? @relation("DriverStartLocation", fields: [start_location_id], references: [id])
-  endLocation   location? @relation("DriverEndLocation", fields: [end_location_id], references: [id])
-
-  vehicle vehicle? @relation(fields: [vehicle_id], references: [id])
-  vendor  vendor   @relation(fields: [vendor_id], references: [id])
-
-  is_deleted        Boolean      @default(false)
-  is_deleted_by     Int?
-
-  created_at        DateTime     @default(now())
-  updated_at        DateTime     @updatedAt
-
-  @@index([vendor_id])
-  @@index([vehicle_id])
-  @@index([start_location_id])
-  @@index([end_location_id])
-  @@index([email, is_deleted])
-  @@index([mobile_number, is_deleted])
-}
-
-model vehicle {
-  id                  Int       @id @default(autoincrement())
-  fleet_type          FleetType
-  vendor_id           Int
-  fleet_location      String    @db.VarChar(255)
-  registration_number String    @db.VarChar(20)
-  make                String    @db.VarChar(255) // Company name
-  model               String    @db.VarChar(255)
-  owner_name          String    @db.VarChar(255)
-  chassis_number      String    @db.VarChar(255)
-  engine_number       String    @db.VarChar(255)
-  vehicle_validity    DateTime
-  insurance_validity  DateTime
-  fitness_validity    DateTime
-  puc_validity        DateTime
-  vehical_image_url   String[]
-  chassis_image_url   String[]
-  tax_image_url       String[]
-  insurance_image_url String[]
-  fitness_image_url   String[]
-  puc_image_url       String[]
-  is_deleted          Boolean   @default(false)
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @default(now()) @updatedAt
-
-  drivers driver[]
-  vendor  vendor   @relation(fields: [vendor_id], references: [id])
-
-  @@index([id])
-  @@index([vendor_id])
-}
-
-model customer {
-  id            Int      @id @default(autoincrement())
-  formated_id   String   @unique
-  full_name     String   @db.VarChar(255)
-  is_verified   Boolean  @default(false)
-  number        String   @db.VarChar(20)
-  email         String   @db.VarChar(255)
-  is_deleted    Boolean  @default(false)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @default(now()) @updatedAt
-  is_deleted_by Int?
-
-  customer_vehicles customer_vehicle[]
-}
-
-model customer_vehicle {
-  id                  Int      @id @default(autoincrement())
-  customer_id         Int
-  make                String   @db.VarChar(255)
-  model               String   @db.VarChar(255)
-  registration_number String   @db.VarChar(20)
-  class               String   @db.VarChar(255)
-  fuel_type           FuelType
-  is_deleted          Boolean  @default(false)
-  created_at          DateTime @default(now())
-  updated_at          DateTime @default(now()) @updatedAt
-  is_deleted_by       Int?
-
-  customer customer @relation(fields: [customer_id], references: [id])
-
-  @@index([customer_id])
-}
-
-model location {
-  id        Int     @id @default(autoincrement())
-
-  address   String?
-  street    String?
-  area      String?
-  city      String?
-  state     String?
-  pincode   String?
-  country   String?
-
-  latitude  Float
-  longitude Float
-
-  landmark  String?
-
-  description String?
-
-  category  LocationCategory @default(Driver) // ✅ NEW
-
-  created_at DateTime @default(now())
-
-  // 🔗 Driver relations
-  startDrivers driver[] @relation("DriverStartLocation")
-  endDrivers   driver[] @relation("DriverEndLocation")
-
-  @@index([city])
-  @@index([state])
-  @@index([category]) // ✅ important for filtering
+enum OrderStatus {
+  New
+  Assigned
+  InProgress
+  Completed
+  Closed
+  OtpPending
 }

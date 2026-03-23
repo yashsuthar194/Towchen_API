@@ -7,12 +7,14 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { StorageService } from 'src/services/storage/storage.service';
-import { DriverUploadFilesPostDto } from './dto/driver-upload-files.post.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { Hash } from 'src/shared/helper/hash';
 import { DriverDetailDto } from './dto/driver-detail.dto';
 import { DriverListDto } from './dto/driver-list.dto';
 import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
+import { DriverStatus } from '@prisma/client';
+
+type DriverDocumentType = 'aadhar' | 'pan' | 'license';
 
 @Injectable()
 export class DriverService {
@@ -65,6 +67,7 @@ export class DriverService {
     }
     return driver as unknown as DriverDetailDto;
   }
+
   // #endregion
 
   // #region Create
@@ -76,20 +79,10 @@ export class DriverService {
    */
   async createAsync(
     dto: CreateDriverDto,
-    files: DriverUploadFilesPostDto,
   ): Promise<DriverDetailDto> {
-    this._validateRequiredFiles(files);
     await this._validateUniqueness(dto.email, dto.mobile_number);
 
-    const driver = await this._createDriverRecord(dto);
-
-    try {
-      const fileUrls = await this._uploadDriverFiles(driver.id, files);
-      return await this._updateDriverWithFileUrls(driver.id, fileUrls);
-    } catch (error) {
-      await this._rollbackDriverCreation(driver.id);
-      throw error;
-    }
+    return await this._createDriverRecord(dto);
   }
 
   /**
@@ -116,9 +109,6 @@ export class DriverService {
         ...driverData,
         vendor_id: vendorId,
         formated_id: '',
-        aadhar_card_url: '',
-        pan_card_url: '',
-        driver_license_url: '',
       },
       include: {
         vehicle: true,
@@ -128,36 +118,6 @@ export class DriverService {
     }) as unknown as Promise<DriverDetailDto>;
   }
 
-  /**
-   * Updates driver record with uploaded file URLs
-   * @private
-   */
-  private async _updateDriverWithFileUrls(
-    driverId: number,
-    fileUrls: {
-      aadhar_card_url: string;
-      pan_card_url: string;
-      driver_license_url: string;
-    },
-  ): Promise<DriverDetailDto> {
-    return (await this._prismaService.driver.update({
-      where: { id: driverId },
-      data: fileUrls,
-      include: {
-        vehicle: true,
-        startLocation: true,
-        endLocation: true,
-      },
-    })) as unknown as DriverDetailDto;
-  }
-
-  /**
-   * Compensating action: removes driver on failure
-   * @private
-   */
-  private async _rollbackDriverCreation(driverId: number): Promise<void> {
-    await this._prismaService.driver.delete({ where: { id: driverId } });
-  }
   // #endregion
 
   /**
@@ -224,7 +184,7 @@ export class DriverService {
       ? await this._updateDriverFilesAsync(id, files)
       : {};
 
-    return (await this._prismaService.driver.update({
+    const result = (await this._prismaService.driver.update({
       where: { id },
       data: {
         ...updateData,
@@ -243,6 +203,9 @@ export class DriverService {
         endLocation: true,
       },
     })) as unknown as DriverDetailDto;
+
+    await this._checkAndSetUnderApprovalStatusAsync(id);
+    return result;
   }
 
   /**
@@ -271,7 +234,7 @@ export class DriverService {
       driverData.password = await Hash.hashAsync(driverData.password);
     }
 
-    return (await this._prismaService.driver.update({
+    const result = (await this._prismaService.driver.update({
       where: { id },
       data: {
         ...driverData,
@@ -283,6 +246,9 @@ export class DriverService {
         endLocation: true,
       },
     })) as unknown as DriverDetailDto;
+
+    await this._checkAndSetUnderApprovalStatusAsync(id);
+    return result;
   }
 
   // #region Delete
@@ -300,6 +266,84 @@ export class DriverService {
         is_deleted: true,
       },
     });
+  }
+  // #endregion
+
+  // #region Document Upload
+  /**
+   * Uploads (or replaces) a single driver document.
+   *
+   * @param driverId - ID of the driver
+   * @param documentType - Which document to upload (aadhar, pan, license)
+   * @param file - The uploaded file
+   * @returns An object containing the public URL of the uploaded file
+   */
+  async uploadDocumentAsync(
+    driverId: number,
+    documentType: DriverDocumentType,
+    file: Express.Multer.File,
+  ): Promise<{ url: string }> {
+    // Verify driver exists
+    await this.getByIdAsync(driverId);
+
+    const folderPath = `driver/${driverId}/documents/${documentType}`;
+    const result = await this._uploadFileAsync(file, folderPath);
+
+    const updateData = this.buildDocumentUpdateData(documentType, result.url);
+    await this._prismaService.driver.update({
+      where: { id: driverId },
+      data: updateData,
+    });
+
+    await this._checkAndSetUnderApprovalStatusAsync(driverId);
+
+    return { url: result.url };
+  }
+
+  /**
+   * Maps a document type to the Prisma update payload that sets
+   * the correct URL column.
+   *
+   * @param type - The document type identifier
+   * @param url - The uploaded file's public URL
+   * @returns A Prisma-compatible update data object
+   */
+  private buildDocumentUpdateData(
+    type: DriverDocumentType,
+    url: string,
+  ): Record<string, any> {
+    const mapping: Record<DriverDocumentType, Record<string, any>> = {
+      aadhar: { aadhar_card_url: url },
+      pan: { pan_card_url: url },
+      license: { driver_license_url: url },
+    };
+
+    return mapping[type];
+  }
+
+  /**
+   * Automatically sets the driver status to UnderApproval if all documents
+   * are uploaded and contact details are verified.
+   * @private
+   */
+  private async _checkAndSetUnderApprovalStatusAsync(driverId: number) {
+    const driver = await this._prismaService.driver.findUnique({
+      where: { id: driverId },
+    });
+
+    if (
+      driver &&
+      driver.aadhar_card_url &&
+      driver.pan_card_url &&
+      driver.driver_license_url &&
+      driver.is_email_verified &&
+      driver.is_number_verified
+    ) {
+      await this._prismaService.driver.update({
+        where: { id: driverId },
+        data: { status: DriverStatus.UnderApproval },
+      });
+    }
   }
   // #endregion
 
@@ -405,56 +449,6 @@ export class DriverService {
     }
   }
 
-  /**
-   * Validates that all required files are present during creation
-   * @private
-   */
-  private _validateRequiredFiles(files: DriverUploadFilesPostDto): void {
-    const requiredFiles: (keyof DriverUploadFilesPostDto)[] = [
-      'aadhar_card',
-      'pan_card',
-      'driver_license',
-    ];
-
-    const missingFiles = requiredFiles.filter((field) => !files[field]);
-
-    if (missingFiles.length > 0) {
-      throw new BadRequestException(
-        `Missing required files: ${missingFiles.join(', ')}`,
-      );
-    }
-  }
-
-  /**
-   * Uploads driver-related documents to storage
-   * @private
-   */
-  private async _uploadDriverFiles(
-    driverId: number,
-    files: DriverUploadFilesPostDto,
-  ) {
-    const [adharCardResult, panCardResult, driverLicenseResult] =
-      await Promise.all([
-        this._uploadFileAsync(
-          files.aadhar_card[0],
-          `driver/${driverId}/documents/aadhar`,
-        ),
-        this._uploadFileAsync(
-          files.pan_card[0],
-          `driver/${driverId}/documents/pan`,
-        ),
-        this._uploadFileAsync(
-          files.driver_license[0],
-          `driver/${driverId}/documents/license`,
-        ),
-      ]);
-
-    return {
-      aadhar_card_url: adharCardResult.url,
-      pan_card_url: panCardResult.url,
-      driver_license_url: driverLicenseResult.url,
-    };
-  }
 
   /**
    * Helper to upload a single file to storage
