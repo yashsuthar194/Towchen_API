@@ -6,6 +6,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -16,6 +17,7 @@ import {
   ApiTags,
   getSchemaPath,
   ApiExtraModels,
+  ApiOperation,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { CallerService } from 'src/services/jwt/caller.service';
@@ -69,5 +71,28 @@ export class DriverProfileController {
   ): Promise<DriverDetailDto> {
     const driverId = this._callerService.getUserId();
     return await this._driverService.updateProfileAsync(driverId, dto, files);
+  }
+
+  /**
+   * Update current driver's personal info (JSON only, no files)
+   */
+  @Put('me/info')
+  @ApiOperation({ summary: 'Update driver profile information (JSON)' })
+  @ApiBody({ type: UpdateDriverProfileDto })
+  async updateProfileInfo(
+    @Body() dto: UpdateDriverProfileDto,
+  ): Promise<DriverDetailDto> {
+    const driverId = this._callerService.getUserId();
+    return await this._driverService.updateProfileAsync(driverId, dto);
+  }
+
+  /**
+   * Delete current driver account
+   */
+  @Delete('me')
+  @ApiOperation({ summary: 'Delete current driver account' })
+  async deleteProfile() {
+    const driverId = this._callerService.getUserId();
+    return await this._driverService.deleteAsync(driverId, driverId);
   }
 }

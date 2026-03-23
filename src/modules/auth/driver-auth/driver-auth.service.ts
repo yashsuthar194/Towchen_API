@@ -58,6 +58,13 @@ export class DriverAuthService {
     if (!isPassVerified)
       throw new NotFoundException('Invalid login credentials');
 
+    const isDocUploaded = this.checkDocumentsUploaded(driver);
+    if (!driver.is_email_verified || !driver.is_number_verified || !isDocUploaded) {
+      throw new BadRequestException(
+        'Registration incomplete. Please ensure all documents are uploaded and email/number are verified before logging in.',
+      );
+    }
+
     const tokens = await this._jwtService.generateTokens({
       id: driver.id,
       email: driver.email,
@@ -69,6 +76,7 @@ export class DriverAuthService {
       refresh_token: tokens.refresh_token,
       is_email_verified: driver.is_email_verified,
       is_number_verified: driver.is_number_verified,
+      is_documents_uploaded: this.checkDocumentsUploaded(driver),
     };
   }
 
@@ -420,6 +428,13 @@ export class DriverAuthService {
       throw new BadRequestException('OTP has expired');
     }
 
+    const isDocUploaded = this.checkDocumentsUploaded(driver);
+    if (!driver.is_email_verified || !driver.is_number_verified || !isDocUploaded) {
+      throw new BadRequestException(
+        'Registration incomplete. Please ensure all documents are uploaded and email/number are verified before logging in.',
+      );
+    }
+
     const tokens = await this._jwtService.generateTokens({
       id: driver.id,
       email: driver.email,
@@ -431,6 +446,19 @@ export class DriverAuthService {
       refresh_token: tokens.refresh_token,
       is_email_verified: driver.is_email_verified,
       is_number_verified: driver.is_number_verified,
+      is_documents_uploaded: this.checkDocumentsUploaded(driver),
     });
+  }
+
+  /**
+   * Helper to check if all required driver documents are uploaded.
+   * @param driver The driver object from Prisma
+   */
+  private checkDocumentsUploaded(driver: any): boolean {
+    return !!(
+      driver.aadhar_card_url &&
+      driver.pan_card_url &&
+      driver.driver_license_url
+    );
   }
 }

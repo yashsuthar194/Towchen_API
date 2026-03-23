@@ -20,6 +20,9 @@ export class DriverListDto implements Partial<driver> {
   @ApiProperty({ enum: DriverStatus, description: 'Current status of the driver' })
   status: DriverStatus;
 
+  @ApiProperty({ description: 'Services provided by the driver', required: false })
+  services?: any[];
+
   @ApiProperty({ description: 'Record creation timestamp' })
   created_at: Date;
 }
