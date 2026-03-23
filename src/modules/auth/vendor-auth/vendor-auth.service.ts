@@ -262,7 +262,7 @@ export class VendorAuthService {
       throw new BadRequestException('OTP has expired. Please request a new one.');
     }
 
-    if (otpRecord.otp !== dto.otp) {
+    if (otpRecord.otp !== dto.otp.toString()) {
       throw new BadRequestException('Invalid OTP. Please check and try again.');
     }
 
@@ -305,7 +305,7 @@ export class VendorAuthService {
       throw new BadRequestException('OTP has expired. Please request a new one.');
     }
 
-    if (otpRecord.otp !== dto.otp) {
+    if (otpRecord.otp !== dto.otp.toString()) {
       throw new BadRequestException('Invalid OTP. Please check and try again.');
     }
 

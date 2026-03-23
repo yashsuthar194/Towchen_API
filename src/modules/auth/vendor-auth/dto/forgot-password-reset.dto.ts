@@ -1,4 +1,12 @@
-import { IsEmail, IsNotEmpty, IsString, Length, Matches, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 /**
  * Request body for resetting the vendor's password.
@@ -12,11 +20,11 @@ export class ForgotPasswordResetDto {
   @IsNotEmpty()
   email: string;
 
-  @IsString()
+  @IsInt()
   @IsNotEmpty()
-  @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
-  @Matches(/^\d{6}$/, { message: 'OTP must contain only digits' })
-  otp: string;
+  @Min(100000, { message: 'mobile_otp must be a 6-digit OTP' })
+  @Max(999999, { message: 'mobile_otp must be a 6-digit OTP' })
+  otp: number;
 
   @IsString()
   @IsNotEmpty()
