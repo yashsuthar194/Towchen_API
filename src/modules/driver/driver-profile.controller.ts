@@ -6,6 +6,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -83,5 +84,15 @@ export class DriverProfileController {
   ): Promise<DriverDetailDto> {
     const driverId = this._callerService.getUserId();
     return await this._driverService.updateProfileAsync(driverId, dto);
+  }
+
+  /**
+   * Delete current driver account
+   */
+  @Delete('me')
+  @ApiOperation({ summary: 'Delete current driver account' })
+  async deleteProfile() {
+    const driverId = this._callerService.getUserId();
+    return await this._driverService.deleteAsync(driverId, driverId);
   }
 }

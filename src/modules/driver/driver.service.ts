@@ -22,7 +22,7 @@ export class DriverService {
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
     private readonly _callerService: CallerService,
-  ) {}
+  ) { }
 
   // #region Get
   /**
@@ -31,7 +31,10 @@ export class DriverService {
    */
   async getListAsync(): Promise<DriverListDto[]> {
     return this._prismaService.driver.findMany({
-      where: { is_deleted: false, vendor_id: this._callerService.getUserId() },
+      where: {
+        is_deleted: false,
+        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+      },
       select: {
         id: true,
         formated_id: true,
@@ -39,6 +42,7 @@ export class DriverService {
         email: true,
         alternate_mobile_number: true,
         status: true,
+        services: true,
         created_at: true,
       },
     });
@@ -51,10 +55,11 @@ export class DriverService {
    * @throws NotFoundException if driver not found
    */
   async getByIdAsync(id: number): Promise<DriverDetailDto> {
-    const driver = await this._prismaService.driver.findUnique({
+    const driver = await this._prismaService.driver.findFirst({
       where: {
         id,
         is_deleted: false,
+        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
       },
       include: {
         vehicle: true,
@@ -63,9 +68,10 @@ export class DriverService {
       },
     });
     if (!driver) {
-      throw new NotFoundException(`Driver with ID ${id} not found`);
+      throw new NotFoundException(`Driver not found`);
     }
-    return driver as unknown as DriverDetailDto;
+
+    return this._mapToDetailDto(driver);
   }
 
   // #endregion
@@ -104,18 +110,23 @@ export class DriverService {
       );
     }
 
-    return this._prismaService.driver.create({
+    const driver = await this._prismaService.driver.create({
       data: {
         ...driverData,
         vendor_id: vendorId,
         formated_id: '',
+        aadhar_card_url: '',
+        pan_card_url: '',
+        driver_license_url: '',
       },
       include: {
         vehicle: true,
         startLocation: true,
         endLocation: true,
       },
-    }) as unknown as Promise<DriverDetailDto>;
+    });
+
+    return this._mapToDetailDto(driver);
   }
 
   // #endregion
@@ -126,8 +137,12 @@ export class DriverService {
    * @returns Detailed driver profile
    */
   async getProfileAsync(id: number): Promise<DriverDetailDto> {
-    const driver = await this._prismaService.driver.findUnique({
-      where: { id, is_deleted: false },
+    const driver = await this._prismaService.driver.findFirst({
+      where: {
+        id,
+        is_deleted: false,
+        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+      },
       include: {
         vendor: {
           select: {
@@ -143,10 +158,10 @@ export class DriverService {
     });
 
     if (!driver) {
-      throw new NotFoundException(`Driver with ID ${id} not found`);
+      throw new NotFoundException(`Driver not found`);
     }
 
-    return driver as unknown as DriverDetailDto;
+    return this._mapToDetailDto(driver);
   }
 
   /**
@@ -165,10 +180,16 @@ export class DriverService {
     });
 
     if (!currentDriver) {
-      throw new NotFoundException(`Driver with ID ${id} not found`);
+      throw new NotFoundException(`Driver not found`);
     }
 
-    const updateData: any = { ...dto };
+    const { location_spot, ...restDto } = dto;
+    const updateData: any = { ...restDto };
+
+    if (location_spot !== undefined) {
+      updateData.start_location_id = location_spot;
+      updateData.end_location_id = location_spot;
+    }
 
     // Reset verification if email or mobile number changes
     if (dto.email && dto.email !== currentDriver.email) {
@@ -184,7 +205,7 @@ export class DriverService {
       ? await this._updateDriverFilesAsync(id, files)
       : {};
 
-    const result = (await this._prismaService.driver.update({
+    const result = await this._prismaService.driver.update({
       where: { id },
       data: {
         ...updateData,
@@ -202,53 +223,53 @@ export class DriverService {
         startLocation: true,
         endLocation: true,
       },
-    })) as unknown as DriverDetailDto;
+    });
 
     await this._checkAndSetUnderApprovalStatusAsync(id);
-    return result;
+    return this._mapToDetailDto(result);
   }
 
   /**
    * Updates an existing driver's information (Vendor/Admin use)
    * @param id - Driver ID
    * @param dto - Data to update
-   * @param files - Optional file updates
    * @returns The updated driver with vehicle details
    */
   async updateAsync(
     id: number,
     dto: UpdateDriverDto,
-    files?: DriverUploadFilesPutDto,
   ): Promise<DriverDetailDto> {
     // Check if exists
     await this.getByIdAsync(id);
 
     await this._validateUniqueness(dto.email, dto.mobile_number, id);
 
-    const updatedFiles = files
-      ? await this._updateDriverFilesAsync(id, files)
-      : {};
-
     const driverData = UpdateDriverDto.toDriverData(dto);
+
+    // Prevent vendors from altering the vendor_id or password of a driver
+    if (this._callerService.isVendor()) {
+      delete (driverData as any).vendor_id;
+      delete (driverData as any).password;
+    }
+
     if (driverData.password) {
       driverData.password = await Hash.hashAsync(driverData.password);
     }
 
-    const result = (await this._prismaService.driver.update({
+    const result = await this._prismaService.driver.update({
       where: { id },
       data: {
         ...driverData,
-        ...updatedFiles,
       },
       include: {
         vehicle: true,
         startLocation: true,
         endLocation: true,
       },
-    })) as unknown as DriverDetailDto;
+    });
 
     await this._checkAndSetUnderApprovalStatusAsync(id);
-    return result;
+    return this._mapToDetailDto(result);
   }
 
   // #region Delete
@@ -257,13 +278,14 @@ export class DriverService {
    * @param id - Driver ID
    * @returns The deleted driver record
    */
-  async deleteAsync(id: number) {
+  async deleteAsync(id: number, deletedById?: number) {
     // Check if exists
     await this.getByIdAsync(id);
     return this._prismaService.driver.update({
       where: { id },
       data: {
         is_deleted: true,
+        is_deleted_by: deletedById,
       },
     });
   }
@@ -301,6 +323,75 @@ export class DriverService {
   }
 
   /**
+   * Explicitly submits a driver for approval, changing status to UnderApproval.
+   * Performs extensive validation to ensure all required fields and documents are present
+   * and contact details are verified.
+   *
+   * @param id - Driver ID
+   * @throws BadRequestException if any required field is missing or unverified
+   */
+  async submitForApprovalAsync(id: number): Promise<DriverDetailDto> {
+    // 1. Retrieve driver (handles existence and vendor ownership check)
+    const driver = await this._prismaService.driver.findUnique({
+      where: { id, is_deleted: false },
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    // Ensure ownership if vendor
+    if (this._callerService.isVendor() && driver.vendor_id !== this._callerService.getUserId()) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    // 2. Perform Validations
+    const errors: string[] = [];
+
+    // Required Strings (must be present and not empty)
+    if (!driver.email) errors.push('Email is required');
+    if (!driver.driver_name) errors.push('Driver name is required');
+    if (!driver.mobile_number) errors.push('Mobile number is required');
+    if (!driver.alternate_mobile_number) errors.push('Alternate mobile number is required');
+
+    // Required Documents (Optional in schema, but required for approval)
+    if (!driver.pan_card_url) errors.push('PAN card document is required');
+    if (!driver.driver_license_url) errors.push('Driver license document is required');
+    if (!driver.aadhar_card_url) errors.push('Aadhaar card document is required');
+
+    // Required Identifiers (Optional in schema, but required for approval)
+    if (!driver.vehicle_id) errors.push('Vehicle assignment is required');
+    if (!driver.start_location_id) errors.push('Start location is required');
+    if (!driver.end_location_id) errors.push('End location is required');
+
+    // Required Array (must not be empty)
+    if (!driver.services || driver.services.length === 0) {
+      errors.push('At least one service must be assigned');
+    }
+
+    // Verification Flags
+    if (!driver.is_email_verified) errors.push('Email must be verified');
+    if (!driver.is_number_verified) errors.push('Mobile number must be verified');
+
+    if (errors.length > 0) {
+      throw new BadRequestException(`Submission failed: ${errors.join(', ')}`);
+    }
+
+    // 3. Update Status
+    const result = await this._prismaService.driver.update({
+      where: { id },
+      data: { status: DriverStatus.UnderApproval },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    return this._mapToDetailDto(result);
+  }
+
+  /**
    * Maps a document type to the Prisma update payload that sets
    * the correct URL column.
    *
@@ -335,9 +426,7 @@ export class DriverService {
       driver &&
       driver.aadhar_card_url &&
       driver.pan_card_url &&
-      driver.driver_license_url &&
-      driver.is_email_verified &&
-      driver.is_number_verified
+      driver.driver_license_url
     ) {
       await this._prismaService.driver.update({
         where: { id: driverId },
@@ -489,6 +578,34 @@ export class DriverService {
       size: singleFile.size,
       folderPath,
     });
+  }
+
+  /**
+   * Maps a driver database record to DriverDetailDto,
+   * Transforming startLocation to location_spot and removing sensitive fields.
+   * @private
+   */
+  private _mapToDetailDto(driver: any): DriverDetailDto {
+    const {
+      password,
+      startLocation,
+      endLocation,
+      start_location_id,
+      end_location_id,
+      ...rest
+    } = driver;
+
+    const is_documents_uploaded = !!(
+      driver.aadhar_card_url &&
+      driver.pan_card_url &&
+      driver.driver_license_url
+    );
+
+    return {
+      ...rest,
+      location_spot: startLocation,
+      is_documents_uploaded,
+    } as unknown as DriverDetailDto;
   }
   // #endregion
 }

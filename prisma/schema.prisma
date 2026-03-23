@@ -85,7 +85,8 @@ model driver {
   created_at              DateTime     @default(now())
   is_deleted              Boolean      @default(false)
   is_deleted_by           Int?
-  status                  DriverStatus @default(Busy)
+  status                  DriverStatus @default(Banned)
+  services                VendorServices[]
   updated_at              DateTime     @updatedAt
   formated_id             String       @unique
   vendor_id               Int

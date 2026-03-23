@@ -58,6 +58,13 @@ export class DriverAuthService {
     if (!isPassVerified)
       throw new NotFoundException('Invalid login credentials');
 
+    const isDocUploaded = this.checkDocumentsUploaded(driver);
+    if (!driver.is_email_verified || !driver.is_number_verified || !isDocUploaded) {
+      throw new BadRequestException(
+        'Registration incomplete. Please ensure all documents are uploaded and email/number are verified before logging in.',
+      );
+    }
+
     const tokens = await this._jwtService.generateTokens({
       id: driver.id,
       email: driver.email,
@@ -419,6 +426,13 @@ export class DriverAuthService {
 
     if (dbOtp.expires_at < new Date()) {
       throw new BadRequestException('OTP has expired');
+    }
+
+    const isDocUploaded = this.checkDocumentsUploaded(driver);
+    if (!driver.is_email_verified || !driver.is_number_verified || !isDocUploaded) {
+      throw new BadRequestException(
+        'Registration incomplete. Please ensure all documents are uploaded and email/number are verified before logging in.',
+      );
     }
 
     const tokens = await this._jwtService.generateTokens({

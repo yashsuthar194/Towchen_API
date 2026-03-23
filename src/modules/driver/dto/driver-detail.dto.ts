@@ -41,14 +41,14 @@ export class DriverDetailDto implements Partial<driver> {
   @ApiProperty({ description: 'URL to Driver License document' })
   driver_license_url: string;
 
-  @ApiProperty({ description: 'ID of the start location', nullable: true })
-  start_location_id: number | null;
-
-  @ApiProperty({ description: 'ID of the end location', nullable: true })
-  end_location_id: number | null;
+  @ApiProperty({ description: 'Location details (Unified start/end location)', required: false })
+  location_spot?: any;
 
   @ApiProperty({ enum: DriverStatus, description: 'Current status of the driver' })
   status: DriverStatus;
+
+  @ApiProperty({ description: 'Services provided by the driver', required: false, nullable: true })
+  services?: any[];
 
   @ApiProperty({ description: 'Record creation timestamp' })
   created_at: Date;
@@ -59,11 +59,6 @@ export class DriverDetailDto implements Partial<driver> {
   @ApiProperty({ description: 'Assigned vehicle details', required: false })
   vehicle?: any;
 
-  @ApiProperty({ description: 'Start location details', required: false })
-  startLocation?: any;
-
-  @ApiProperty({ description: 'End location details', required: false })
-  endLocation?: any;
 
   @ApiProperty({ description: 'Vendor details', required: false })
   vendor?: any;

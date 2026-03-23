@@ -12,28 +12,28 @@ import {
   UploadedFile,
   UseGuards,
   BadRequestException,
+  Patch,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
-import { CreateDriverDto } from './dto/create-driver.dto';
-import { UpdateDriverDto } from './dto/update-driver.dto';
-import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { CreateDriverDto, VendorCreateDriverDto } from './dto/create-driver.dto';
+import { UpdateDriverDto, VendorUpdateDriverDto } from './dto/update-driver.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiConsumes,
   ApiBody,
   ApiExtraModels,
   getSchemaPath,
   ApiBearerAuth,
+  ApiOperation,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
-import { DriverGuard } from 'src/services/jwt/guards/driver.guard';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { DriverDetailDto } from './dto/driver-detail.dto';
 import { DriverListDto } from './dto/driver-list.dto';
-import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
 
-@ApiExtraModels(CreateDriverDto, UpdateDriverDto, DriverUploadFilesPutDto, UploadDriverDocumentDto)
+@ApiExtraModels(CreateDriverDto, UpdateDriverDto, UploadDriverDocumentDto)
 @Controller('driver')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
@@ -50,9 +50,9 @@ export class DriverController {
   @UseGuards(VendorGuard)
   @Post()
   async create(
-    @Body() createDriverDto: CreateDriverDto,
+    @Body() createDriverDto: VendorCreateDriverDto,
   ): Promise<DriverDetailDto> {
-    return await this._driverService.createAsync(createDriverDto);
+    return await this._driverService.createAsync(createDriverDto as CreateDriverDto);
   }
 
   /**
@@ -78,32 +78,14 @@ export class DriverController {
    * Update driver information
    * @param id Driver ID
    * @param updateDriverDto 
-   * @param files Optional document updates
    */
   @UseGuards(VendorGuard)
   @Put(':id')
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(UpdateDriverDto) },
-        { $ref: getSchemaPath(DriverUploadFilesPutDto) },
-      ],
-    },
-  })
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'aadhar_card', maxCount: 1 },
-      { name: 'pan_card', maxCount: 1 },
-      { name: 'driver_license', maxCount: 1 },
-    ]),
-  )
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateDriverDto: UpdateDriverDto,
-    @UploadedFiles() files: DriverUploadFilesPutDto,
+    @Body() updateDriverDto: VendorUpdateDriverDto,
   ): Promise<DriverDetailDto> {
-    return await this._driverService.updateAsync(id, updateDriverDto, files);
+    return await this._driverService.updateAsync(id, updateDriverDto as UpdateDriverDto);
   }
 
   /**
@@ -113,7 +95,23 @@ export class DriverController {
   @UseGuards(VendorGuard)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number) {
-    return await this._driverService.deleteAsync(id);
+    const deletedById = this._callerService.getUserId();
+    return await this._driverService.deleteAsync(id, deletedById);
+  }
+
+  /**
+   * Submits a driver for approval.
+   * Changes status to UnderApproval after validating all required fields and documents.
+   *
+   * @param id - Driver ID
+   */
+  @UseGuards(VendorGuard)
+  @Patch(':id/submit-for-approval')
+  @ApiOperation({ summary: 'Submit driver for approval' })
+  async submitForApproval(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<DriverDetailDto> {
+    return await this._driverService.submitForApprovalAsync(id);
   }
 
   // #region Document Upload (For Vendors)
@@ -175,60 +173,7 @@ export class DriverController {
   }
   // #endregion
 
-  // #region Document Upload (Self-Service)
-  /**
-   * Uploads or replaces the authenticated driver's Aadhaar card document.
-   *
-   * @param file - Aadhaar card file (PDF, JPEG, PNG)
-   */
-  @UseGuards(DriverGuard)
-  @Put('document/aadhar-card')
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadDriverDocumentDto })
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadMyAadharCard(
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ url: string }> {
-    this.ensureFileProvided(file, 'Aadhaar card');
-    const driverId = this._callerService.getUserId();
-    return await this._driverService.uploadDocumentAsync(driverId, 'aadhar', file);
-  }
-
-  /**
-   * Uploads or replaces the authenticated driver's PAN card document.
-   *
-   * @param file - PAN card file (PDF, JPEG, PNG)
-   */
-  @UseGuards(DriverGuard)
-  @Put('document/pan-card')
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadDriverDocumentDto })
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadMyPanCard(
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ url: string }> {
-    this.ensureFileProvided(file, 'PAN card');
-    const driverId = this._callerService.getUserId();
-    return await this._driverService.uploadDocumentAsync(driverId, 'pan', file);
-  }
-
-  /**
-   * Uploads or replaces the authenticated driver's License document.
-   *
-   * @param file - License file (PDF, JPEG, PNG)
-   */
-  @UseGuards(DriverGuard)
-  @Put('document/driver-license')
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadDriverDocumentDto })
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadMyDriverLicense(
-    @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ url: string }> {
-    this.ensureFileProvided(file, 'Driver License');
-    const driverId = this._callerService.getUserId();
-    return await this._driverService.uploadDocumentAsync(driverId, 'license', file);
-  }
+  // #region Helpers
 
   /**
    * Validates that a file was actually included in the multipart request.
