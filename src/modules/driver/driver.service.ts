@@ -250,6 +250,7 @@ export class DriverService {
     if (this._callerService.isVendor()) {
       delete (driverData as any).vendor_id;
       delete (driverData as any).password;
+      (driverData as any).status = DriverStatus.Banned;
     }
 
     if (driverData.password) {
@@ -268,7 +269,9 @@ export class DriverService {
       },
     });
 
-    await this._checkAndSetUnderApprovalStatusAsync(id);
+    if (!this._callerService.isVendor()) {
+      await this._checkAndSetUnderApprovalStatusAsync(id);
+    }
     return this._mapToDetailDto(result);
   }
 
@@ -311,13 +314,19 @@ export class DriverService {
     const folderPath = `driver/${driverId}/documents/${documentType}`;
     const result = await this._uploadFileAsync(file, folderPath);
 
-    const updateData = this.buildDocumentUpdateData(documentType, result.url);
+    const updateData: any = this.buildDocumentUpdateData(documentType, result.url);
+    if (this._callerService.isVendor()) {
+      updateData.status = DriverStatus.Banned;
+    }
+
     await this._prismaService.driver.update({
       where: { id: driverId },
       data: updateData,
     });
 
-    await this._checkAndSetUnderApprovalStatusAsync(driverId);
+    if (!this._callerService.isVendor()) {
+      await this._checkAndSetUnderApprovalStatusAsync(driverId);
+    }
 
     return { url: result.url };
   }
