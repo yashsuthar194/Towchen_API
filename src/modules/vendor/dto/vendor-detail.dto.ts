@@ -34,7 +34,7 @@ export class VendorDetailDto {
   })
   organization_type: OrganizationType;
 
-  gst_number: string;
+  gst_number: string | null;
   gst_certificate_url: string;
 
   /**

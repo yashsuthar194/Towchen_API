@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MinLength,
@@ -90,18 +91,18 @@ export class CreateVendorDto implements Partial<VendorDto> {
 
   /** Whether the vendor is GST-registered */
   @IsBoolean()
-  @IsNotEmpty()
+  @IsOptional()
   @ApiProperty({ example: true })
   is_gst_vendor: boolean;
 
   /** GST identification number (15-character alphanumeric format) */
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, {
     message: 'gst_number must be a valid GST number',
   })
   @ApiProperty({ example: '27AAPFU0939F1ZV' })
-  gst_number: string;
+  gst_number?: string;
 
   // ── Bank detail fields (flattened for JSON compatibility) ──
 
