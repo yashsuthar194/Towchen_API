@@ -21,4 +21,11 @@ export class DriverUploadFilesPutDto {
     description: 'Update Driver License document',
   })
   driver_license?: Express.Multer.File[];
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Update Driver Profile Image',
+  })
+  driver_image?: Express.Multer.File[];
 }

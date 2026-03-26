@@ -41,6 +41,9 @@ export class DriverDetailDto implements Partial<driver> {
   @ApiProperty({ description: 'URL to Driver License document' })
   driver_license_url: string;
 
+  @ApiProperty({ description: 'URL to Driver Profile Image', nullable: true })
+  driver_image_url: string | null;
+
   @ApiProperty({ description: 'Location details (Unified start/end location)', required: false })
   location_spot?: any;
 
