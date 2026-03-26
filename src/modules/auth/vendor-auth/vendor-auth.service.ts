@@ -361,10 +361,6 @@ export class VendorAuthService {
       throw new BadRequestException('Invalid ID or password');
     }
 
-    if (vendor.status !== 'Approved') {
-      throw new BadRequestException('Vendor is not approved');
-    }
-
     const isPasswordValid = await Hash.verifyAsync(
       loginDto.password,
       vendor.password,
