@@ -171,6 +171,25 @@ export class DriverController {
     this.ensureFileProvided(file, 'Driver License');
     return await this._driverService.uploadDocumentAsync(id, 'license', file);
   }
+
+  /**
+   * Uploads or replaces a driver's profile image (Vendor Access).
+   *
+   * @param id - Driver ID
+   * @param file - Profile image file
+   */
+  @UseGuards(VendorGuard)
+  @Put(':id/document/driver-image')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadDriverDocumentDto })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDriverImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ url: string }> {
+    this.ensureFileProvided(file, 'Driver Profile Image');
+    return await this._driverService.uploadDocumentAsync(id, 'profile_image', file);
+  }
   // #endregion
 
   // #region Helpers

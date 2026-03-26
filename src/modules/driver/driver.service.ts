@@ -14,7 +14,7 @@ import { DriverListDto } from './dto/driver-list.dto';
 import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
 import { DriverStatus } from '@prisma/client';
 
-type DriverDocumentType = 'aadhar' | 'pan' | 'license';
+type DriverDocumentType = 'aadhar' | 'pan' | 'license' | 'profile_image';
 
 @Injectable()
 export class DriverService {
@@ -416,6 +416,7 @@ export class DriverService {
       aadhar: { aadhar_card_url: url },
       pan: { pan_card_url: url },
       license: { driver_license_url: url },
+      profile_image: { driver_image_url: url },
     };
 
     return mapping[type];
@@ -454,7 +455,7 @@ export class DriverService {
     driverId: number,
     files: DriverUploadFilesPutDto,
   ) {
-    const [adharCardResult, panCardResult, driverLicenseResult] =
+    const [adharCardResult, panCardResult, driverLicenseResult, driverImageResult] =
       await Promise.all([
         this._updateFileAsync(
           files.aadhar_card?.[0],
@@ -468,12 +469,17 @@ export class DriverService {
           files.driver_license?.[0],
           `driver/${driverId}/documents/license`,
         ),
+        this._updateFileAsync(
+          files.driver_image?.[0],
+          `driver/${driverId}/documents/image`,
+        ),
       ]);
 
     return {
       aadhar_card_url: adharCardResult?.url || undefined,
       pan_card_url: panCardResult?.url || undefined,
       driver_license_url: driverLicenseResult?.url || undefined,
+      driver_image_url: driverImageResult?.url || undefined,
     };
   }
 
@@ -607,7 +613,8 @@ export class DriverService {
     const is_documents_uploaded = !!(
       driver.aadhar_card_url &&
       driver.pan_card_url &&
-      driver.driver_license_url
+      driver.driver_license_url &&
+      driver.driver_image_url
     );
 
     return {
