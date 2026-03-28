@@ -113,7 +113,7 @@ export class VendorService {
 
     return {
       ...vendor,
-      is_gst_vendor: vendor.is_gst_vendor.toString().toUpperCase(),
+      is_gst_vendor: vendor.is_gst_vendor,
     };
   }
 
@@ -337,7 +337,7 @@ export class VendorService {
 
     return {
       ...vendor,
-      is_gst_vendor: vendor.is_gst_vendor.toString().toUpperCase(),
+      is_gst_vendor: vendor.is_gst_vendor,
     };
   }
   //#endregion

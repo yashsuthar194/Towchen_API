@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -90,12 +89,6 @@ export class CreateVendorDto implements Partial<VendorDto> {
   @ApiProperty({ enum: OrganizationType, example: OrganizationType.Cooperative })
   organization_type: OrganizationType;
 
-  @Transform(({ value }) => (value === '' ? undefined : value))
-  @IsBoolean()
-  @IsOptional()
-  @ApiProperty({ example: true })
-  is_gst_vendor: boolean;
-
   /** GST identification number (15-character alphanumeric format) */
   @Transform(({ value }) => (value === '' ? undefined : value))
   @IsOptional()
@@ -161,7 +154,12 @@ export class CreateVendorDto implements Partial<VendorDto> {
       select_services,
       ...vendorData
     } = dto;
-    return { services: select_services, ...vendorData };
+    return {
+      ...vendorData,
+      services: select_services,
+      gst_number: dto.gst_number ?? null,
+      is_gst_vendor: !!dto.gst_number,
+    };
   }
 
   /**

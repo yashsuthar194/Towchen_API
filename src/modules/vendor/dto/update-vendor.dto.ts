@@ -7,7 +7,6 @@ import {
   IsArray,
   IsEnum,
   Matches,
-  IsBoolean,
   IsOptional,
 } from 'class-validator';
 import {
@@ -72,13 +71,6 @@ export class UpdateVendorDto {
   @ApiProperty({ enum: OrganizationType, example: OrganizationType.Cooperative })
   organization_type: OrganizationType;
 
-  /** Whether the vendor is GST-registered */
-  @Transform(({ value }) => (value === '' ? undefined : value))
-  @IsBoolean()
-  @IsOptional()
-  @ApiProperty({ example: true })
-  is_gst_vendor: boolean;
-
   @Transform(({ value }) => (value === '' ? undefined : value))
   @IsOptional()
   @IsString()
@@ -134,7 +126,12 @@ export class UpdateVendorDto {
       select_services,
       ...vendorData
     } = dto;
-    return { services: select_services, ...vendorData };
+    return {
+      ...vendorData,
+      services: select_services,
+      gst_number: dto.gst_number ?? null,
+      is_gst_vendor: !!dto.gst_number,
+    };
   }
 
   /**

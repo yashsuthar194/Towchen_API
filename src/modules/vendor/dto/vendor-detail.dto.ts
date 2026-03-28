@@ -4,14 +4,6 @@ import { VendorBankDetailDto } from '../../vendor-bank-detail/dto/vendor-bank-de
 
 /**
  * Response DTO for vendor detail endpoints.
- *
- * NOTE: `is_gst_vendor` is intentionally typed as `boolean[]` (a single-element
- * array) in the API response so that consumers can distinguish a present-false
- * value from an absent field. The underlying DB column remains a plain boolean;
- * the wrap happens in the service layer.
- *
- * NOT using `implements Partial<VendorDto>` here because we deliberately change
- * the type of `is_gst_vendor` from `boolean` to `boolean[]`.
  */
 export class VendorDetailDto {
   id: number;
@@ -37,13 +29,9 @@ export class VendorDetailDto {
   gst_number: string | null;
   gst_certificate_url: string;
 
-  /**
-   * The GST-vendor flag wrapped in a single-element boolean array.
-   * e.g. `[true]` or `[false]`.
-   * The underlying DB column is a plain `boolean`.
-   */
-  @ApiProperty({ type: String, example: 'True' })
-  is_gst_vendor: string;
+  /** Whether the vendor is GST-registered. Derived from gst_number. */
+  @ApiProperty({ type: Boolean, example: true })
+  is_gst_vendor: boolean;
 
   approved_by: number | null;
   created_at: Date;
