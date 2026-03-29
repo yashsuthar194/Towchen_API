@@ -147,6 +147,7 @@ export class VendorService {
   async createAsync(
     dto: CreateVendorDto,
   ): Promise<VendorRegistrationResponseDto> {
+    await this.validateDuplicateVendorAsync(dto.mobile_number, dto.email);
     const vendor = await this.createVendorRecord(dto);
     const vendorDetail = await this.getByIdAsync(vendor.id);
 
@@ -296,6 +297,8 @@ export class VendorService {
     dto: UpdateVendorDto,
     id: number,
   ): Promise<VendorDetailDto> {
+    await this.validateDuplicateVendorAsync(dto.mobile_number, dto.email, id);
+
     const vendorData = UpdateVendorDto.toVendorData(dto);
     const bankDetail = UpdateVendorDto.toBankDetail(dto);
 
@@ -458,6 +461,37 @@ export class VendorService {
       size: singleFile.size,
       folderPath,
     });
+  }
+  //#endregion
+
+  //#region Private Function
+  /**
+   * Validate duplicate vendor
+   * @param mobileNumber 
+   * @param email 
+   * @param id 
+   */
+  private async validateDuplicateVendorAsync(
+    mobileNumber: string,
+    email: string,
+    id?: number,
+  ) {
+    const existingVendor = await this._prismaService.vendor.findFirst({
+      where: {
+        OR: [{ mobile_number: mobileNumber }, { email: email }],
+        ...(id && { id: { not: id } }),
+      },
+    });
+    if (existingVendor && existingVendor.email === email) {
+      throw new BadRequestException(
+        'Vendor with this email already exists',
+      );
+    }
+    if (existingVendor && existingVendor.mobile_number === mobileNumber) {
+      throw new BadRequestException(
+        'Vendor with this mobile number already exists',
+      );
+    }
   }
   //#endregion
 }
