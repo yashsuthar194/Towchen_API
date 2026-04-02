@@ -39,9 +39,9 @@ export class VendorDetailDto {
 
   @ApiProperty({
     enum: Object.values(VendorServices),
-    example: [VendorServices.Towing],
+    example: VendorServices.Towing,
   })
-  services: VendorServices[];
+  services: VendorServices;
 
   @ApiProperty({
     enum: Object.values(VendorStatus),

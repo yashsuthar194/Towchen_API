@@ -15,7 +15,6 @@ import {
   VendorServices,
 } from '@prisma/client';
 import { VendorDto } from './vendor.dto';
-import { Match } from 'src/shared/validators/match.decorator';
 
 /**
  * DTO for creating a new vendor account.
@@ -69,14 +68,13 @@ export class CreateVendorDto implements Partial<VendorDto> {
   password: string;
 
   /** Services the vendor provides */
-  @IsArray()
-  @IsEnum(VendorServices, { each: true })
+  @IsEnum(VendorServices)
   @ApiProperty({
-    type: [String],
+    type: String,
     enum: VendorServices,
-    example: [VendorServices.Towing],
+    example: VendorServices.Towing,
   })
-  select_services: VendorServices[];
+  select_services: VendorServices;
 
   /** Name of the vendor's organization or business */
   @IsNotEmpty()

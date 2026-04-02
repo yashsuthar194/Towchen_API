@@ -13,7 +13,7 @@ model vendor {
   email                        String              @db.VarChar(255)
   password                     String              @db.VarChar(255)
   is_email_verified            Boolean             @default(true)
-  services                     VendorServices[]
+  services                     VendorServices
   pan_card_url                 String
   gst_number                   String?             @db.VarChar(15)
   gst_certificate_url          String

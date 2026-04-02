@@ -52,14 +52,13 @@ export class UpdateVendorDto {
   alternate_number: string;
 
   /** Services the vendor provides */
-  @IsArray()
-  @IsEnum(VendorServices, { each: true })
+  @IsEnum(VendorServices)
   @ApiProperty({
-    type: [String],
+    type: String,
     enum: VendorServices,
-    example: [VendorServices.Towing],
+    example: VendorServices.Towing,
   })
-  select_services: VendorServices[];
+  select_services: VendorServices;
 
   @IsNotEmpty()
   @IsString()

@@ -17,7 +17,7 @@ export class VendorDto implements vendor {
   is_email_verified: boolean;
   is_number_verified: boolean;
   vendor_profile_image_url: string;
-  services: VendorServices[];
+  services: VendorServices;
   pan_card_url: string;
   pan_number: string;
   aadhar_card_url: string;
