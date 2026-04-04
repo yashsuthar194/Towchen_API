@@ -13,7 +13,6 @@ model vendor {
   email                        String              @db.VarChar(255)
   password                     String              @db.VarChar(255)
   is_email_verified            Boolean             @default(true)
-  services                     VendorServices
   pan_card_url                 String
   gst_number                   String?             @db.VarChar(15)
   gst_certificate_url          String
@@ -39,6 +38,7 @@ model vendor {
   signature_type               SignatureType
   vendor_name                  String              @db.VarChar(255)
   vendor_profile_image_url     String
+  services                     VendorServices
   bank_detail                  vendor_bank_detail?
   drivers                      driver[]
   vehicles                     vehicle[]
@@ -86,7 +86,6 @@ model driver {
   is_deleted              Boolean          @default(false)
   is_deleted_by           Int?
   status                  DriverStatus     @default(Banned)
-  services                VendorServices[]
   updated_at              DateTime         @updatedAt
   formated_id             String           @unique
   vendor_id               Int
@@ -95,9 +94,9 @@ model driver {
   driver_name             String           @db.VarChar(255)
   mobile_number           String           @db.VarChar(20)
   aadhar_card_url         String?
-  driver_image_url        String?
   end_location_id         Int?
   start_location_id       Int?
+  services                VendorServices[]
   startLocation           location?        @relation("DriverStartLocation", fields: [start_location_id], references: [id])
   endLocation             location?        @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   vehicle                 vehicle?         @relation(fields: [vehicle_id], references: [id])
