@@ -363,6 +363,20 @@ export class VendorService {
       },
     });
   }
+
+  /**
+   * Soft-deletes the currently authenticated vendor's own account.
+   *
+   * The vendor ID is extracted from the JWT token via CallerService,
+   * so no ID parameter is required. Delegates to `deleteAsync` internally.
+   *
+   * @throws {UnauthorizedException} If no valid JWT token is present
+   * @throws {NotFoundException} If the vendor record no longer exists
+   */
+  async deleteMyAccountAsync(): Promise<void> {
+    const vendorId = this._callerService.getUserId();
+    await this.deleteAsync(vendorId);
+  }
   //#endregion
 
   //#region Document Upload
