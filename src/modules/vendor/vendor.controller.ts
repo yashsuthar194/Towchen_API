@@ -359,6 +359,26 @@ export class VendorController {
   }
 
   /**
+   * Allows the currently authenticated vendor to delete their own account.
+   *
+   * The vendor ID is extracted from the JWT token — no ID parameter is needed.
+   * The record is soft-deleted (`is_deleted = true`) and retained for audit purposes.
+   *
+   * @returns A success response confirming the account was deleted
+   * @throws {UnauthorizedException} If the JWT token is missing or invalid
+   * @throws {ForbiddenException} If the authenticated user is not a vendor
+   * @throws {NotFoundException} If the vendor record no longer exists
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponseDtoNull(200)
+  @Delete('me')
+  async deleteMyAccountAsync(): Promise<ResponseDto<null>> {
+    await this._vendorService.deleteMyAccountAsync();
+    return ResponseDto.deleted('Account deleted successfully');
+  }
+
+  /**
    * Soft-deletes a vendor by marking them as deleted.
    * The vendor record is retained in the database for audit purposes.
    *
