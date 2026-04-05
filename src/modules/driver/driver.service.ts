@@ -373,9 +373,9 @@ export class DriverService {
     if (!driver.start_location_id) errors.push('Start location is required');
     if (!driver.end_location_id) errors.push('End location is required');
 
-    // Required Array (must not be empty)
-    if (!driver.services || driver.services.length === 0) {
-      errors.push('At least one service must be assigned');
+    // Required Service
+    if (!driver.services) {
+      errors.push('A service must be assigned');
     }
 
     // Verification Flags

@@ -8,7 +8,6 @@ import {
   Matches,
   MinLength,
   IsEnum,
-  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { driver, VendorServices } from '@prisma/client';
@@ -49,14 +48,12 @@ export class CreateDriverDto implements Partial<driver> {
   password: string;
 
   @ApiProperty({
-    description: 'Services provided by the driver',
-    type: [String],
+    description: 'Service provided by the driver',
     enum: VendorServices,
-    example: [VendorServices.Towing],
+    example: VendorServices.Towing,
   })
-  @IsArray()
-  @IsEnum(VendorServices, { each: true })
-  select_services: VendorServices[];
+  @IsEnum(VendorServices)
+  select_services: VendorServices;
 
 
 

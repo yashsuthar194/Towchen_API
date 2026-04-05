@@ -96,7 +96,7 @@ model driver {
   aadhar_card_url         String?
   end_location_id         Int?
   start_location_id       Int?
-  services                VendorServices[]
+  services                VendorServices @default(Towing)
   startLocation           location?        @relation("DriverStartLocation", fields: [start_location_id], references: [id])
   endLocation             location?        @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   vehicle                 vehicle?         @relation(fields: [vehicle_id], references: [id])
