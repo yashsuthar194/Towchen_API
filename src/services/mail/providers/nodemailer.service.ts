@@ -47,7 +47,9 @@ export class NodemailerService implements IMailService {
         user: mailConfig.MAIL_USER,
         pass: mailConfig.MAIL_PASS,
       },
-    });
+      // Force IPv4 if IPv6 is unreachable (Common for ENETUNREACH errors)
+      family: 4,
+    } as any);
 
     this.logger.log('Nodemailer service initialized');
   }
