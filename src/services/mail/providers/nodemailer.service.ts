@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import * as dns from 'dns';
 import { IMailService } from '../interfaces/mail.interface';
 import { SendMailDto } from '../types/send-mail.dto';
 import { MailResponseDto } from '../types/mail-response.dto';
@@ -32,9 +31,6 @@ export class NodemailerService implements IMailService {
     const mailConfig = this.configService.mail;
 
     this.defaultFrom = mailConfig.defaultFrom;
-
-    // Force Node.js to prefer IPv4 over IPv6 globally (resolves ENETUNREACH for some cloud providers)
-    dns.setDefaultResultOrder('ipv4first');
 
     // Validate required configuration
     if (!mailConfig.MAIL_HOST || !mailConfig.MAIL_USER || !mailConfig.MAIL_PASS) {
