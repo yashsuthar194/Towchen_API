@@ -49,6 +49,8 @@ export class NodemailerService implements IMailService {
       },
       // Force IPv4 if IPv6 is unreachable (Common for ENETUNREACH errors)
       family: 4,
+      connectionTimeout: 10000, // 10 seconds
+      socketTimeout: 10000,     // 10 seconds
     } as any);
 
     this.logger.log('Nodemailer service initialized');
