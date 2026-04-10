@@ -13,6 +13,7 @@ import {
   UseGuards,
   BadRequestException,
   Patch,
+  Query,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
 import { CreateDriverDto, VendorCreateDriverDto } from './dto/create-driver.dto';
@@ -25,7 +26,9 @@ import {
   getSchemaPath,
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
 } from '@nestjs/swagger';
+import { DriverStatus } from '@prisma/client';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 import { CallerService } from 'src/services/jwt/caller.service';
@@ -57,11 +60,13 @@ export class DriverController {
 
   /**
    * Get all drivers belonging to the vendor
+   * @param active_tab Optional status filter
    */
   @UseGuards(VendorGuard)
   @Get()
-  async findAll(): Promise<DriverListDto[]> {
-    return await this._driverService.getListAsync();
+  @ApiQuery({ name: 'active_tab', enum: DriverStatus, required: false })
+  async findAll(@Query('active_tab') active_tab?: DriverStatus): Promise<DriverListDto[]> {
+    return await this._driverService.getListAsync(active_tab);
   }
 
   /**

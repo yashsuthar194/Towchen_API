@@ -29,11 +29,12 @@ export class DriverService {
    * Gets a list of active drivers for the current vendor
    * @returns Array of drivers with vehicle details
    */
-  async getListAsync(): Promise<DriverListDto[]> {
+  async getListAsync(status?: DriverStatus): Promise<DriverListDto[]> {
     return this._prismaService.driver.findMany({
       where: {
         is_deleted: false,
         ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+        ...(status ? { status } : {}),
       },
       select: {
         id: true,
@@ -42,8 +43,10 @@ export class DriverService {
         email: true,
         alternate_mobile_number: true,
         status: true,
+        availability_status: true,
         services: true,
         created_at: true,
+        vehicle: true,
       },
     });
   }
