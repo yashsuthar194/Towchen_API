@@ -1,4 +1,4 @@
-import { driver, DriverStatus, VendorServices } from '@prisma/client';
+import { driver, DriverStatus, VendorServices, AvailabilityStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class DriverDetailDto implements Partial<driver> {
@@ -50,6 +50,9 @@ export class DriverDetailDto implements Partial<driver> {
   @ApiProperty({ enum: DriverStatus, description: 'Current status of the driver' })
   status: DriverStatus;
 
+  @ApiProperty({ enum: AvailabilityStatus, description: 'Driver online/offline status' })
+  availability_status: AvailabilityStatus;
+
   @ApiProperty({ enum: VendorServices, description: 'Service provided by the driver', required: false, nullable: true })
   services?: VendorServices;
 
@@ -61,7 +64,6 @@ export class DriverDetailDto implements Partial<driver> {
 
   @ApiProperty({ description: 'Assigned vehicle details', required: false })
   vehicle?: any;
-
 
   @ApiProperty({ description: 'Vendor details', required: false })
   vendor?: any;
