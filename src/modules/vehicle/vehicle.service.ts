@@ -7,11 +7,9 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { StorageService } from 'src/services/storage/storage.service';
-import { VehicleUploadFilesPostDto } from './dto/vehicle-upload-files.post.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleDetailDto } from './dto/vehicle-detail.dto';
 import { VehicleListDto } from './dto/vehicle-list.dto';
-import { VehicleUploadFilesPutDto } from './dto/vehicle-upload-files.put.dto';
 
 @Injectable()
 export class VehicleService {
@@ -65,14 +63,12 @@ export class VehicleService {
 
   // #region Create
   /**
-   * Registers a new vehicle with uploaded images
+   * Registers a new vehicle (JSON only)
    * @param dto - Vehicle details
-   * @param files - Uploaded vehicle images
    * @returns The created vehicle record
    */
   async createAsync(
     dto: CreateVehicleDto,
-    files: VehicleUploadFilesPostDto,
   ): Promise<VehicleDetailDto> {
     await this._validateUniqueness(
       dto.registration_number,
@@ -81,14 +77,7 @@ export class VehicleService {
     );
 
     const vehicle = await this._createVehicleRecord(dto);
-
-    try {
-      const fileUrls = await this._uploadVehicleFiles(vehicle.id, files);
-      return await this._updateVehicleWithFileUrls(vehicle.id, fileUrls);
-    } catch (error) {
-      await this._rollbackVehicleCreation(vehicle.id);
-      throw error;
-    }
+    return vehicle as unknown as VehicleDetailDto;
   }
 
   /**
@@ -124,39 +113,18 @@ export class VehicleService {
       },
     });
   }
-
-  /**
-   * Updates vehicle with file URLs
-   * @private
-   */
-  private async _updateVehicleWithFileUrls(vehicleId: number, fileUrls: any): Promise<VehicleDetailDto> {
-    return this._prismaService.vehicle.update({
-      where: { id: vehicleId },
-      data: fileUrls,
-    }) as Promise<VehicleDetailDto>;
-  }
-
-  /**
-   * Compensating action: deletes vehicle on failure
-   * @private
-   */
-  private async _rollbackVehicleCreation(vehicleId: number) {
-    await this._prismaService.vehicle.delete({ where: { id: vehicleId } });
-  }
   // #endregion
 
   // #region Update
   /**
-   * Updates an existing vehicle's information
+   * Updates an existing vehicle's information (JSON only)
    * @param id - Vehicle ID
    * @param dto - Data to update
-   * @param files - Optional image updates
    * @returns The updated vehicle record
    */
   async updateAsync(
     id: number,
     dto: UpdateVehicleDto,
-    files?: VehicleUploadFilesPutDto,
   ): Promise<VehicleDetailDto> {
     // Check if exists
     await this.getByIdAsync(id);
@@ -168,8 +136,6 @@ export class VehicleService {
       id,
     );
 
-    const updatedFiles = files ? await this._updateVehicleFilesAsync(id, files) : {};
-
     const vehicleData = UpdateVehicleDto.toVehicleData(dto);
 
     // Prevent vendors from altering the vendor_id of a vehicle
@@ -179,7 +145,6 @@ export class VehicleService {
 
     const data: any = {
       ...vehicleData,
-      ...updatedFiles,
     };
 
     if (dto.vehicle_validity) data.vehicle_validity = new Date(dto.vehicle_validity);
@@ -191,6 +156,43 @@ export class VehicleService {
       where: { id },
       data,
     }) as Promise<VehicleDetailDto>;
+  }
+  // #endregion
+
+  // #region Document Upload
+  /**
+   * Uploads (or replaces) multiple vehicle documents for a specific category.
+   *
+   * @param vehicleId - ID of the vehicle
+   * @param documentType - Which category to upload (vehical_image, chassis_image, etc.)
+   * @param files - The uploaded files
+   * @returns An object containing the public URLs of the uploaded files
+   */
+  async uploadFilesAsync(
+    vehicleId: number,
+    documentType: string,
+    files: Express.Multer.File[],
+  ): Promise<{ urls: string[] }> {
+    // Verify vehicle exists
+    await this.getByIdAsync(vehicleId);
+
+    const urls = await Promise.all(
+      files.map((file, index) =>
+        this._uploadFileAsync(
+          file,
+          `vehicle/${vehicleId}/${documentType}/${index}`,
+        ).then((res) => res.url),
+      ),
+    );
+
+    await this._prismaService.vehicle.update({
+      where: { id: vehicleId },
+      data: {
+        [`${documentType}_url`]: urls,
+      },
+    });
+
+    return { urls };
   }
   // #endregion
 
@@ -211,17 +213,6 @@ export class VehicleService {
   // #endregion
 
   // #region Private Methods
-  /**
-   * Updates vehicle images in storage if provided
-   * @private
-   */
-  private async _updateVehicleFilesAsync(
-    vehicleId: number,
-    files: VehicleUploadFilesPutDto,
-  ) {
-    return this._uploadVehicleFiles(vehicleId, files as VehicleUploadFilesPostDto);
-  }
-
   /**
    * Validates that registration, chassis, and engine numbers are unique across active vehicles
    * @private
@@ -256,42 +247,6 @@ export class VehicleService {
   }
 
   /**
-   * Uploads vehicle-related images to storage
-   * @private
-   */
-  private async _uploadVehicleFiles(
-    vehicleId: number,
-    files: VehicleUploadFilesPostDto,
-  ) {
-    const result: any = {};
-
-    const fileFields: (keyof VehicleUploadFilesPostDto)[] = [
-      'vehical_image',
-      'chassis_image',
-      'tax_image',
-      'insurance_image',
-      'fitness_image',
-      'puc_image',
-    ];
-
-    for (const field of fileFields) {
-      if (files[field] && files[field].length > 0) {
-        const urls = await Promise.all(
-          files[field].map((file, index) =>
-            this._uploadFileAsync(
-              file,
-              `vehicle/${vehicleId}/${field}/${index}`,
-            ).then((res) => res.url),
-          ),
-        );
-        result[`${field}_url`] = urls;
-      }
-    }
-
-    return result;
-  }
-
-  /**
    * Helper to upload a single file to storage
    * @private
    */
@@ -308,5 +263,4 @@ export class VehicleService {
     });
   }
   // #endregion
-
 }
