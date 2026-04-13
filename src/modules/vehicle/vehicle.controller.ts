@@ -14,21 +14,19 @@ import {
 import { VehicleService } from './vehicle.service';
 import { CreateVehicleDto, VendorCreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto, VendorUpdateVehicleDto } from './dto/update-vehicle.dto';
-import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiConsumes,
   ApiBody,
   ApiExtraModels,
-  getSchemaPath,
   ApiBearerAuth,
   ApiTags,
 } from '@nestjs/swagger';
-import { VehicleUploadFilesPostDto } from './dto/vehicle-upload-files.post.dto';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 import { VehicleDetailDto } from './dto/vehicle-detail.dto';
 import { VehicleListDto } from './dto/vehicle-list.dto';
-import { VehicleUploadFilesPutDto } from './dto/vehicle-upload-files.put.dto';
+import { UploadVehicleFilesDto } from './dto/upload-vehicle-files.dto';
 
 import {
   ResponseDto,
@@ -39,10 +37,9 @@ import {
 } from 'src/core/response/decorators/api-response-dto.decorator';
 
 @ApiExtraModels(
-  VehicleUploadFilesPostDto,
   CreateVehicleDto,
   UpdateVehicleDto,
-  VehicleUploadFilesPutDto,
+  UploadVehicleFilesDto,
   ResponseDto,
   VehicleListDto,
   VehicleDetailDto,
@@ -56,36 +53,15 @@ export class VehicleController {
 
   // #region Create
   /**
-   * Register a new vehicle with documents
+   * Register a new vehicle (JSON)
    * @param createVehicleDto 
-   * @param files 
    */
   @Post()
   @ApiResponseDto(VehicleDetailDto, false, 201)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(CreateVehicleDto) },
-        { $ref: getSchemaPath(VehicleUploadFilesPostDto) },
-      ],
-    },
-  })
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'vehical_image', maxCount: 4 },
-      { name: 'chassis_image', maxCount: 4 },
-      { name: 'tax_image', maxCount: 4 },
-      { name: 'insurance_image', maxCount: 4 },
-      { name: 'fitness_image', maxCount: 4 },
-      { name: 'puc_image', maxCount: 4 },
-    ]),
-  )
   async create(
     @Body() createVehicleDto: VendorCreateVehicleDto,
-    @UploadedFiles() files: VehicleUploadFilesPostDto,
   ): Promise<ResponseDto<VehicleDetailDto>> {
-    const vehicle = await this._vehicleService.createAsync(createVehicleDto as CreateVehicleDto, files);
+    const vehicle = await this._vehicleService.createAsync(createVehicleDto as CreateVehicleDto);
     return ResponseDto.created('Vehicle registered successfully', vehicle);
   }
   // #endregion
@@ -115,39 +91,122 @@ export class VehicleController {
 
   // #region Update
   /**
-   * Update vehicle information
+   * Update vehicle information (JSON)
    * @param id Vehicle ID
    * @param updateVehicleDto 
-   * @param files Optional image updates
    */
   @Put(':id')
   @ApiResponseDto(VehicleDetailDto)
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(UpdateVehicleDto) },
-        { $ref: getSchemaPath(VehicleUploadFilesPutDto) },
-      ],
-    },
-  })
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'vehical_image', maxCount: 4 },
-      { name: 'chassis_image', maxCount: 4 },
-      { name: 'tax_image', maxCount: 4 },
-      { name: 'insurance_image', maxCount: 4 },
-      { name: 'fitness_image', maxCount: 4 },
-      { name: 'puc_image', maxCount: 4 },
-    ]),
-  )
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateVehicleDto: VendorUpdateVehicleDto,
-    @UploadedFiles() files: VehicleUploadFilesPutDto,
   ): Promise<ResponseDto<VehicleDetailDto>> {
-    const vehicle = await this._vehicleService.updateAsync(id, updateVehicleDto as UpdateVehicleDto, files);
+    const vehicle = await this._vehicleService.updateAsync(id, updateVehicleDto as UpdateVehicleDto);
     return ResponseDto.updated('Vehicle updated successfully', vehicle);
+  }
+  // #endregion
+
+  // #region Document Upload
+  /**
+   * Upload multiple vehicle images
+   * @param id Vehicle ID
+   * @param files Array of image files
+   */
+  @Put(':id/vehicle-image')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadVehicleFilesDto })
+  @UseInterceptors(FilesInterceptor('files', 4))
+  async uploadVehicleImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._vehicleService.uploadFilesAsync(id, 'vehical_image', files);
+    return ResponseDto.updated('Vehicle images uploaded successfully', result);
+  }
+
+  /**
+   * Upload multiple chassis images
+   * @param id Vehicle ID
+   * @param files Array of image files
+   */
+  @Put(':id/chassis-image')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadVehicleFilesDto })
+  @UseInterceptors(FilesInterceptor('files', 4))
+  async uploadChassisImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._vehicleService.uploadFilesAsync(id, 'chassis_image', files);
+    return ResponseDto.updated('Chassis images uploaded successfully', result);
+  }
+
+  /**
+   * Upload multiple tax images
+   * @param id Vehicle ID
+   * @param files Array of image files
+   */
+  @Put(':id/tax-image')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadVehicleFilesDto })
+  @UseInterceptors(FilesInterceptor('files', 4))
+  async uploadTaxImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._vehicleService.uploadFilesAsync(id, 'tax_image', files);
+    return ResponseDto.updated('Tax images uploaded successfully', result);
+  }
+
+  /**
+   * Upload multiple insurance images
+   * @param id Vehicle ID
+   * @param files Array of image files
+   */
+  @Put(':id/insurance-image')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadVehicleFilesDto })
+  @UseInterceptors(FilesInterceptor('files', 4))
+  async uploadInsuranceImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._vehicleService.uploadFilesAsync(id, 'insurance_image', files);
+    return ResponseDto.updated('Insurance images uploaded successfully', result);
+  }
+
+  /**
+   * Upload multiple fitness images
+   * @param id Vehicle ID
+   * @param files Array of image files
+   */
+  @Put(':id/fitness-image')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadVehicleFilesDto })
+  @UseInterceptors(FilesInterceptor('files', 4))
+  async uploadFitnessImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._vehicleService.uploadFilesAsync(id, 'fitness_image', files);
+    return ResponseDto.updated('Fitness images uploaded successfully', result);
+  }
+
+  /**
+   * Upload multiple PUC images
+   * @param id Vehicle ID
+   * @param files Array of image files
+   */
+  @Put(':id/puc-image')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadVehicleFilesDto })
+  @UseInterceptors(FilesInterceptor('files', 4))
+  async uploadPucImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._vehicleService.uploadFilesAsync(id, 'puc_image', files);
+    return ResponseDto.updated('PUC images uploaded successfully', result);
   }
   // #endregion
 
