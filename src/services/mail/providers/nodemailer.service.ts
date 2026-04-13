@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import * as SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { IMailService } from '../interfaces/mail.interface';
 import { SendMailDto } from '../types/send-mail.dto';
 import { MailResponseDto } from '../types/mail-response.dto';
@@ -41,17 +42,14 @@ export class NodemailerService implements IMailService {
 
     this.transporter = nodemailer.createTransport({
       host: mailConfig.MAIL_HOST,
-      port: mailConfig.MAIL_PORT || 587,
-      secure: mailConfig.MAIL_PORT === 465,
+      port: 587,
+      secure: false,
       auth: {
         user: mailConfig.MAIL_USER,
         pass: mailConfig.MAIL_PASS,
       },
-      // Force IPv4 if IPv6 is unreachable (Common for ENETUNREACH errors)
       family: 4,
-      connectionTimeout: 10000, // 10 seconds
-      socketTimeout: 10000,     // 10 seconds
-    } as any);
+    } as SMTPTransport.Options);
 
     this.logger.log('Nodemailer service initialized');
   }
