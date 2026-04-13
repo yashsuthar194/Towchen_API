@@ -42,8 +42,8 @@ export class NodemailerService implements IMailService {
 
     this.transporter = nodemailer.createTransport({
       host: mailConfig.MAIL_HOST,
-      port: mailConfig.MAIL_PORT || 587,
-      secure: mailConfig.MAIL_PORT === 465,
+      port: 587,
+      secure: false,
       auth: {
         user: mailConfig.MAIL_USER,
         pass: mailConfig.MAIL_PASS,
