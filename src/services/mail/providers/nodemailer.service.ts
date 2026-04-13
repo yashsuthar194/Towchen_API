@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import * as SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { IMailService } from '../interfaces/mail.interface';
 import { SendMailDto } from '../types/send-mail.dto';
 import { MailResponseDto } from '../types/mail-response.dto';
@@ -47,7 +48,8 @@ export class NodemailerService implements IMailService {
         user: mailConfig.MAIL_USER,
         pass: mailConfig.MAIL_PASS,
       },
-    });
+      family: 4,
+    } as SMTPTransport.Options);
 
     this.logger.log('Nodemailer service initialized');
   }
