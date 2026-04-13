@@ -1,14 +1,27 @@
-import { IsEmail, IsNotEmpty, IsString, Matches } from 'class-validator';
+import {
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class DriverVerificationRequestDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Matches(/^[6-9]\d{9}$/, {
     message: 'number must be a valid 10-digit Indian mobile number',
   })
-  number: string;
+  number?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  formated_id?: string;
 }

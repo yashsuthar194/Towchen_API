@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsInt,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   Max,
@@ -9,16 +10,20 @@ import {
 } from 'class-validator';
 
 export class DriverVerificationDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   @Matches(/^[6-9]\d{9}$/, {
     message: 'number must be a valid 10-digit Indian mobile number',
   })
-  number: string;
+  number?: string;
+
+  @IsOptional()
+  @IsString()
+  formated_id?: string;
 
   @IsNotEmpty()
   @IsInt()
