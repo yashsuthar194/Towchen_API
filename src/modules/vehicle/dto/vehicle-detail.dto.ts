@@ -4,6 +4,7 @@ export class VehicleDetailDto {
     registration_number: string;
     chassis_number: string;
     engine_number: string;
+    vehicle_class: string | null;
     vehicle_validity: Date;
     insurance_validity: Date;
     fitness_validity: Date;

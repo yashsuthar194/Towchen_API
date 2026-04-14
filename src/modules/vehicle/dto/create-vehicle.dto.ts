@@ -43,6 +43,10 @@ export class CreateVehicleDto {
   @IsString()
   engine_number: string;
 
+  @IsOptional()
+  @IsString()
+  vehicle_class?: string;
+
   @IsDate()
   @Transform(({ value }) => {
     if (!value) return value;

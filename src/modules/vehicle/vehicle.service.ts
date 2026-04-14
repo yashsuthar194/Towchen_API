@@ -37,6 +37,7 @@ export class VehicleService {
         fleet_type: true,
         make: true,
         model: true,
+        vehicle_class: true,
       },
     });
   }

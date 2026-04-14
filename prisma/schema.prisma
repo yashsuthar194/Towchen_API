@@ -122,6 +122,7 @@ model vehicle {
   owner_name          String    @db.VarChar(255)
   chassis_number      String    @db.VarChar(255)
   engine_number       String    @db.VarChar(255)
+  vehicle_class       String?   @db.VarChar(255)
   vehicle_validity    DateTime
   insurance_validity  DateTime
   fitness_validity    DateTime
