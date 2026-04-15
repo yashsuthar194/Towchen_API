@@ -344,6 +344,6 @@ enum OrderStatus {
 
 enum AvailabilityStatus {
   Available
-  UnAvailable
+  Unavailable
   Onboard_Pending @map("Onboard Pending")
 }
