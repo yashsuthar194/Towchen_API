@@ -97,7 +97,7 @@ model driver {
   end_location_id         Int?
   start_location_id       Int?
   services                VendorServices     @default(Towing)
-  availability_status     AvailabilityStatus @default(OnboardPending)
+  availability_status     AvailabilityStatus @default(Onboard_Pending)
   startLocation           location?          @relation("DriverStartLocation", fields: [start_location_id], references: [id])
   endLocation             location?          @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
@@ -342,7 +342,7 @@ enum OrderStatus {
 }
 
 enum AvailabilityStatus {
-  Online
-  Offline
-  OnboardPending
+  Available
+  UnAvailable
+  Onboard_Pending @map("Onboard Pending")
 }
