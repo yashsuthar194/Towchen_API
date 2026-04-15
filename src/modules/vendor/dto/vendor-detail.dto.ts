@@ -39,6 +39,7 @@ export class VendorDetailDto {
 
   @ApiProperty({
     enum: Object.values(VendorServices),
+    isArray: true,
     example: [VendorServices.Towing],
   })
   services: VendorServices[];
@@ -48,6 +49,8 @@ export class VendorDetailDto {
     example: VendorStatus.Pending,
   })
   status: VendorStatus;
+
+  signature_url: string | null;
 
   bank_detail: VendorBankDetailDto | null;
 }

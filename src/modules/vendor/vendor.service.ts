@@ -335,6 +335,7 @@ export class VendorService {
         updated_at: true,
         bank_detail: true,
         is_gst_vendor: true,
+        signature_url: true,
       },
     });
 

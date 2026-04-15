@@ -94,6 +94,7 @@ model driver {
   driver_name             String             @db.VarChar(255)
   mobile_number           String             @db.VarChar(20)
   aadhar_card_url         String?
+  driver_image_url        String?
   end_location_id         Int?
   start_location_id       Int?
   services                VendorServices     @default(Towing)

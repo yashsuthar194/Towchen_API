@@ -67,11 +67,13 @@ export class CreateVendorDto implements Partial<VendorDto> {
   @ApiProperty({ example: 'StrongP@ss1' })
   password: string;
 
-  /** Services the vendor provides */
+  /** Services the vendor provides (multi-select) */
   @IsArray()
-  @IsEnum(VendorServices, {each: true})
+  @IsEnum(VendorServices, { each: true })
   @ApiProperty({
     type: [String],
+    enum: VendorServices,
+    isArray: true,
     example: [VendorServices.Towing],
   })
   select_services: VendorServices[];
