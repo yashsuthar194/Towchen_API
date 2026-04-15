@@ -3,6 +3,8 @@ import { MailService } from './mail.service';
 import { TypedConfigService } from 'src/core/config/typed-config.service';
 import { MailProvider } from 'src/core/config/namespaces/mail.config';
 import { NodemailerService } from './providers/nodemailer.service';
+import { ResendService } from './providers/resend.service';
+import { SendGridService } from './providers/sendgrid.service';
 
 /**
  * Mail module providing email services
@@ -45,8 +47,10 @@ import { NodemailerService } from './providers/nodemailer.service';
         switch (provider) {
           case MailProvider.Nodemailer:
             return new NodemailerService(config);
-          // case MailProvider.SendGrid:
-          //   return new SendGridService(config);
+          case MailProvider.Resend:
+            return new ResendService(config);
+          case MailProvider.SendGrid:
+            return new SendGridService(config);
           // case MailProvider.AWSSES:
           //   return new AwsSesService(config);
           default:

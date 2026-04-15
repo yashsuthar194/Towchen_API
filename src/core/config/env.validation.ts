@@ -13,6 +13,7 @@ import {
 } from 'class-validator';
 import { NodeEnv } from './namespaces/app.config';
 import { StorageProvider } from './namespaces/storage.config';
+import { MailProvider } from './namespaces/mail.config';
 
 // ─── Flat class covering ALL env vars ────────────────────────────────────────
 // class-validator works on a flat object, so we mirror every env var here.
@@ -99,26 +100,38 @@ export class EnvironmentVariables {
   TWILIO_PHONE_NUMBER: string;
 
   @IsString()
-  @IsNotEmpty()
-  MAIL_HOST: string;
+  @IsOptional()
+  MAIL_HOST?: string;
 
   @IsInt()
   @Min(1)
   @Max(65535)
-  @IsNotEmpty()
-  MAIL_PORT: number;
+  @IsOptional()
+  MAIL_PORT?: number;
 
   @IsString()
-  @IsNotEmpty()
-  MAIL_USER: string;
+  @IsOptional()
+  MAIL_USER?: string;
 
   @IsString()
-  @IsNotEmpty()
-  MAIL_PASS: string;
+  @IsOptional()
+  MAIL_PASS?: string;
 
   @IsString()
   @IsOptional()
   MAIL_FROM?: string;
+
+  @IsEnum(MailProvider)
+  @IsOptional()
+  MAIL_PROVIDER?: MailProvider;
+
+  @IsString()
+  @IsOptional()
+  RESEND_API_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  SENDGRID_API_KEY?: string;
 }
 
 // ─── Validation function passed to ConfigModule ───────────────────────────────

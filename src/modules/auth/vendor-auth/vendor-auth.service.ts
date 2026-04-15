@@ -354,7 +354,7 @@ export class VendorAuthService {
     loginDto: VendorLoginDto,
   ): Promise<ResponseDto<VendorLoginResponseDto>> {
     const vendor = await this._prismaService.vendor.findFirst({
-      where: { formated_id: loginDto.formated_id },
+      where: { formated_id: loginDto.formated_id, is_deleted: false },
     });
 
     if (!vendor) {
