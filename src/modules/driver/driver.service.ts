@@ -427,6 +427,44 @@ export class DriverService {
   }
 
   /**
+   * Bans a driver, transitioning their status to Banned.
+   *
+   * @param id - Driver ID
+   * @returns The updated driver record mapped to DriverDetailDto
+   * @throws NotFoundException if driver not found
+   */
+  async banAsync(id: number): Promise<DriverDetailDto> {
+    const driver = await this._prismaService.driver.findFirst({
+      where: {
+        id,
+        is_deleted: false,
+        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+      },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    const updatedDriver = await this._prismaService.driver.update({
+      where: { id },
+      data: { status: DriverStatus.Banned },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    return this._mapToDetailDto(updatedDriver);
+  }
+
+  /**
    * Maps a document type to the Prisma update payload that sets
    * the correct URL column.
    *

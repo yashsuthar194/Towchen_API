@@ -1,3 +1,5 @@
+import { VehicleStatus } from '@prisma/client';
+
 export class VehicleDetailDto {
     id: number;
     vendor_id: number;
@@ -5,6 +7,8 @@ export class VehicleDetailDto {
     chassis_number: string;
     engine_number: string;
     vehicle_class: string | null;
+    status: VehicleStatus;
+    vehicle_status: VehicleStatus;
     vehicle_validity: Date;
     insurance_validity: Date;
     fitness_validity: Date;
