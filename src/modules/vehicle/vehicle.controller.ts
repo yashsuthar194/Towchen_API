@@ -106,6 +106,34 @@ export class VehicleController {
   }
   // #endregion
 
+  // #region Approval
+  /**
+   * Submit vehicle for approval (Sets status to Available)
+   * @param id Vehicle ID
+   */
+  @Put(':id/submit-for-approval')
+  @ApiResponseDto(VehicleDetailDto)
+  async submitForApproval(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ResponseDto<VehicleDetailDto>> {
+    const vehicle = await this._vehicleService.submitForApprovalAsync(id);
+    return ResponseDto.updated('Vehicle submitted for approval successfully', vehicle);
+  }
+
+  /**
+   * Ban a vehicle (Sets status to Banned)
+   * @param id Vehicle ID
+   */
+  @Put(':id/ban')
+  @ApiResponseDto(VehicleDetailDto)
+  async ban(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ResponseDto<VehicleDetailDto>> {
+    const vehicle = await this._vehicleService.banAsync(id);
+    return ResponseDto.updated('Vehicle banned successfully', vehicle);
+  }
+  // #endregion
+
   // #region Document Upload
   /**
    * Upload multiple vehicle images

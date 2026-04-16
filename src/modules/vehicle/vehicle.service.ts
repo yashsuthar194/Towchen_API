@@ -26,7 +26,7 @@ export class VehicleService {
    */
   async getListAsync(): Promise<VehicleListDto[]> {
     const vendorId = this._callerService.getUserId();
-    return this._prismaService.vehicle.findMany({
+    const vehicles = await this._prismaService.vehicle.findMany({
       where: { is_deleted: false, vendor_id: vendorId },
       select: {
         id: true,
@@ -38,8 +38,10 @@ export class VehicleService {
         make: true,
         model: true,
         vehicle_class: true,
+        status: true,
       },
     });
+    return vehicles.map((v) => ({ ...v, vehicle_status: v.status }));
   }
 
   /**
@@ -58,7 +60,10 @@ export class VehicleService {
     if (!vehicle) {
       throw new NotFoundException(`Vehicle with ID ${id} not found`);
     }
-    return vehicle as VehicleDetailDto;
+    return {
+      ...vehicle,
+      vehicle_status: vehicle.status,
+    } as unknown as VehicleDetailDto;
   }
   // #endregion
 
@@ -78,7 +83,10 @@ export class VehicleService {
     );
 
     const vehicle = await this._createVehicleRecord(dto);
-    return vehicle as unknown as VehicleDetailDto;
+    return {
+      ...vehicle,
+      vehicle_status: vehicle.status,
+    } as unknown as VehicleDetailDto;
   }
 
   /**
@@ -153,10 +161,14 @@ export class VehicleService {
     if (dto.fitness_validity) data.fitness_validity = new Date(dto.fitness_validity);
     if (dto.puc_validity) data.puc_validity = new Date(dto.puc_validity);
 
-    return this._prismaService.vehicle.update({
+    const result = await this._prismaService.vehicle.update({
       where: { id },
       data,
-    }) as Promise<VehicleDetailDto>;
+    });
+    return {
+      ...result,
+      vehicle_status: result.status,
+    } as unknown as VehicleDetailDto;
   }
   // #endregion
 
@@ -194,6 +206,72 @@ export class VehicleService {
     });
 
     return { urls };
+  }
+  // #endregion
+
+  // #region Approval
+  /**
+   * Submits a vehicle for approval, transitioning its status to Available.
+   *
+   * @param id - Vehicle ID
+   * @returns The updated vehicle record mapped to VehicleDetailDto
+   * @throws NotFoundException if vehicle not found
+   */
+  async submitForApprovalAsync(id: number): Promise<VehicleDetailDto> {
+    const vehicle = await this._prismaService.vehicle.findUnique({
+      where: { id, is_deleted: false },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException(`Vehicle with ID ${id} not found`);
+    }
+
+    // Ensure ownership if vendor
+    if (this._callerService.isVendor() && vehicle.vendor_id !== this._callerService.getUserId()) {
+      throw new NotFoundException(`Vehicle with ID ${id} not found`);
+    }
+
+    const updatedVehicle = await this._prismaService.vehicle.update({
+      where: { id },
+      data: { status: 'Available' },
+    });
+
+    return {
+      ...updatedVehicle,
+      vehicle_status: updatedVehicle.status,
+    } as unknown as VehicleDetailDto;
+  }
+
+  /**
+   * Bans a vehicle, transitioning its status to Banned.
+   *
+   * @param id - Vehicle ID
+   * @returns The updated vehicle record mapped to VehicleDetailDto
+   * @throws NotFoundException if vehicle not found
+   */
+  async banAsync(id: number): Promise<VehicleDetailDto> {
+    const vehicle = await this._prismaService.vehicle.findUnique({
+      where: { id, is_deleted: false },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException(`Vehicle with ID ${id} not found`);
+    }
+
+    // Ensure ownership if vendor
+    if (this._callerService.isVendor() && vehicle.vendor_id !== this._callerService.getUserId()) {
+      throw new NotFoundException(`Vehicle with ID ${id} not found`);
+    }
+
+    const updatedVehicle = await this._prismaService.vehicle.update({
+      where: { id },
+      data: { status: 'Banned' },
+    });
+
+    return {
+      ...updatedVehicle,
+      vehicle_status: updatedVehicle.status,
+    } as unknown as VehicleDetailDto;
   }
   // #endregion
 

@@ -1,7 +1,14 @@
-import { PartialType, OmitType } from '@nestjs/swagger';
+import { PartialType, OmitType, ApiProperty } from '@nestjs/swagger';
 import { CreateVehicleDto } from './create-vehicle.dto';
+import { VehicleStatus } from '@prisma/client';
+import { IsEnum, IsOptional } from 'class-validator';
 
 export class UpdateVehicleDto extends PartialType(CreateVehicleDto) {
+    @ApiProperty({ enum: VehicleStatus, required: false })
+    @IsOptional()
+    @IsEnum(VehicleStatus)
+    status?: VehicleStatus;
+
     /**
      * Extracts vehicle-only data
      */

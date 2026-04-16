@@ -134,7 +134,8 @@ model vehicle {
   insurance_image_url String[]
   fitness_image_url   String[]
   puc_image_url       String[]
-  is_deleted          Boolean   @default(false)
+  status              VehicleStatus @default(Banned)
+  is_deleted          Boolean       @default(false)
   created_at          DateTime  @default(now())
   updated_at          DateTime  @default(now()) @updatedAt
   drivers             driver[]
@@ -346,4 +347,10 @@ enum AvailabilityStatus {
   Available
   Unavailable
   Onboard_Pending @map("Onboard Pending")
+}
+
+enum VehicleStatus {
+  Available
+  UnderApproval
+  Banned
 }
