@@ -119,6 +119,20 @@ export class DriverController {
     return await this._driverService.submitForApprovalAsync(id);
   }
 
+  /**
+   * Directly status a driver to Banned (Vendor Access).
+   *
+   * @param id - Driver ID
+   */
+  @UseGuards(VendorGuard)
+  @Patch(':id/ban')
+  @ApiOperation({ summary: 'Ban a driver' })
+  async ban(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<DriverDetailDto> {
+    return await this._driverService.banAsync(id);
+  }
+
   // #region Document Upload (For Vendors)
   /**
    * Uploads or replaces a driver's Aadhaar card document (Vendor Access).

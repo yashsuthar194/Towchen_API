@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { ResponseDto } from '../dto/response.dto';
 
 /**
@@ -73,6 +74,31 @@ export class HttpExceptionFilter implements ExceptionFilter {
         // Simple string message
         message = exceptionResponse as string;
       }
+    } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+      // Handle Prisma Known errors (Constraint violations, etc.)
+      switch (exception.code) {
+        case 'P2002': // Unique constraint
+          status = HttpStatus.CONFLICT;
+          message = `Duplicate entry: A record with this ${exception.meta?.target} already exists.`;
+          break;
+        case 'P2025': // Not found
+          status = HttpStatus.NOT_FOUND;
+          message = (exception.meta?.cause as string) || 'Record not found';
+          break;
+        case 'P2003': // Foreign key constraint
+          status = HttpStatus.BAD_REQUEST;
+          message = 'Foreign key constraint failed: Related record not found.';
+          break;
+        default:
+          status = HttpStatus.BAD_REQUEST;
+          message = `Database error: ${exception.message}`;
+      }
+      this.logger.error(`Prisma Known Error (${exception.code}): ${message}`);
+    } else if (exception instanceof Prisma.PrismaClientValidationError) {
+      // Handle Prisma Validation errors (e.g., invalid enum value or type mismatch)
+      status = HttpStatus.BAD_REQUEST;
+      message = 'Invalid data provided to the database. Please check your input fields.';
+      this.logger.error(`Prisma Validation Error: ${exception.message}`);
     } else if (exception instanceof Error) {
       // Handle standard JavaScript errors
       status = HttpStatus.INTERNAL_SERVER_ERROR;

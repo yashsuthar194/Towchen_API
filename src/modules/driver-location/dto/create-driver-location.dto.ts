@@ -1,5 +1,6 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsLatitude, IsLongitude } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsLatitude, IsLongitude, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { LocationCategory } from '@prisma/client';
 
 export class CreateDriverLocationDto {
   @ApiPropertyOptional({ description: 'Full address' })
@@ -61,10 +62,10 @@ export class CreateDriverLocationDto {
 
   @ApiPropertyOptional({
     description: 'Category of the location',
-    enum: ['Driver', 'Order'],
-    default: 'Driver',
+    enum: LocationCategory,
+    default: LocationCategory.Driver,
   })
   @IsOptional()
-  @IsString()
-  category?: string;
+  @IsEnum(LocationCategory)
+  category?: LocationCategory;
 }

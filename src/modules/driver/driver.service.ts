@@ -278,6 +278,29 @@ export class DriverService {
     return this._mapToDetailDto(result);
   }
 
+  /**
+   * Directly sets a driver's status to Banned.
+   * Ensures the driver belongs to the vendor if a vendor is making the request.
+   * 
+   * @param id - Driver ID
+   * @returns Updated driver details
+   */
+  async banAsync(id: number): Promise<DriverDetailDto> {
+    await this.getByIdAsync(id);
+
+    const result = await this._prismaService.driver.update({
+      where: { id },
+      data: { status: DriverStatus.Banned },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    return this._mapToDetailDto(result);
+  }
+
   // #region Delete
   /**
    * Soft deletes a driver by setting is_deleted to true
