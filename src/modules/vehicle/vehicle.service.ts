@@ -45,6 +45,42 @@ export class VehicleService {
   }
 
   /**
+   * Gets a list of available vehicles for the current vendor
+   * @returns Array of available vehicles
+   */
+  async getAvailableListAsync(): Promise<VehicleListDto[]> {
+    const vendorId = this._callerService.getUserId();
+    const vehicles = await this._prismaService.vehicle.findMany({
+      where: {
+        is_deleted: false,
+        vendor_id: vendorId,
+        status: 'Available',
+        drivers: {
+          none: {},
+        },
+      },
+      select: {
+        id: true,
+        registration_number: true,
+        chassis_number: true,
+        engine_number: true,
+        created_at: true,
+        fleet_type: true,
+        make: true,
+        model: true,
+        vehicle_class: true,
+        status: true,
+      },
+    });
+
+    if (vehicles.length === 0) {
+      throw new NotFoundException('No vehicles are available');
+    }
+
+    return vehicles.map((v) => ({ ...v, vehicle_status: v.status }));
+  }
+
+  /**
    * Gets a vehicle by ID, ensuring it belongs to the current vendor
    * @param id - Vehicle ID
    * @returns The vehicle record
@@ -229,6 +265,36 @@ export class VehicleService {
     // Ensure ownership if vendor
     if (this._callerService.isVendor() && vehicle.vendor_id !== this._callerService.getUserId()) {
       throw new NotFoundException(`Vehicle with ID ${id} not found`);
+    }
+
+    // Validate that all required fields and documents are present
+    const errors: string[] = [];
+
+    // Basic Information
+    if (!vehicle.fleet_location) errors.push('Fleet location is required');
+    if (!vehicle.registration_number) errors.push('Registration number is required');
+    if (!vehicle.make) errors.push('Make is required');
+    if (!vehicle.model) errors.push('Model is required');
+    if (!vehicle.owner_name) errors.push('Owner name is required');
+    if (!vehicle.chassis_number) errors.push('Chassis number is required');
+    if (!vehicle.engine_number) errors.push('Engine number is required');
+
+    // Validity Dates
+    if (!vehicle.vehicle_validity) errors.push('Vehicle validity is required');
+    if (!vehicle.insurance_validity) errors.push('Insurance validity is required');
+    if (!vehicle.fitness_validity) errors.push('Fitness validity is required');
+    if (!vehicle.puc_validity) errors.push('PUC validity is required');
+
+    // Documents
+    if (!vehicle.vehical_image_url || vehicle.vehical_image_url.length === 0) errors.push('Vehicle images are required');
+    if (!vehicle.chassis_image_url || vehicle.chassis_image_url.length === 0) errors.push('Chassis images are required');
+    if (!vehicle.tax_image_url || vehicle.tax_image_url.length === 0) errors.push('Tax images are required');
+    if (!vehicle.insurance_image_url || vehicle.insurance_image_url.length === 0) errors.push('Insurance images are required');
+    if (!vehicle.fitness_image_url || vehicle.fitness_image_url.length === 0) errors.push('Fitness images are required');
+    if (!vehicle.puc_image_url || vehicle.puc_image_url.length === 0) errors.push('PUC images are required');
+
+    if (errors.length > 0) {
+      throw new BadRequestException(`Submission failed: ${errors.join(', ')}`);
     }
 
     const updatedVehicle = await this._prismaService.vehicle.update({

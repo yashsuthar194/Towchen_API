@@ -12,7 +12,7 @@ import { Hash } from 'src/shared/helper/hash';
 import { DriverDetailDto } from './dto/driver-detail.dto';
 import { DriverListDto } from './dto/driver-list.dto';
 import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
-import { DriverStatus } from '@prisma/client';
+import { DriverStatus, VehicleStatus } from '@prisma/client';
 
 type DriverDocumentType = 'aadhar' | 'pan' | 'license' | 'profile_image';
 
@@ -208,6 +208,10 @@ export class DriverService {
       ? await this._updateDriverFilesAsync(id, files)
       : {};
 
+    if (dto.vehicle_id) {
+      await this._validateVehicleStatus(dto.vehicle_id);
+    }
+
     const result = await this._prismaService.driver.update({
       where: { id },
       data: {
@@ -246,6 +250,10 @@ export class DriverService {
     await this.getByIdAsync(id);
 
     await this._validateUniqueness(dto.email, dto.mobile_number, id);
+
+    if (dto.vehicle_id) {
+      await this._validateVehicleStatus(dto.vehicle_id);
+    }
 
     const driverData = UpdateDriverDto.toDriverData(dto);
 
@@ -395,7 +403,18 @@ export class DriverService {
     if (!driver.aadhar_card_url) errors.push('Aadhaar card document is required');
 
     // Required Identifiers (Optional in schema, but required for approval)
-    if (!driver.vehicle_id) errors.push('Vehicle assignment is required');
+    if (!driver.vehicle_id) {
+      errors.push('Vehicle assignment is required');
+    } else {
+      const vehicle = await this._prismaService.vehicle.findUnique({
+        where: { id: driver.vehicle_id },
+        select: { status: true },
+      });
+      if (vehicle?.status === VehicleStatus.Banned) {
+        errors.push('Assigned vehicle is banned');
+      }
+    }
+
     if (!driver.start_location_id) errors.push('Start location is required');
     if (!driver.end_location_id) errors.push('End location is required');
 
@@ -619,6 +638,25 @@ export class DriverService {
       size: singleFile.size,
       folderPath,
     });
+  }
+
+  /**
+   * Validates that a vehicle is not banned before assigning it to a driver.
+   * @private
+   */
+  private async _validateVehicleStatus(vehicleId: number) {
+    const vehicle = await this._prismaService.vehicle.findUnique({
+      where: { id: vehicleId, is_deleted: false },
+      select: { status: true },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException(`Vehicle with ID ${vehicleId} not found`);
+    }
+
+    if (vehicle.status === VehicleStatus.Banned) {
+      throw new BadRequestException('Cannot assign a banned vehicle to a driver.');
+    }
   }
 
   /**

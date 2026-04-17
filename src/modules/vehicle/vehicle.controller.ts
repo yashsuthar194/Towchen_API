@@ -78,6 +78,16 @@ export class VehicleController {
   }
 
   /**
+   * Get all available vehicles belonging to the vendor
+   */
+  @Get('available')
+  @ApiResponseDto(VehicleListDto, true)
+  async findAvailable(): Promise<ResponseDto<VehicleListDto[]>> {
+    const vehicles = await this._vehicleService.getAvailableListAsync();
+    return ResponseDto.retrieved('Available vehicles retrieved successfully', vehicles);
+  }
+
+  /**
    * Get details of a specific vehicle
    * @param id Vehicle ID
    */
