@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { VehicleService } from './vehicle.service';
 import { CreateVehicleDto, VendorCreateVehicleDto } from './dto/create-vehicle.dto';
@@ -21,12 +22,16 @@ import {
   ApiExtraModels,
   ApiBearerAuth,
   ApiTags,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 import { VehicleDetailDto } from './dto/vehicle-detail.dto';
-import { VehicleListDto } from './dto/vehicle-list.dto';
+import { VehicleListDto, VehiclePaginatedListDto } from './dto/vehicle-list.dto';
 import { UploadVehicleFilesDto } from './dto/upload-vehicle-files.dto';
+import { VehicleStatus, VehicleAvailabilityStatus } from '@prisma/client';
+import { ApiProperty } from '@nestjs/swagger';
+import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 
 import {
   ResponseDto,
@@ -69,12 +74,14 @@ export class VehicleController {
   // #region Get
   /**
    * Get all vehicles belonging to the vendor
+   * @param active_tab Optional status filter
    */
   @Get()
-  @ApiResponseDto(VehicleListDto, true)
-  async findAll(): Promise<ResponseDto<VehicleListDto[]>> {
-    const vehicles = await this._vehicleService.getListAsync();
-    return ResponseDto.retrieved('Vehicles retrieved successfully', vehicles);
+  @ApiResponseDto(VehiclePaginatedListDto)
+  @ApiQuery({ name: 'active_tab', enum: VehicleStatus, required: false })
+  async findAll(@Query('active_tab') active_tab?: VehicleStatus): Promise<ResponseDto<PaginatedListDto<VehicleListDto>>> {
+    const data = await this._vehicleService.getListAsync(active_tab);
+    return ResponseDto.retrieved('Vehicles retrieved successfully', data);
   }
 
   /**

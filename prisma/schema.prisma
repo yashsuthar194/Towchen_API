@@ -68,10 +68,10 @@ model otp {
   number     String?  @db.VarChar(20)
   otp        String   @db.VarChar(6)
   expires_at DateTime
-  created_at DateTime @default(now())
   email      String?  @db.VarChar(255)
   id         Int      @id @default(autoincrement())
   type       OtpType
+  created_at DateTime @default(now())
 }
 
 model driver {
@@ -97,8 +97,8 @@ model driver {
   driver_image_url        String?
   end_location_id         Int?
   start_location_id       Int?
-  services                VendorServices     @default(Towing)
   availability_status     AvailabilityStatus @default(Onboard_Pending)
+  services                VendorServices     @default(Towing)
   startLocation           location?          @relation("DriverStartLocation", fields: [start_location_id], references: [id])
   endLocation             location?          @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
@@ -113,17 +113,16 @@ model driver {
 }
 
 model vehicle {
-  id                  Int       @id @default(autoincrement())
+  id                  Int                       @id @default(autoincrement())
   fleet_type          FleetType
   vendor_id           Int
-  fleet_location      String    @db.VarChar(255)
-  registration_number String    @db.VarChar(20)
-  make                String    @db.VarChar(255)
-  model               String    @db.VarChar(255)
-  owner_name          String    @db.VarChar(255)
-  chassis_number      String    @db.VarChar(255)
-  engine_number       String    @db.VarChar(255)
-  vehicle_class       String?   @db.VarChar(255)
+  fleet_location      String                    @db.VarChar(255)
+  registration_number String                    @db.VarChar(20)
+  make                String                    @db.VarChar(255)
+  model               String                    @db.VarChar(255)
+  owner_name          String                    @db.VarChar(255)
+  chassis_number      String                    @db.VarChar(255)
+  engine_number       String                    @db.VarChar(255)
   vehicle_validity    DateTime
   insurance_validity  DateTime
   fitness_validity    DateTime
@@ -134,12 +133,14 @@ model vehicle {
   insurance_image_url String[]
   fitness_image_url   String[]
   puc_image_url       String[]
-  status              VehicleStatus @default(Banned)
-  is_deleted          Boolean       @default(false)
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @default(now()) @updatedAt
+  is_deleted          Boolean                   @default(false)
+  created_at          DateTime                  @default(now())
+  updated_at          DateTime                  @default(now()) @updatedAt
+  vehicle_class       String?                   @db.VarChar(255)
+  status              VehicleStatus             @default(Banned)
+  availability_status VehicleAvailabilityStatus @default(Onboard_Pending)
   drivers             driver[]
-  vendor              vendor    @relation(fields: [vendor_id], references: [id])
+  vendor              vendor                    @relation(fields: [vendor_id], references: [id])
 
   @@index([id])
   @@index([vendor_id])
@@ -353,4 +354,10 @@ enum VehicleStatus {
   Available
   UnderApproval
   Banned
+}
+
+enum VehicleAvailabilityStatus {
+  Available
+  Unavailable
+  Onboard_Pending @map("Onboard Pending")
 }

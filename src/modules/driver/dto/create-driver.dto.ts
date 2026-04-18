@@ -69,6 +69,12 @@ export class CreateDriverDto implements Partial<driver> {
   @IsInt()
   location_spot?: number | null;
 
+  @ApiPropertyOptional({ description: 'Associated vehicle ID' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  vehicle_id?: number;
+
   /**
    * Extracts driver-only data
    */

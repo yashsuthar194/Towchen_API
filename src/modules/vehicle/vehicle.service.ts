@@ -10,6 +10,8 @@ import { StorageService } from 'src/services/storage/storage.service';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleDetailDto } from './dto/vehicle-detail.dto';
 import { VehicleListDto } from './dto/vehicle-list.dto';
+import { VehicleStatus, VehicleAvailabilityStatus } from '@prisma/client';
+import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 
 @Injectable()
 export class VehicleService {
@@ -22,26 +24,43 @@ export class VehicleService {
   // #region Get
   /**
    * Gets a list of active vehicles for the current vendor
-   * @returns Array of vehicles
+   * @param status Optional vehicle status filter
+   * @returns Paginated object containing total_count and list of vehicles
    */
-  async getListAsync(): Promise<VehicleListDto[]> {
+  async getListAsync(status?: VehicleStatus): Promise<PaginatedListDto<VehicleListDto>> {
     const vendorId = this._callerService.getUserId();
-    const vehicles = await this._prismaService.vehicle.findMany({
-      where: { is_deleted: false, vendor_id: vendorId },
-      select: {
-        id: true,
-        registration_number: true,
-        chassis_number: true,
-        engine_number: true,
-        created_at: true,
-        fleet_type: true,
-        make: true,
-        model: true,
-        vehicle_class: true,
-        status: true,
-      },
-    });
-    return vehicles.map((v) => ({ ...v, vehicle_status: v.status }));
+    const where = {
+      is_deleted: false,
+      vendor_id: vendorId,
+      ...(status ? { status } : {}),
+    };
+
+    const [vehicles, totalCount] = await Promise.all([
+      this._prismaService.vehicle.findMany({
+        where,
+        select: {
+          id: true,
+          registration_number: true,
+          chassis_number: true,
+          engine_number: true,
+          created_at: true,
+          fleet_type: true,
+          make: true,
+          model: true,
+          vehicle_class: true,
+          status: true,
+          availability_status: true,
+        },
+      }),
+      this._prismaService.vehicle.count({ where }),
+    ]);
+
+    if (vehicles.length === 0) {
+      throw new NotFoundException('No vehicles found');
+    }
+
+    const list = vehicles.map((v) => this._mapToDto<VehicleListDto>(v));
+    return new PaginatedListDto(totalCount, list);
   }
 
   /**
@@ -70,6 +89,7 @@ export class VehicleService {
         model: true,
         vehicle_class: true,
         status: true,
+        availability_status: true,
       },
     });
 
@@ -77,7 +97,7 @@ export class VehicleService {
       throw new NotFoundException('No vehicles are available');
     }
 
-    return vehicles.map((v) => ({ ...v, vehicle_status: v.status }));
+    return vehicles.map((v) => this._mapToDto<VehicleListDto>(v));
   }
 
   /**
@@ -96,10 +116,7 @@ export class VehicleService {
     if (!vehicle) {
       throw new NotFoundException(`Vehicle with ID ${id} not found`);
     }
-    return {
-      ...vehicle,
-      vehicle_status: vehicle.status,
-    } as unknown as VehicleDetailDto;
+    return this._mapToDto<VehicleDetailDto>(vehicle);
   }
   // #endregion
 
@@ -119,10 +136,7 @@ export class VehicleService {
     );
 
     const vehicle = await this._createVehicleRecord(dto);
-    return {
-      ...vehicle,
-      vehicle_status: vehicle.status,
-    } as unknown as VehicleDetailDto;
+    return this._mapToDto<VehicleDetailDto>(vehicle);
   }
 
   /**
@@ -201,10 +215,7 @@ export class VehicleService {
       where: { id },
       data,
     });
-    return {
-      ...result,
-      vehicle_status: result.status,
-    } as unknown as VehicleDetailDto;
+    return this._mapToDto<VehicleDetailDto>(result);
   }
   // #endregion
 
@@ -299,13 +310,10 @@ export class VehicleService {
 
     const updatedVehicle = await this._prismaService.vehicle.update({
       where: { id },
-      data: { status: 'Available' },
+      data: { status: 'Available', availability_status: 'Available' },
     });
 
-    return {
-      ...updatedVehicle,
-      vehicle_status: updatedVehicle.status,
-    } as unknown as VehicleDetailDto;
+    return this._mapToDto<VehicleDetailDto>(updatedVehicle);
   }
 
   /**
@@ -331,13 +339,10 @@ export class VehicleService {
 
     const updatedVehicle = await this._prismaService.vehicle.update({
       where: { id },
-      data: { status: 'Banned' },
+      data: { status: 'Banned', availability_status: 'Unavailable' },
     });
 
-    return {
-      ...updatedVehicle,
-      vehicle_status: updatedVehicle.status,
-    } as unknown as VehicleDetailDto;
+    return this._mapToDto<VehicleDetailDto>(updatedVehicle);
   }
   // #endregion
 
@@ -407,5 +412,15 @@ export class VehicleService {
       folderPath,
     });
   }
-  // #endregion
+
+  /**
+   * Helper to map database record to DTO and format fields
+   * @private
+   */
+  private _mapToDto<T>(vehicle: any): T {
+    if (vehicle && vehicle.availability_status) {
+      vehicle.availability_status = vehicle.availability_status.replace(/_/g, ' ');
+    }
+    return vehicle as T;
+  }
 }

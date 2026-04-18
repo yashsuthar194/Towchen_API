@@ -13,6 +13,7 @@ import { DriverDetailDto } from './dto/driver-detail.dto';
 import { DriverListDto } from './dto/driver-list.dto';
 import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
 import { DriverStatus, VehicleStatus } from '@prisma/client';
+import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 
 type DriverDocumentType = 'aadhar' | 'pan' | 'license' | 'profile_image';
 
@@ -29,26 +30,38 @@ export class DriverService {
    * Gets a list of active drivers for the current vendor
    * @returns Array of drivers with vehicle details
    */
-  async getListAsync(status?: DriverStatus): Promise<DriverListDto[]> {
-    return this._prismaService.driver.findMany({
-      where: {
-        is_deleted: false,
-        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
-        ...(status ? { status } : {}),
-      },
-      select: {
-        id: true,
-        formated_id: true,
-        driver_name: true,
-        email: true,
-        alternate_mobile_number: true,
-        status: true,
-        availability_status: true,
-        services: true,
-        created_at: true,
-        vehicle: true,
-      },
-    });
+  async getListAsync(status?: DriverStatus): Promise<PaginatedListDto<DriverListDto>> {
+    const where = {
+      is_deleted: false,
+      ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+      ...(status ? { status } : {}),
+    };
+
+    const [drivers, totalCount] = await Promise.all([
+      this._prismaService.driver.findMany({
+        where,
+        select: {
+          id: true,
+          formated_id: true,
+          driver_name: true,
+          email: true,
+          alternate_mobile_number: true,
+          status: true,
+          availability_status: true,
+          services: true,
+          created_at: true,
+          vehicle: true,
+        },
+      }),
+      this._prismaService.driver.count({ where }),
+    ]);
+
+    const list = drivers.map((d) => ({
+      ...d,
+      availability_status: (d.availability_status as string).replace(/_/g, ' ') as any,
+    })) as unknown as DriverListDto[];
+
+    return new PaginatedListDto(totalCount, list);
   }
 
   /**
@@ -91,7 +104,11 @@ export class DriverService {
   ): Promise<DriverDetailDto> {
     await this._validateUniqueness(dto.email, dto.mobile_number);
 
-    return await this._createDriverRecord(dto);
+    const driver = await this._createDriverRecord(dto);
+    if (dto.vehicle_id) {
+      await this._updateVehicleAvailabilityAsync(undefined, dto.vehicle_id);
+    }
+    return driver;
   }
 
   /**
@@ -232,6 +249,10 @@ export class DriverService {
       },
     });
 
+    if (updateData.vehicle_id !== undefined && updateData.vehicle_id !== currentDriver.vehicle_id) {
+      await this._updateVehicleAvailabilityAsync(currentDriver.vehicle_id || undefined, updateData.vehicle_id || undefined);
+    }
+
     await this._checkAndSetUnderApprovalStatusAsync(id);
     return this._mapToDetailDto(result);
   }
@@ -280,6 +301,11 @@ export class DriverService {
       },
     });
 
+    const currentDriver = await this._prismaService.driver.findUnique({ where: { id } });
+    if (driverData.vehicle_id !== undefined && driverData.vehicle_id !== currentDriver?.vehicle_id) {
+      await this._updateVehicleAvailabilityAsync(currentDriver?.vehicle_id || undefined, driverData.vehicle_id || undefined);
+    }
+
     if (!this._callerService.isVendor()) {
       await this._checkAndSetUnderApprovalStatusAsync(id);
     }
@@ -317,14 +343,20 @@ export class DriverService {
    */
   async deleteAsync(id: number, deletedById?: number) {
     // Check if exists
-    await this.getByIdAsync(id);
-    return this._prismaService.driver.update({
+    const driver = await this.getByIdAsync(id);
+    const result = await this._prismaService.driver.update({
       where: { id },
       data: {
         is_deleted: true,
         is_deleted_by: deletedById,
       },
     });
+
+    if (driver.vehicle_id) {
+      await this._updateVehicleAvailabilityAsync(driver.vehicle_id, undefined);
+    }
+
+    return result;
   }
   // #endregion
 
@@ -681,11 +713,37 @@ export class DriverService {
       driver.driver_image_url
     );
 
+    if (rest.availability_status) {
+      rest.availability_status = (rest.availability_status as string).replace(/_/g, ' ') as any;
+    }
+
     return {
       ...rest,
       location_spot: startLocation,
       is_documents_uploaded,
     } as unknown as DriverDetailDto;
+  }
+
+  /**
+   * Updates availability_status of vehicles when assignment changes
+   * @private
+   */
+  private async _updateVehicleAvailabilityAsync(oldId?: number, newId?: number) {
+    if (oldId && oldId === newId) return;
+
+    if (oldId) {
+      await this._prismaService.vehicle.update({
+        where: { id: oldId },
+        data: { availability_status: 'Available' },
+      });
+    }
+
+    if (newId) {
+      await this._prismaService.vehicle.update({
+        where: { id: newId },
+        data: { availability_status: 'Unavailable' },
+      });
+    }
   }
   // #endregion
 }

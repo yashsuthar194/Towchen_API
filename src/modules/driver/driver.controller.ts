@@ -33,8 +33,10 @@ import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { DriverDetailDto } from './dto/driver-detail.dto';
-import { DriverListDto } from './dto/driver-list.dto';
+import { DriverListDto, DriverPaginatedListDto } from './dto/driver-list.dto';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
+import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
+import { ApiResponseDto } from '../../core/response/decorators/api-response-dto.decorator';
 
 @ApiExtraModels(CreateDriverDto, UpdateDriverDto, UploadDriverDocumentDto)
 @Controller('driver')
@@ -64,8 +66,9 @@ export class DriverController {
    */
   @UseGuards(VendorGuard)
   @Get()
+  @ApiResponseDto(DriverPaginatedListDto)
   @ApiQuery({ name: 'active_tab', enum: DriverStatus, required: false })
-  async findAll(@Query('active_tab') active_tab?: DriverStatus): Promise<DriverListDto[]> {
+  async findAll(@Query('active_tab') active_tab?: DriverStatus): Promise<PaginatedListDto<DriverListDto>> {
     return await this._driverService.getListAsync(active_tab);
   }
 

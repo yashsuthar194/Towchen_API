@@ -1,5 +1,6 @@
 import { driver, DriverStatus, VendorServices, AvailabilityStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
+import { PaginatedListDto } from '../../../core/response/dto/paginated-list.dto';
 
 export class DriverListDto implements Partial<driver> {
   @ApiProperty({ description: 'Unique identifier for the driver' })
@@ -31,4 +32,9 @@ export class DriverListDto implements Partial<driver> {
 
   @ApiProperty({ description: 'Record creation timestamp' })
   created_at: Date;
+}
+
+export class DriverPaginatedListDto extends PaginatedListDto<DriverListDto> {
+  @ApiProperty({ type: [DriverListDto] })
+  declare list: DriverListDto[];
 }

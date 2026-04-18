@@ -1,4 +1,4 @@
-import { VehicleStatus } from '@prisma/client';
+import { VehicleStatus, VehicleAvailabilityStatus } from '@prisma/client';
 
 export class VehicleDetailDto {
     id: number;
@@ -8,7 +8,7 @@ export class VehicleDetailDto {
     engine_number: string;
     vehicle_class: string | null;
     status: VehicleStatus;
-    vehicle_status: VehicleStatus;
+    availability_status: VehicleAvailabilityStatus;
     vehicle_validity: Date;
     insurance_validity: Date;
     fitness_validity: Date;
