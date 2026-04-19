@@ -9,5 +9,6 @@ import { JwtModule } from 'src/services/jwt/jwt.module';
   imports: [PrismaModule, StorageModule, JwtModule],
   controllers: [VehicleController],
   providers: [VehicleService],
+  exports: [VehicleService],
 })
 export class VehicleModule { }

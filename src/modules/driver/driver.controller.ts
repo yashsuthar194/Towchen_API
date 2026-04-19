@@ -18,6 +18,7 @@ import {
 import { DriverService } from './driver.service';
 import { CreateDriverDto, VendorCreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto, VendorUpdateDriverDto } from './dto/update-driver.dto';
+import { AssignVehicleDto } from './dto/assign-vehicle.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiConsumes,
@@ -37,6 +38,7 @@ import { DriverListDto, DriverPaginatedListDto } from './dto/driver-list.dto';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
 import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 import { ApiResponseDto } from '../../core/response/decorators/api-response-dto.decorator';
+import { ResponseDto } from '../../core/response/dto/response.dto';
 
 @ApiExtraModels(CreateDriverDto, UpdateDriverDto, UploadDriverDocumentDto)
 @Controller('driver')
@@ -105,6 +107,26 @@ export class DriverController {
   async remove(@Param('id', ParseIntPipe) id: number) {
     const deletedById = this._callerService.getUserId();
     return await this._driverService.deleteAsync(id, deletedById);
+  }
+
+  /**
+   * Update the vehicle details associated with a driver
+   * @param id Driver ID
+   * @param updateVehicleDto 
+   */
+  @UseGuards(VendorGuard)
+  @Put(':id/vehicle')
+  @ApiResponseDto(DriverDetailDto)
+  @ApiOperation({ summary: 'Assign or unassign a vehicle to a driver' })
+  async updateVehicle(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() assignVehicleDto: AssignVehicleDto,
+  ): Promise<ResponseDto<DriverDetailDto>> {
+    const result = await this._driverService.assignVehicleAsync(id, assignVehicleDto);
+    const message = assignVehicleDto.vehicle_id === 0 
+      ? 'Vehicle unassigned successfully' 
+      : 'Vehicle assigned successfully';
+    return ResponseDto.updated(message, result);
   }
 
   /**

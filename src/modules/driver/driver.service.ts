@@ -14,6 +14,8 @@ import { DriverListDto } from './dto/driver-list.dto';
 import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
 import { DriverStatus, VehicleStatus } from '@prisma/client';
 import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
+import { VehicleService } from '../vehicle/vehicle.service';
+import { AssignVehicleDto } from './dto/assign-vehicle.dto';
 
 type DriverDocumentType = 'aadhar' | 'pan' | 'license' | 'profile_image';
 
@@ -23,6 +25,7 @@ export class DriverService {
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
     private readonly _callerService: CallerService,
+    private readonly _vehicleService: VehicleService,
   ) { }
 
   // #region Get
@@ -309,6 +312,71 @@ export class DriverService {
     if (!this._callerService.isVendor()) {
       await this._checkAndSetUnderApprovalStatusAsync(id);
     }
+    return this._mapToDetailDto(result);
+  }
+
+  /**
+   * Assigns a vehicle to a specific driver.
+   * 
+   * @param dto - Assignment data (vehicle_id)
+   * @returns Updated driver details
+   */
+  async assignVehicleAsync(
+    id: number,
+    dto: AssignVehicleDto,
+  ): Promise<DriverDetailDto> {
+    const { vehicle_id } = dto;
+    const driver = await this._prismaService.driver.findUnique({
+      where: { id, is_deleted: false },
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    // Ensure ownership if vendor
+    if (this._callerService.isVendor() && driver.vendor_id !== this._callerService.getUserId()) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    // Case 1: Unassign the current vehicle
+    if (vehicle_id === 0) {
+      const result = await this._prismaService.driver.update({
+        where: { id },
+        data: { vehicle_id: null },
+        include: {
+          vehicle: true,
+          startLocation: true,
+          endLocation: true,
+        },
+      });
+
+      // Mark the old vehicle as Available
+      if (driver.vehicle_id) {
+        await this._updateVehicleAvailabilityAsync(driver.vehicle_id, undefined);
+      }
+
+      return this._mapToDetailDto(result);
+    }
+
+    // Case 2: Assign a new vehicle
+    // Validate the new vehicle
+    await this._validateVehicleStatus(vehicle_id);
+
+    // Update driver assignment
+    const result = await this._prismaService.driver.update({
+      where: { id },
+      data: { vehicle_id: vehicle_id },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    // Update vehicle availability statuses
+    await this._updateVehicleAvailabilityAsync(driver.vehicle_id || undefined, vehicle_id);
+
     return this._mapToDetailDto(result);
   }
 
@@ -679,15 +747,23 @@ export class DriverService {
   private async _validateVehicleStatus(vehicleId: number) {
     const vehicle = await this._prismaService.vehicle.findUnique({
       where: { id: vehicleId, is_deleted: false },
-      select: { status: true },
+      select: { status: true, availability_status: true },
     });
 
     if (!vehicle) {
       throw new NotFoundException(`Vehicle with ID ${vehicleId} not found`);
     }
 
-    if (vehicle.status === VehicleStatus.Banned) {
-      throw new BadRequestException('Cannot assign a banned vehicle to a driver.');
+    if (vehicle.status !== VehicleStatus.Available) {
+      throw new BadRequestException(
+        `Cannot assign vehicle. Status is ${vehicle.status}, but it must be Available.`,
+      );
+    }
+
+    if (vehicle.availability_status !== 'Available') {
+      throw new BadRequestException(
+        `Cannot assign vehicle. It is currently ${vehicle.availability_status.replace(/_/g, ' ')}.`,
+      );
     }
   }
 
