@@ -190,11 +190,11 @@ export class VehicleService {
         fitness_validity: new Date(dto.fitness_validity),
         puc_validity: new Date(dto.puc_validity),
         vehical_image_url: [],
-        chassis_image_url: null,
-        tax_image_url: null,
-        insurance_image_url: null,
-        fitness_image_url: null,
-        puc_image_url: null,
+        chassis_image_url: "",
+        tax_image_url: "",
+        insurance_image_url: "",
+        fitness_image_url: "",
+        puc_image_url: "",
       },
     });
   }
