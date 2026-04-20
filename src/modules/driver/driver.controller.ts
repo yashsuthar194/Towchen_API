@@ -36,8 +36,10 @@ import { CallerService } from 'src/services/jwt/caller.service';
 import { DriverDetailDto } from './dto/driver-detail.dto';
 import { DriverListDto, DriverPaginatedListDto } from './dto/driver-list.dto';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
+import { UploadDriverImageDto } from './dto/upload-driver-image.dto';
 import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 import { ApiResponseDto } from '../../core/response/decorators/api-response-dto.decorator';
+import { FileHelper } from 'src/shared/helper/file-helper';
 import { ResponseDto } from '../../core/response/dto/response.dto';
 
 @ApiExtraModels(CreateDriverDto, UpdateDriverDto, UploadDriverDocumentDto)
@@ -181,7 +183,7 @@ export class DriverController {
   @Put(':id/document/aadhar-card')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadDriverDocumentDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.documentFilter }))
   async uploadDriverAadharCard(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
@@ -201,7 +203,7 @@ export class DriverController {
   @Put(':id/document/pan-card')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadDriverDocumentDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.documentFilter }))
   async uploadDriverPanCard(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
@@ -221,7 +223,7 @@ export class DriverController {
   @Put(':id/document/driver-license')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadDriverDocumentDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.documentFilter }))
   async uploadDriverLicense(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
@@ -240,8 +242,8 @@ export class DriverController {
   @UseGuards(VendorGuard)
   @Put(':id/document/driver-image')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadDriverDocumentDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @ApiBody({ type: UploadDriverImageDto })
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.imageFilter }))
   async uploadDriverImage(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,

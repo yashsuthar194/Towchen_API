@@ -38,6 +38,7 @@ import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 import {
   ResponseDto,
 } from 'src/core/response/dto/response.dto';
+import { FileHelper } from 'src/shared/helper/file-helper';
 import {
   ApiResponseDto,
   ApiResponseDtoNull,
@@ -159,16 +160,16 @@ export class VehicleController {
    * @param id Vehicle ID
    * @param files Array of document files
    */
-  @Put(':id/vehicle-document')
+  @Put(':id/vehicle-images')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFilesDto })
-  @UseInterceptors(FilesInterceptor('files', 4))
+  @UseInterceptors(FilesInterceptor('files', 4, { fileFilter: FileHelper.imageFilter }))
   async uploadVehicleDocument(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFiles() files: Express.Multer.File[],
   ): Promise<ResponseDto<{ urls: string[] }>> {
     const result = await this._vehicleService.uploadDocumentsAsync(id, 'vehical_image', files);
-    return ResponseDto.updated('Vehicle documents uploaded successfully', result);
+    return ResponseDto.updated('Vehicle images uploaded successfully', result);
   }
   /**
    * Upload single chassis document
@@ -178,7 +179,7 @@ export class VehicleController {
   @Put(':id/chassis-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.documentFilter }))
   async uploadChassisDocument(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
@@ -194,7 +195,7 @@ export class VehicleController {
   @Put(':id/tax-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.documentFilter }))
   async uploadTaxDocument(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
@@ -210,7 +211,7 @@ export class VehicleController {
   @Put(':id/insurance-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.documentFilter }))
   async uploadInsuranceDocument(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
@@ -226,7 +227,7 @@ export class VehicleController {
   @Put(':id/fitness-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.documentFilter }))
   async uploadFitnessDocument(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
@@ -242,7 +243,7 @@ export class VehicleController {
   @Put(':id/puc-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.documentFilter }))
   async uploadPucDocument(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,

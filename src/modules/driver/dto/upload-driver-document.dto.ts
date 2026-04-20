@@ -11,7 +11,7 @@ export class UploadDriverDocumentDto {
   @ApiProperty({
     type: 'string',
     format: 'binary',
-    description: 'Document file (PDF, JPEG, or PNG)',
+    description: 'Document file (PDF, DOC, DOCX)',
   })
   file: Express.Multer.File;
 }
