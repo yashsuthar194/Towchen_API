@@ -56,10 +56,12 @@ export class DriverController {
    */
   @UseGuards(VendorGuard)
   @Post()
+  @ApiResponseDto(DriverDetailDto, false, 201)
   async create(
     @Body() createDriverDto: VendorCreateDriverDto,
-  ): Promise<DriverDetailDto> {
-    return await this._driverService.createAsync(createDriverDto as CreateDriverDto);
+  ): Promise<ResponseDto<DriverDetailDto>> {
+    const result = await this._driverService.createAsync(createDriverDto as CreateDriverDto);
+    return ResponseDto.created('Driver registered successfully', result);
   }
 
   /**
@@ -70,8 +72,9 @@ export class DriverController {
   @Get()
   @ApiResponseDto(DriverPaginatedListDto)
   @ApiQuery({ name: 'active_tab', enum: DriverStatus, required: false })
-  async findAll(@Query('active_tab') active_tab?: DriverStatus): Promise<PaginatedListDto<DriverListDto>> {
-    return await this._driverService.getListAsync(active_tab);
+  async findAll(@Query('active_tab') active_tab?: DriverStatus): Promise<ResponseDto<PaginatedListDto<DriverListDto>>> {
+    const data = await this._driverService.getListAsync(active_tab);
+    return ResponseDto.retrieved('Drivers retrieved successfully', data);
   }
 
   /**
@@ -80,8 +83,10 @@ export class DriverController {
    */
   @UseGuards(VendorGuard)
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number): Promise<DriverDetailDto> {
-    return await this._driverService.getByIdAsync(id);
+  @ApiResponseDto(DriverDetailDto)
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<DriverDetailDto>> {
+    const data = await this._driverService.getByIdAsync(id);
+    return ResponseDto.retrieved('Driver details retrieved successfully', data);
   }
 
   /**
@@ -91,11 +96,13 @@ export class DriverController {
    */
   @UseGuards(VendorGuard)
   @Put(':id')
+  @ApiResponseDto(DriverDetailDto)
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDriverDto: VendorUpdateDriverDto,
-  ): Promise<DriverDetailDto> {
-    return await this._driverService.updateAsync(id, updateDriverDto as UpdateDriverDto);
+  ): Promise<ResponseDto<DriverDetailDto>> {
+    const result = await this._driverService.updateAsync(id, updateDriverDto as UpdateDriverDto);
+    return ResponseDto.updated('Driver updated successfully', result);
   }
 
   /**
@@ -104,9 +111,10 @@ export class DriverController {
    */
   @UseGuards(VendorGuard)
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number) {
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<null>> {
     const deletedById = this._callerService.getUserId();
-    return await this._driverService.deleteAsync(id, deletedById);
+    await this._driverService.deleteAsync(id, deletedById);
+    return ResponseDto.deleted('Driver deleted successfully');
   }
 
   /**
@@ -136,12 +144,14 @@ export class DriverController {
    * @param id - Driver ID
    */
   @UseGuards(VendorGuard)
-  @Patch(':id/submit-for-approval')
+  @Put(':id/submit-for-approval')
+  @ApiResponseDto(DriverDetailDto)
   @ApiOperation({ summary: 'Submit driver for approval' })
   async submitForApproval(
     @Param('id', ParseIntPipe) id: number,
-  ): Promise<DriverDetailDto> {
-    return await this._driverService.submitForApprovalAsync(id);
+  ): Promise<ResponseDto<DriverDetailDto>> {
+    const result = await this._driverService.submitForApprovalAsync(id);
+    return ResponseDto.updated('Driver submitted for approval successfully', result);
   }
 
   /**
@@ -150,12 +160,14 @@ export class DriverController {
    * @param id - Driver ID
    */
   @UseGuards(VendorGuard)
-  @Patch(':id/ban')
+  @Put(':id/ban')
+  @ApiResponseDto(DriverDetailDto)
   @ApiOperation({ summary: 'Ban a driver' })
   async ban(
     @Param('id', ParseIntPipe) id: number,
-  ): Promise<DriverDetailDto> {
-    return await this._driverService.banAsync(id);
+  ): Promise<ResponseDto<DriverDetailDto>> {
+    const result = await this._driverService.banAsync(id);
+    return ResponseDto.updated('Driver banned successfully', result);
   }
 
   // #region Document Upload (For Vendors)
@@ -173,9 +185,10 @@ export class DriverController {
   async uploadDriverAadharCard(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ url: string }> {
+  ): Promise<ResponseDto<{ url: string }>> {
     this.ensureFileProvided(file, 'Aadhaar card');
-    return await this._driverService.uploadDocumentAsync(id, 'aadhar', file);
+    const result = await this._driverService.uploadDocumentAsync(id, 'aadhar', file);
+    return ResponseDto.updated('Aadhaar card uploaded successfully', result);
   }
 
   /**
@@ -192,9 +205,10 @@ export class DriverController {
   async uploadDriverPanCard(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ url: string }> {
+  ): Promise<ResponseDto<{ url: string }>> {
     this.ensureFileProvided(file, 'PAN card');
-    return await this._driverService.uploadDocumentAsync(id, 'pan', file);
+    const result = await this._driverService.uploadDocumentAsync(id, 'pan', file);
+    return ResponseDto.updated('PAN card uploaded successfully', result);
   }
 
   /**
@@ -211,9 +225,10 @@ export class DriverController {
   async uploadDriverLicense(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ url: string }> {
+  ): Promise<ResponseDto<{ url: string }>> {
     this.ensureFileProvided(file, 'Driver License');
-    return await this._driverService.uploadDocumentAsync(id, 'license', file);
+    const result = await this._driverService.uploadDocumentAsync(id, 'license', file);
+    return ResponseDto.updated('Driver license uploaded successfully', result);
   }
 
   /**
@@ -230,9 +245,10 @@ export class DriverController {
   async uploadDriverImage(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<{ url: string }> {
+  ): Promise<ResponseDto<{ url: string }>> {
     this.ensureFileProvided(file, 'Driver Profile Image');
-    return await this._driverService.uploadDocumentAsync(id, 'profile_image', file);
+    const result = await this._driverService.uploadDocumentAsync(id, 'profile_image', file);
+    return ResponseDto.updated('Driver profile image uploaded successfully', result);
   }
   // #endregion
 

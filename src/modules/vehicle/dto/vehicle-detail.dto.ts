@@ -1,4 +1,4 @@
-import { VehicleStatus, VehicleAvailabilityStatus } from '@prisma/client';
+import { VehicleStatus, AvailabilityStatus } from '@prisma/client';
 
 export class VehicleDetailDto {
     id: number;
@@ -8,18 +8,23 @@ export class VehicleDetailDto {
     engine_number: string;
     vehicle_class: string | null;
     status: VehicleStatus;
-    availability_status: VehicleAvailabilityStatus;
+    availability_status: AvailabilityStatus;
     vehicle_validity: Date;
     insurance_validity: Date;
     fitness_validity: Date;
     puc_validity: Date;
     vehical_image_url: string[];
-    chassis_image_url: string[];
-    tax_image_url: string[];
-    insurance_image_url: string[];
-    fitness_image_url: string[];
-    puc_image_url: string[];
+    chassis_image_url: string | null;
+    tax_image_url: string | null;
+    insurance_image_url: string | null;
+    fitness_image_url: string | null;
+    puc_image_url: string | null;
     is_deleted: boolean;
     created_at: Date;
     updated_at: Date;
+    driver?: {
+        id: number;
+        driver_name: string;
+        mobile_number: string;
+    };
 }

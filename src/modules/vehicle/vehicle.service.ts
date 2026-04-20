@@ -10,7 +10,7 @@ import { StorageService } from 'src/services/storage/storage.service';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleDetailDto } from './dto/vehicle-detail.dto';
 import { VehicleListDto } from './dto/vehicle-list.dto';
-import { VehicleStatus, VehicleAvailabilityStatus } from '@prisma/client';
+import { VehicleStatus, AvailabilityStatus } from '@prisma/client';
 import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 
 @Injectable()
@@ -50,6 +50,14 @@ export class VehicleService {
           vehicle_class: true,
           status: true,
           availability_status: true,
+          drivers: {
+            where: { is_deleted: false },
+            select: {
+              id: true,
+              driver_name: true,
+              mobile_number: true,
+            },
+          },
         },
       }),
       this._prismaService.vehicle.count({ where }),
@@ -90,6 +98,14 @@ export class VehicleService {
         vehicle_class: true,
         status: true,
         availability_status: true,
+        drivers: {
+          where: { is_deleted: false },
+          select: {
+            id: true,
+            driver_name: true,
+            mobile_number: true,
+          },
+        },
       },
     });
 
@@ -111,6 +127,16 @@ export class VehicleService {
       where: {
         id,
         is_deleted: false,
+      },
+      include: {
+        drivers: {
+          where: { is_deleted: false },
+          select: {
+            id: true,
+            driver_name: true,
+            mobile_number: true,
+          },
+        },
       },
     });
     if (!vehicle) {
@@ -164,11 +190,11 @@ export class VehicleService {
         fitness_validity: new Date(dto.fitness_validity),
         puc_validity: new Date(dto.puc_validity),
         vehical_image_url: [],
-        chassis_image_url: [],
-        tax_image_url: [],
-        insurance_image_url: [],
-        fitness_image_url: [],
-        puc_image_url: [],
+        chassis_image_url: null,
+        tax_image_url: null,
+        insurance_image_url: null,
+        fitness_image_url: null,
+        puc_image_url: null,
       },
     });
   }
@@ -228,12 +254,11 @@ export class VehicleService {
    * @param files - The uploaded files
    * @returns An object containing the public URLs of the uploaded files
    */
-  async uploadFilesAsync(
+  async uploadDocumentsAsync(
     vehicleId: number,
     documentType: string,
     files: Express.Multer.File[],
-  ): Promise<{ urls: string[] }> {
-    // Verify vehicle exists
+  ): Promise<{ urls: string[] }> {    // Verify vehicle exists
     await this.getByIdAsync(vehicleId);
 
     const urls = await Promise.all(
@@ -253,6 +278,36 @@ export class VehicleService {
     });
 
     return { urls };
+  }
+
+  /**
+   * Uploads (or replaces) a single vehicle document for a specific category.
+   *
+   * @param vehicleId - ID of the vehicle
+   * @param documentType - Which category to upload (chassis_image, tax_image, etc.)
+   * @param file - The uploaded file
+   * @returns An object containing the public URL of the uploaded file
+   */
+  async uploadDocumentAsync(
+    vehicleId: number,
+    documentType: string,
+    file: Express.Multer.File,
+  ): Promise<{ url: string }> {    // Verify vehicle exists
+    await this.getByIdAsync(vehicleId);
+
+    const result = await this._uploadFileAsync(
+      file,
+      `vehicle/${vehicleId}/${documentType}`,
+    );
+
+    await this._prismaService.vehicle.update({
+      where: { id: vehicleId },
+      data: {
+        [`${documentType}_url`]: result.url,
+      },
+    });
+
+    return { url: result.url };
   }
   // #endregion
 
@@ -298,11 +353,11 @@ export class VehicleService {
 
     // Documents
     if (!vehicle.vehical_image_url || vehicle.vehical_image_url.length === 0) errors.push('Vehicle images are required');
-    if (!vehicle.chassis_image_url || vehicle.chassis_image_url.length === 0) errors.push('Chassis images are required');
-    if (!vehicle.tax_image_url || vehicle.tax_image_url.length === 0) errors.push('Tax images are required');
-    if (!vehicle.insurance_image_url || vehicle.insurance_image_url.length === 0) errors.push('Insurance images are required');
-    if (!vehicle.fitness_image_url || vehicle.fitness_image_url.length === 0) errors.push('Fitness images are required');
-    if (!vehicle.puc_image_url || vehicle.puc_image_url.length === 0) errors.push('PUC images are required');
+    if (!vehicle.chassis_image_url) errors.push('Chassis image is required');
+    if (!vehicle.tax_image_url) errors.push('Tax image is required');
+    if (!vehicle.insurance_image_url) errors.push('Insurance image is required');
+    if (!vehicle.fitness_image_url) errors.push('Fitness image is required');
+    if (!vehicle.puc_image_url) errors.push('PUC image is required');
 
     if (errors.length > 0) {
       throw new BadRequestException(`Submission failed: ${errors.join(', ')}`);
@@ -310,7 +365,7 @@ export class VehicleService {
 
     const updatedVehicle = await this._prismaService.vehicle.update({
       where: { id },
-      data: { status: 'Available', availability_status: 'Available' },
+      data: { status: 'UnderApproval', availability_status: 'Onboard_Pending' },
     });
 
     return this._mapToDto<VehicleDetailDto>(updatedVehicle);
@@ -421,6 +476,35 @@ export class VehicleService {
     if (vehicle && vehicle.availability_status) {
       vehicle.availability_status = vehicle.availability_status.replace(/_/g, ' ');
     }
+
+    // Ensure document URLs return null instead of empty objects or literal "{}"
+    const documentFields = [
+      'chassis_image_url',
+      'tax_image_url',
+      'insurance_image_url',
+      'fitness_image_url',
+      'puc_image_url',
+    ];
+
+    documentFields.forEach((field) => {
+      if (
+        vehicle[field] === '{}' ||
+        (vehicle[field] &&
+          typeof vehicle[field] === 'object' &&
+          Object.keys(vehicle[field]).length === 0)
+      ) {
+        vehicle[field] = null;
+      }
+    });
+    
+    if (vehicle && vehicle.drivers) {
+      const { drivers, ...rest } = vehicle;
+      return {
+        ...rest,
+        driver: drivers.length > 0 ? drivers[0] : null,
+      } as T;
+    }
+    
     return vehicle as T;
   }
 }

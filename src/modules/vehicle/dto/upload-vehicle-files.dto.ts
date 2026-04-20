@@ -14,7 +14,7 @@ export class UploadVehicleFilesDto {
       type: 'string',
       format: 'binary',
     },
-    description: 'Vehicle document images (JPEG or PNG)',
+    description: 'Vehicle documents (JPEG, PNG, or PDF)',
   })
   files: Express.Multer.File[];
 }

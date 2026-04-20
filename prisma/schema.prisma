@@ -128,17 +128,17 @@ model vehicle {
   fitness_validity    DateTime
   puc_validity        DateTime
   vehical_image_url   String[]
-  chassis_image_url   String[]
-  tax_image_url       String[]
-  insurance_image_url String[]
-  fitness_image_url   String[]
-  puc_image_url       String[]
+  chassis_image_url   String?
+  tax_image_url       String?
+  insurance_image_url String?
+  fitness_image_url   String?
+  puc_image_url       String?
   is_deleted          Boolean                   @default(false)
   created_at          DateTime                  @default(now())
   updated_at          DateTime                  @default(now()) @updatedAt
   vehicle_class       String?                   @db.VarChar(255)
   status              VehicleStatus             @default(Banned)
-  availability_status VehicleAvailabilityStatus @default(Onboard_Pending)
+  availability_status AvailabilityStatus @default(Onboard_Pending)
   drivers             driver[]
   vendor              vendor                    @relation(fields: [vendor_id], references: [id])
 
@@ -356,8 +356,4 @@ enum VehicleStatus {
   Banned
 }
 
-enum VehicleAvailabilityStatus {
-  Available
-  Unavailable
-  Onboard_Pending @map("Onboard Pending")
-}
+

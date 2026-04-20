@@ -1,4 +1,4 @@
-import { VehicleStatus, VehicleAvailabilityStatus } from '@prisma/client';
+import { VehicleStatus, AvailabilityStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import { PaginatedListDto } from '../../../core/response/dto/paginated-list.dto';
 
@@ -21,11 +21,18 @@ export class VehicleListDto {
   @ApiProperty({ enum: VehicleStatus })
   status: VehicleStatus;
 
-  @ApiProperty({ enum: VehicleAvailabilityStatus })
-  availability_status: VehicleAvailabilityStatus;
+  @ApiProperty({ enum: AvailabilityStatus })
+  availability_status: AvailabilityStatus;
 
   @ApiProperty({ example: '2023-01-01T00:00:00Z' })
   created_at: Date;
+
+  @ApiProperty({ description: 'Assigned driver details', required: false })
+  driver?: {
+    id: number;
+    driver_name: string;
+    mobile_number: string;
+  };
 }
 
 export class VehiclePaginatedListDto extends PaginatedListDto<VehicleListDto> {

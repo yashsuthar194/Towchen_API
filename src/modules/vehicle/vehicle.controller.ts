@@ -9,13 +9,14 @@ import {
   ParseIntPipe,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
   UseGuards,
   Query,
 } from '@nestjs/common';
 import { VehicleService } from './vehicle.service';
 import { CreateVehicleDto, VendorCreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto, VendorUpdateVehicleDto } from './dto/update-vehicle.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiConsumes,
   ApiBody,
@@ -29,7 +30,8 @@ import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 import { VehicleDetailDto } from './dto/vehicle-detail.dto';
 import { VehicleListDto, VehiclePaginatedListDto } from './dto/vehicle-list.dto';
 import { UploadVehicleFilesDto } from './dto/upload-vehicle-files.dto';
-import { VehicleStatus, VehicleAvailabilityStatus } from '@prisma/client';
+import { UploadVehicleFileDto } from './dto/upload-vehicle-file.dto';
+import { VehicleStatus, AvailabilityStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 
@@ -125,7 +127,7 @@ export class VehicleController {
 
   // #region Approval
   /**
-   * Submit vehicle for approval (Sets status to Available)
+   * Submit vehicle for approval (Sets status to UnderApproval)
    * @param id Vehicle ID
    */
   @Put(':id/submit-for-approval')
@@ -153,107 +155,101 @@ export class VehicleController {
 
   // #region Document Upload
   /**
-   * Upload multiple vehicle images
+   * Upload multiple vehicle documents
    * @param id Vehicle ID
-   * @param files Array of image files
+   * @param files Array of document files
    */
-  @Put(':id/vehicle-image')
+  @Put(':id/vehicle-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFilesDto })
   @UseInterceptors(FilesInterceptor('files', 4))
-  async uploadVehicleImage(
+  async uploadVehicleDocument(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFiles() files: Express.Multer.File[],
   ): Promise<ResponseDto<{ urls: string[] }>> {
-    const result = await this._vehicleService.uploadFilesAsync(id, 'vehical_image', files);
-    return ResponseDto.updated('Vehicle images uploaded successfully', result);
+    const result = await this._vehicleService.uploadDocumentsAsync(id, 'vehical_image', files);
+    return ResponseDto.updated('Vehicle documents uploaded successfully', result);
   }
-
   /**
-   * Upload multiple chassis images
+   * Upload single chassis document
    * @param id Vehicle ID
-   * @param files Array of image files
+   * @param file The document file
    */
-  @Put(':id/chassis-image')
+  @Put(':id/chassis-document')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadVehicleFilesDto })
-  @UseInterceptors(FilesInterceptor('files', 4))
-  async uploadChassisImage(
+  @ApiBody({ type: UploadVehicleFileDto })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadChassisDocument(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFiles() files: Express.Multer.File[],
-  ): Promise<ResponseDto<{ urls: string[] }>> {
-    const result = await this._vehicleService.uploadFilesAsync(id, 'chassis_image', files);
-    return ResponseDto.updated('Chassis images uploaded successfully', result);
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ResponseDto<{ url: string }>> {
+    const result = await this._vehicleService.uploadDocumentAsync(id, 'chassis_image', file);
+    return ResponseDto.updated('Chassis document uploaded successfully', result);
   }
-
   /**
-   * Upload multiple tax images
+   * Upload single tax document
    * @param id Vehicle ID
-   * @param files Array of image files
+   * @param file The document file
    */
-  @Put(':id/tax-image')
+  @Put(':id/tax-document')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadVehicleFilesDto })
-  @UseInterceptors(FilesInterceptor('files', 4))
-  async uploadTaxImage(
+  @ApiBody({ type: UploadVehicleFileDto })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadTaxDocument(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFiles() files: Express.Multer.File[],
-  ): Promise<ResponseDto<{ urls: string[] }>> {
-    const result = await this._vehicleService.uploadFilesAsync(id, 'tax_image', files);
-    return ResponseDto.updated('Tax images uploaded successfully', result);
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ResponseDto<{ url: string }>> {
+    const result = await this._vehicleService.uploadDocumentAsync(id, 'tax_image', file);
+    return ResponseDto.updated('Tax document uploaded successfully', result);
   }
-
   /**
-   * Upload multiple insurance images
+   * Upload single insurance document
    * @param id Vehicle ID
-   * @param files Array of image files
+   * @param file The document file
    */
-  @Put(':id/insurance-image')
+  @Put(':id/insurance-document')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadVehicleFilesDto })
-  @UseInterceptors(FilesInterceptor('files', 4))
-  async uploadInsuranceImage(
+  @ApiBody({ type: UploadVehicleFileDto })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadInsuranceDocument(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFiles() files: Express.Multer.File[],
-  ): Promise<ResponseDto<{ urls: string[] }>> {
-    const result = await this._vehicleService.uploadFilesAsync(id, 'insurance_image', files);
-    return ResponseDto.updated('Insurance images uploaded successfully', result);
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ResponseDto<{ url: string }>> {
+    const result = await this._vehicleService.uploadDocumentAsync(id, 'insurance_image', file);
+    return ResponseDto.updated('Insurance document uploaded successfully', result);
   }
-
   /**
-   * Upload multiple fitness images
+   * Upload single fitness document
    * @param id Vehicle ID
-   * @param files Array of image files
+   * @param file The document file
    */
-  @Put(':id/fitness-image')
+  @Put(':id/fitness-document')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadVehicleFilesDto })
-  @UseInterceptors(FilesInterceptor('files', 4))
-  async uploadFitnessImage(
+  @ApiBody({ type: UploadVehicleFileDto })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFitnessDocument(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFiles() files: Express.Multer.File[],
-  ): Promise<ResponseDto<{ urls: string[] }>> {
-    const result = await this._vehicleService.uploadFilesAsync(id, 'fitness_image', files);
-    return ResponseDto.updated('Fitness images uploaded successfully', result);
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ResponseDto<{ url: string }>> {
+    const result = await this._vehicleService.uploadDocumentAsync(id, 'fitness_image', file);
+    return ResponseDto.updated('Fitness document uploaded successfully', result);
   }
-
   /**
-   * Upload multiple PUC images
+   * Upload single PUC document
    * @param id Vehicle ID
-   * @param files Array of image files
+   * @param file The document file
    */
-  @Put(':id/puc-image')
+  @Put(':id/puc-document')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadVehicleFilesDto })
-  @UseInterceptors(FilesInterceptor('files', 4))
-  async uploadPucImage(
+  @ApiBody({ type: UploadVehicleFileDto })
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPucDocument(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFiles() files: Express.Multer.File[],
-  ): Promise<ResponseDto<{ urls: string[] }>> {
-    const result = await this._vehicleService.uploadFilesAsync(id, 'puc_image', files);
-    return ResponseDto.updated('PUC images uploaded successfully', result);
-  }
-  // #endregion
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ResponseDto<{ url: string }>> {
+    const result = await this._vehicleService.uploadDocumentAsync(id, 'puc_image', file);
+    return ResponseDto.updated('PUC document uploaded successfully', result);
+  }  // #endregion
 
   // #region Delete
   /**
