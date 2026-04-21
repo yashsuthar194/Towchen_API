@@ -4,11 +4,6 @@ import { IsOptional, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateDriverDto extends PartialType(CreateDriverDto) {
-  @ApiPropertyOptional({ description: 'Associated vehicle ID' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  vehicle_id?: number;
   /**
    * Extracts driver-only data
    */

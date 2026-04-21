@@ -4,7 +4,6 @@ import {
   Put,
   Body,
   UseInterceptors,
-  UploadedFiles,
   UploadedFile,
   UseGuards,
   Delete,
@@ -12,7 +11,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
-import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiConsumes,
   ApiBody,
@@ -26,12 +25,11 @@ import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { DriverGuard } from 'src/services/jwt/guards/driver.guard';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { UpdateDriverProfileDto } from './dto/update-driver-profile.dto';
-import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
 import { UploadDriverDocumentDto } from './dto/upload-driver-document.dto';
 import { DriverDetailDto } from './dto/driver-detail.dto';
 
 @ApiTags('Driver Profile')
-@ApiExtraModels(UpdateDriverProfileDto, DriverUploadFilesPutDto)
+@ApiExtraModels(UpdateDriverProfileDto)
 @Controller('driver/profile')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
@@ -50,33 +48,6 @@ export class DriverProfileController {
     return await this._driverService.getProfileAsync(driverId);
   }
 
-  /**
-   * Update current driver profile
-   */
-  @Put('me')
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      allOf: [
-        { $ref: getSchemaPath(UpdateDriverProfileDto) },
-        { $ref: getSchemaPath(DriverUploadFilesPutDto) },
-      ],
-    },
-  })
-  @UseInterceptors(
-    FileFieldsInterceptor([
-      { name: 'aadhar_card', maxCount: 1 },
-      { name: 'pan_card', maxCount: 1 },
-      { name: 'driver_license', maxCount: 1 },
-    ]),
-  )
-  async updateProfile(
-    @Body() dto: UpdateDriverProfileDto,
-    @UploadedFiles() files: DriverUploadFilesPutDto,
-  ): Promise<DriverDetailDto> {
-    const driverId = this._callerService.getUserId();
-    return await this._driverService.updateProfileAsync(driverId, dto, files);
-  }
 
   /**
    * Update current driver's personal info (JSON only, no files)

@@ -11,7 +11,6 @@ import { CallerService } from 'src/services/jwt/caller.service';
 import { Hash } from 'src/shared/helper/hash';
 import { DriverDetailDto } from './dto/driver-detail.dto';
 import { DriverListDto } from './dto/driver-list.dto';
-import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
 import { DriverStatus, VehicleStatus } from '@prisma/client';
 import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 import { VehicleService } from '../vehicle/vehicle.service';
@@ -108,9 +107,6 @@ export class DriverService {
     await this._validateUniqueness(dto.email, dto.mobile_number);
 
     const driver = await this._createDriverRecord(dto);
-    if (dto.vehicle_id) {
-      await this._updateVehicleAvailabilityAsync(undefined, dto.vehicle_id);
-    }
     return driver;
   }
 
@@ -191,12 +187,10 @@ export class DriverService {
    * Updates the driver's own profile information
    * @param id - Driver ID
    * @param dto - Profile update data
-   * @param files - Optional document updates
    */
   async updateProfileAsync(
     id: number,
     dto: any, // Using any here to facilitate internal mapping, but Controller uses UpdateDriverProfileDto
-    files?: DriverUploadFilesPutDto,
   ): Promise<DriverDetailDto> {
     const currentDriver = await this._prismaService.driver.findUnique({
       where: { id },
@@ -223,20 +217,10 @@ export class DriverService {
       updateData.is_number_verified = false;
     }
 
-    // Reuse existing file update logic
-    const updatedFiles = files
-      ? await this._updateDriverFilesAsync(id, files)
-      : {};
-
-    if (dto.vehicle_id) {
-      await this._validateVehicleStatus(dto.vehicle_id);
-    }
-
     const result = await this._prismaService.driver.update({
       where: { id },
       data: {
         ...updateData,
-        ...updatedFiles,
       },
       include: {
         vendor: {
@@ -251,10 +235,6 @@ export class DriverService {
         endLocation: true,
       },
     });
-
-    if (updateData.vehicle_id !== undefined && updateData.vehicle_id !== currentDriver.vehicle_id) {
-      await this._updateVehicleAvailabilityAsync(currentDriver.vehicle_id || undefined, updateData.vehicle_id || undefined);
-    }
 
     await this._checkAndSetUnderApprovalStatusAsync(id);
     return this._mapToDetailDto(result);
@@ -274,10 +254,6 @@ export class DriverService {
     await this.getByIdAsync(id);
 
     await this._validateUniqueness(dto.email, dto.mobile_number, id);
-
-    if (dto.vehicle_id) {
-      await this._validateVehicleStatus(dto.vehicle_id);
-    }
 
     const driverData = UpdateDriverDto.toDriverData(dto);
 
@@ -303,11 +279,6 @@ export class DriverService {
         endLocation: true,
       },
     });
-
-    const currentDriver = await this._prismaService.driver.findUnique({ where: { id } });
-    if (driverData.vehicle_id !== undefined && driverData.vehicle_id !== currentDriver?.vehicle_id) {
-      await this._updateVehicleAvailabilityAsync(currentDriver?.vehicle_id || undefined, driverData.vehicle_id || undefined);
-    }
 
     if (!this._callerService.isVendor()) {
       await this._checkAndSetUnderApprovalStatusAsync(id);
@@ -593,40 +564,6 @@ export class DriverService {
 
   // #region Private Methods
   /**
-   * Updates driver documents in storage if provided
-   * @private
-   */
-  private async _updateDriverFilesAsync(
-    driverId: number,
-    files: DriverUploadFilesPutDto,
-  ) {
-    const [adharCardResult, panCardResult, driverLicenseResult, driverImageResult] =
-      await Promise.all([
-        this._updateFileAsync(
-          files.aadhar_card?.[0],
-          `driver/${driverId}/documents/aadhar`,
-        ),
-        this._updateFileAsync(
-          files.pan_card?.[0],
-          `driver/${driverId}/documents/pan`,
-        ),
-        this._updateFileAsync(
-          files.driver_license?.[0],
-          `driver/${driverId}/documents/license`,
-        ),
-        this._updateFileAsync(
-          files.driver_image?.[0],
-          `driver/${driverId}/documents/image`,
-        ),
-      ]);
-
-    return {
-      aadhar_card_url: adharCardResult?.url || undefined,
-      pan_card_url: panCardResult?.url || undefined,
-      driver_license_url: driverLicenseResult?.url || undefined,
-      driver_image_url: driverImageResult?.url || undefined,
-    };
-  }
 
   /**
    * Validates that email and number are unique across active drivers and vendors

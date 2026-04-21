@@ -29,11 +29,6 @@ export class UpdateDriverProfileDto {
   @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ description: 'Associated vehicle ID' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  vehicle_id?: number;
   @ApiPropertyOptional({ description: 'ID of the driver location (used for both start and end locations)' })
   @IsOptional()
   @Type(() => Number)
