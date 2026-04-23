@@ -28,6 +28,7 @@ import {
 } from 'src/core/response/decorators/api-response-dto.decorator';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
+import { CallerService } from 'src/services/jwt/caller.service';
 
 /**
  * Controller for vendor CRUD operations, agreement management,
@@ -44,7 +45,10 @@ import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
  */
 @Controller('vendor')
 export class VendorController {
-  constructor(private readonly _vendorService: VendorService) {}
+  constructor(
+    private readonly _vendorService: VendorService,
+    private readonly _callerService: CallerService,
+  ) {}
 
   /**
    * Retrieves the currently authenticated vendor's own profile.
@@ -64,6 +68,21 @@ export class VendorController {
   async getProfile(): Promise<ResponseDto<VendorDetailDto>> {
     const vendor = await this._vendorService.getMyProfileAsync();
     return ResponseDto.retrieved('Profile retrieved successfully', vendor);
+  }
+
+  /**
+   * Update current vendor's personal info and bank details (JSON only, no files)
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Put('me/info')
+  @ApiResponseDto(VendorDetailDto, false, 200)
+  async updateProfileInfo(
+    @Body() dto: UpdateVendorDto,
+  ): Promise<ResponseDto<VendorDetailDto>> {
+    const vendorId = this._callerService.getUserId();
+    const vendor = await this._vendorService.updateAsync(dto, vendorId);
+    return ResponseDto.updated('Vendor profile updated successfully', vendor);
   }
 
   /**
