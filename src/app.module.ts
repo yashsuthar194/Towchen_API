@@ -12,6 +12,7 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { DriverLocationModule } from './modules/driver-location/driver-location.module';
 import { SharedModule } from './shared/shared.module';
+import { LogModule } from './modules/log/log.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SharedModule } from './shared/shared.module';
     CustomerModule,
     DriverLocationModule,
     SharedModule,
+    LogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

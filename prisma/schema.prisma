@@ -113,16 +113,16 @@ model driver {
 }
 
 model vehicle {
-  id                  Int                       @id @default(autoincrement())
+  id                  Int                @id @default(autoincrement())
   fleet_type          FleetType
   vendor_id           Int
-  fleet_location      String                    @db.VarChar(255)
-  registration_number String                    @db.VarChar(20)
-  make                String                    @db.VarChar(255)
-  model               String                    @db.VarChar(255)
-  owner_name          String                    @db.VarChar(255)
-  chassis_number      String                    @db.VarChar(255)
-  engine_number       String                    @db.VarChar(255)
+  fleet_location      String             @db.VarChar(255)
+  registration_number String             @db.VarChar(20)
+  make                String             @db.VarChar(255)
+  model               String             @db.VarChar(255)
+  owner_name          String             @db.VarChar(255)
+  chassis_number      String             @db.VarChar(255)
+  engine_number       String             @db.VarChar(255)
   vehicle_validity    DateTime
   insurance_validity  DateTime
   fitness_validity    DateTime
@@ -133,14 +133,14 @@ model vehicle {
   insurance_image_url String?
   fitness_image_url   String?
   puc_image_url       String?
-  is_deleted          Boolean                   @default(false)
-  created_at          DateTime                  @default(now())
-  updated_at          DateTime                  @default(now()) @updatedAt
-  vehicle_class       String?                   @db.VarChar(255)
-  status              VehicleStatus             @default(Banned)
+  is_deleted          Boolean            @default(false)
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @default(now()) @updatedAt
+  vehicle_class       String?            @db.VarChar(255)
+  status              VehicleStatus      @default(Banned)
   availability_status AvailabilityStatus @default(Onboard_Pending)
   drivers             driver[]
-  vendor              vendor                    @relation(fields: [vendor_id], references: [id])
+  vendor              vendor             @relation(fields: [vendor_id], references: [id])
 
   @@index([id])
   @@index([vendor_id])
@@ -256,6 +256,51 @@ model order_otp {
   @@index([order_id])
 }
 
+model logs {
+  id               Int        @id @default(autoincrement())
+  date             DateTime   @default(now())
+  time_stamp       Int
+  url              String
+  method           HttpMethod
+  success          Boolean
+  status_code      Int
+  res_time         Int
+  res_message      String?
+  error            String?    @db.Text // null on success
+  error_stack      String?    @db.Text // full stack trace, only on errors
+  req_body         Json?
+  req_query_params Json?
+  req_header       Json?               // authorization header is excluded (stored in raw_token)
+  req_files        Json?               // multipart file metadata only (no binary)
+  req_content_type String?             // e.g. "application/json" | "multipart/form-data"
+  res_body         Json?
+  raw_token        String?             // raw Bearer token from Authorization header
+  decoded_token    Json?               // decoded JWT payload
+  user_role        Role?
+  user_id          Int?
+  user_formated_id String?
+  user_agent       String?
+  ip_address       String?
+  endpoint_group   String?             // auto-derived from URL first segment, e.g. "driver", "vendor"
+  meta_data        Json?               // debug data set by business services via CallerService.setMeta()
+
+  @@index([date])
+  @@index([success, status_code])
+  @@index([user_id, user_role])
+  @@index([endpoint_group])
+}
+
+//#region enums
+enum HttpMethod {
+  GET
+  POST
+  PUT
+  DELETE
+  PATCH
+  OPTIONS
+  HEAD
+}
+
 enum VendorServices {
   Towing
   Technician
@@ -355,5 +400,3 @@ enum VehicleStatus {
   UnderApproval
   Banned
 }
-
-
