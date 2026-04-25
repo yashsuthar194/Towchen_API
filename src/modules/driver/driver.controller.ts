@@ -139,23 +139,6 @@ export class DriverController {
     return ResponseDto.updated(message, result);
   }
 
-  /**
-   * Adds a vehicle to a driver (explicit POST action).
-   * 
-   * @param id - Driver ID
-   * @param assignVehicleDto - Payload containing vehicle_id
-   */
-  @UseGuards(VendorGuard)
-  @Post(':id/add-vehicle')
-  @ApiResponseDto(DriverDetailDto)
-  @ApiOperation({ summary: 'Add a vehicle to a driver' })
-  async addVehicle(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() assignVehicleDto: AssignVehicleDto,
-  ): Promise<ResponseDto<DriverDetailDto>> {
-    const result = await this._driverService.assignVehicleAsync(id, assignVehicleDto);
-    return ResponseDto.updated('Vehicle added to driver successfully', result);
-  }
 
   /**
    * Submits a driver for approval.
