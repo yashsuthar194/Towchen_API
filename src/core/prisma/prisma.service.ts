@@ -36,6 +36,10 @@ export class PrismaService
     });
 
     this.$on('query' as never, (event: { duration: number; query: string }) => {
+      // Ignore queries to the logs table to prevent console spam
+      if (event.query.includes('"public"."logs"')) {
+        return;
+      }
       this._logger.warn(`Query time (${event.duration}ms): ${event.query}`);
     });
 
