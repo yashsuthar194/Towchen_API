@@ -7,4 +7,17 @@ export class Utility {
     }
     return parseInt(otp, 10);
   }
+
+  /**
+   * Merges address components into a single full address string.
+   * @param location - The location object containing address components
+   * @returns Formatted full address string
+   */
+  static formatAddress(location: any): string {
+    if (!location) return '';
+    const { address, street, area, landmark, city, state, pincode, country } = location;
+    return [address, street, area, landmark, city, state, pincode, country]
+      .filter((part) => part && part.trim() !== '')
+      .join(', ');
+  }
 }

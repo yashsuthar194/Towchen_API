@@ -3,6 +3,7 @@ import { PrismaService } from 'src/core/prisma/prisma.service';
 import { CreateDriverLocationDto } from './dto/create-driver-location.dto';
 import { UpdateDriverLocationDto } from './dto/update-driver-location.dto';
 import { LocationCategory } from '@prisma/client';
+import { Utility } from 'src/shared/helper/utility';
 
 /**
  * Service responsible for managing location records.
@@ -20,9 +21,10 @@ export class DriverLocationService {
    * @returns The created location record
    */
   async createAsync(dto: CreateDriverLocationDto) {
-    return this.prisma.location.create({
+    const location = await this.prisma.location.create({
       data: dto as any,
     });
+    return { ...location, address: Utility.formatAddress(location) };
   }
   //#endregion
 
@@ -33,7 +35,11 @@ export class DriverLocationService {
    * @returns An array of all location records
    */
   async findAllAsync() {
-    return this.prisma.location.findMany();
+    const locations = await this.prisma.location.findMany();
+    return locations.map((loc) => ({
+      ...loc,
+      address: Utility.formatAddress(loc),
+    }));
   }
 
   /**
@@ -42,11 +48,15 @@ export class DriverLocationService {
    * @returns An array of all driver location records
    */
   async findAllDriverLocationsAsync() {
-    return this.prisma.location.findMany({
+    const locations = await this.prisma.location.findMany({
       where: {
         category: LocationCategory.Driver,
       },
     });
+    return locations.map((loc) => ({
+      ...loc,
+      address: Utility.formatAddress(loc),
+    }));
   }
 
   /**
@@ -56,9 +66,11 @@ export class DriverLocationService {
    * @returns The requested location record or null if not found
    */
   async findOneAsync(id: number) {
-    return this.prisma.location.findUnique({
+    const location = await this.prisma.location.findUnique({
       where: { id },
     });
+    if (!location) return null;
+    return { ...location, address: Utility.formatAddress(location) };
   }
   //#endregion
 
@@ -71,10 +83,11 @@ export class DriverLocationService {
    * @returns The updated location record
    */
   async updateAsync(id: number, dto: UpdateDriverLocationDto) {
-    return this.prisma.location.update({
+    const location = await this.prisma.location.update({
       where: { id },
       data: dto as any,
     });
+    return { ...location, address: Utility.formatAddress(location) };
   }
   //#endregion
 

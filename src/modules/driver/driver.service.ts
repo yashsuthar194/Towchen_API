@@ -15,6 +15,7 @@ import { DriverStatus, VehicleStatus } from '@prisma/client';
 import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
 import { VehicleService } from '../vehicle/vehicle.service';
 import { AssignVehicleDto } from './dto/assign-vehicle.dto';
+import { Utility } from 'src/shared/helper/utility';
 
 type DriverDocumentType = 'aadhar' | 'pan' | 'license' | 'profile_image';
 
@@ -732,7 +733,7 @@ export class DriverService {
 
     return {
       ...rest,
-      location_spot: startLocation,
+      location_spot: startLocation ? { ...startLocation, address: Utility.formatAddress(startLocation) } : undefined,
       is_documents_uploaded,
     } as unknown as DriverDetailDto;
   }
