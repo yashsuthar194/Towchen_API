@@ -21,7 +21,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 @ApiTags('driver-location')
 @Controller('driver-location')
 export class DriverLocationController {
-  constructor(private readonly driverLocationService: DriverLocationService) {}
+  constructor(private readonly driverLocationService: DriverLocationService) { }
 
   /**
    * Creates a new driver location record.

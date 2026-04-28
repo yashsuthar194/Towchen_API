@@ -13,6 +13,7 @@ import { CustomerModule } from './modules/customer/customer.module';
 import { DriverLocationModule } from './modules/driver-location/driver-location.module';
 import { SharedModule } from './shared/shared.module';
 import { LogModule } from './modules/log/log.module';
+import { OrderModule } from './modules/order/order.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { LogModule } from './modules/log/log.module';
     DriverLocationModule,
     SharedModule,
     LogModule,
+    OrderModule,
   ],
   controllers: [AppController],
   providers: [AppService],

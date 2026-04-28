@@ -42,6 +42,7 @@ model vendor {
   bank_detail                  vendor_bank_detail?
   drivers                      driver[]
   vehicles                     vehicle[]
+  orders                       order[]
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -103,6 +104,7 @@ model driver {
   endLocation             location?          @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
   vendor                  vendor             @relation(fields: [vendor_id], references: [id])
+  orders                  order[]
 
   @@index([vendor_id])
   @@index([vehicle_id])
@@ -141,6 +143,7 @@ model vehicle {
   availability_status AvailabilityStatus @default(Onboard_Pending)
   drivers             driver[]
   vendor              vendor             @relation(fields: [vendor_id], references: [id])
+  orders              order[]
 
   @@index([id])
   @@index([vendor_id])
@@ -158,6 +161,7 @@ model customer {
   updated_at        DateTime           @default(now()) @updatedAt
   is_deleted_by     Int?
   customer_vehicles customer_vehicle[]
+  orders            order[]
 }
 
 model customer_vehicle {
@@ -173,6 +177,7 @@ model customer_vehicle {
   updated_at          DateTime @default(now()) @updatedAt
   is_deleted_by       Int?
   customer            customer @relation(fields: [customer_id], references: [id])
+  orders              order[]
 
   @@index([customer_id])
 }
@@ -193,7 +198,8 @@ model location {
   category     LocationCategory @default(Driver)
   created_at   DateTime         @default(now())
   startDrivers driver[]         @relation("DriverStartLocation")
-  endDrivers   driver[]         @relation("DriverEndLocation")
+  endDrivers      driver[]         @relation("DriverEndLocation")
+  order_locations order_location[]
 
   @@index([city])
   @@index([state])
@@ -217,7 +223,15 @@ model order {
   remarks             String?
   cancel_reason       String?
   created_at          DateTime       @default(now())
-  updated_at          DateTime
+  updated_at          DateTime       @default(now()) @updatedAt
+
+  customer         customer          @relation(fields: [customer_id], references: [id])
+  customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
+  vendor           vendor?           @relation(fields: [vendor_id], references: [id])
+  driver           driver?           @relation(fields: [driver_id], references: [id])
+  vehicle          vehicle?          @relation(fields: [vehicle_id], references: [id])
+  locations        order_location[]
+  otps             order_otp[]
 
   @@index([customer_id])
   @@index([driver_id])
@@ -235,6 +249,9 @@ model order_location {
   contact_name   String?      @db.VarChar(255)
   contact_number String?      @db.VarChar(20)
 
+  order    order    @relation(fields: [order_id], references: [id])
+  location location @relation(fields: [location_id], references: [id])
+
   @@unique([order_id, type])
   @@index([location_id])
   @@index([order_id])
@@ -250,7 +267,9 @@ model order_otp {
   is_verified Boolean      @default(false)
   attempts    Int          @default(0)
   created_at  DateTime     @default(now())
-  updated_at  DateTime
+  updated_at  DateTime     @default(now()) @updatedAt
+
+  order order @relation(fields: [order_id], references: [id])
 
   @@unique([order_id, type])
   @@index([order_id])
@@ -368,6 +387,15 @@ enum LocationCategory {
   Order
 }
 
+enum OrderStatus {
+  New
+  Assigned
+  OtpPending
+  InProgress
+  Completed
+  Closed
+}
+
 enum LocationType {
   Start
   Breakdown
@@ -378,15 +406,6 @@ enum LocationType {
 enum OrderOtpType {
   START
   COMPLETE
-}
-
-enum OrderStatus {
-  New
-  Assigned
-  InProgress
-  Completed
-  Closed
-  OtpPending
 }
 
 enum AvailabilityStatus {

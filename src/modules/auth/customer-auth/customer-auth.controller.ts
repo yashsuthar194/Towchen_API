@@ -7,7 +7,7 @@ import { ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { ApiResponseDto, ApiResponseDtoNull } from 'src/core/response/decorators/api-response-dto.decorator';
 
-@ApiTags('Customer Auth')
+@ApiTags('Customer')
 @Controller('customer-auth')
 export class CustomerAuthController {
     constructor(private readonly _customerAuthService: CustomerAuthService) { }
