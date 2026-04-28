@@ -28,6 +28,7 @@ import {
 } from 'src/core/response/decorators/api-response-dto.decorator';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
+import { CallerService } from 'src/services/jwt/caller.service';
 
 /**
  * Controller for vendor CRUD operations, agreement management,
@@ -44,7 +45,10 @@ import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
  */
 @Controller('vendor')
 export class VendorController {
-  constructor(private readonly _vendorService: VendorService) {}
+  constructor(
+    private readonly _vendorService: VendorService,
+    private readonly _callerService: CallerService,
+  ) {}
 
   /**
    * Retrieves the currently authenticated vendor's own profile.
@@ -64,6 +68,21 @@ export class VendorController {
   async getProfile(): Promise<ResponseDto<VendorDetailDto>> {
     const vendor = await this._vendorService.getMyProfileAsync();
     return ResponseDto.retrieved('Profile retrieved successfully', vendor);
+  }
+
+  /**
+   * Update current vendor's personal info and bank details (JSON only, no files)
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Put('me/info')
+  @ApiResponseDto(VendorDetailDto, false, 200)
+  async updateProfileInfo(
+    @Body() dto: UpdateVendorDto,
+  ): Promise<ResponseDto<VendorDetailDto>> {
+    const vendorId = this._callerService.getUserId();
+    const vendor = await this._vendorService.updateAsync(dto, vendorId);
+    return ResponseDto.updated('Vendor profile updated successfully', vendor);
   }
 
   /**
@@ -356,6 +375,26 @@ export class VendorController {
   ): Promise<ResponseDto<VendorDetailDto>> {
     const vendor = await this._vendorService.updateAsync(dto, id);
     return ResponseDto.updated('Vendor updated successfully', vendor);
+  }
+
+  /**
+   * Allows the currently authenticated vendor to delete their own account.
+   *
+   * The vendor ID is extracted from the JWT token — no ID parameter is needed.
+   * The record is soft-deleted (`is_deleted = true`) and retained for audit purposes.
+   *
+   * @returns A success response confirming the account was deleted
+   * @throws {UnauthorizedException} If the JWT token is missing or invalid
+   * @throws {ForbiddenException} If the authenticated user is not a vendor
+   * @throws {NotFoundException} If the vendor record no longer exists
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponseDtoNull(200)
+  @Delete('me')
+  async deleteMyAccountAsync(): Promise<ResponseDto<null>> {
+    await this._vendorService.deleteMyAccountAsync();
+    return ResponseDto.deleted('Account deleted successfully');
   }
 
   /**

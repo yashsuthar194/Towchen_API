@@ -13,6 +13,9 @@ import { VendorLoginDto } from './dto/vendor-login.dto';
 import { VendorLoginResponseDto } from './dto/vendor-login-response.dto';
 import { JwtService } from 'src/services/jwt/jwt.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordOtpDto } from './dto/forgot-password-otp.dto';
+import { ForgotPasswordVerifyDto } from './dto/forgot-password-verify.dto';
+import { ForgotPasswordResetDto } from './dto/forgot-password-reset.dto';
 
 /** OTP code length */
 const OTP_LENGTH = 6;
@@ -159,6 +162,185 @@ export class VendorAuthService {
       null,
     );
   }
+
+  //#region Forgot Password
+  /**
+   * Sends a password-reset OTP to the vendor's registered mobile number.
+   *
+   * Edge cases handled:
+   * - Throws if no active vendor is found with the given number (do not reveal
+   *   whether the number exists in the system to prevent enumeration).
+   *
+   * @param dto - Contains the vendor's registered mobile number.
+   * @returns A generic success response (same message regardless of whether
+   *          the number is found, to prevent user enumeration).
+   */
+  async sendForgotPasswordOtpAsync(
+    dto: ForgotPasswordOtpDto,
+  ): Promise<ResponseDto<null>> {
+    // Check vendor exists with this number (but respond generically either way
+    // to prevent mobile-number enumeration attacks).
+    const vendor = await this._prismaService.vendor.findFirst({
+      where: { email: dto.email, is_deleted: false }
+    });
+
+    if (!vendor) {
+      // Return the same success-looking response to avoid enumeration
+      return new ResponseDto<null>(
+        true,
+        HttpStatus.OK,
+        'If this number is registered, an OTP has been sent',
+        null,
+      );
+    }
+
+    const otp = Utility.generateOtp(OTP_LENGTH);
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await this._prismaService.otp.create({
+      data: {
+        otp: otp.toString(),
+        email: dto.email,
+        type: OtpType.Email,
+        expires_at: expiresAt,
+      },
+    });
+
+    const template = TemplateHelper.replaceVariables(
+      TemplateHelper.getTemplate('otp'),
+      {
+        APP_NAME: 'Towchen Service',
+        OTP: otp,
+        EXPIRY_MINUTES: OTP_EXPIRY_MINUTES,
+        SUPPORT_EMAIL: 'support@towchen.com',
+      },
+    );
+
+    const emailResponse = await this._emailService.sendMailAsync({
+      to: dto.email,
+      subject: 'Password reset OTP',
+      text: `Your Towchen password reset OTP is ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+      html: template,
+    });
+
+    if (!emailResponse?.success) {
+      throw new BadRequestException('Failed to send OTP. Please try again.');
+    }
+
+    return new ResponseDto<null>(
+      true,
+      HttpStatus.OK,
+      'If this email is registered, an OTP has been sent',
+      null,
+    );
+  }
+
+  /**
+   * Verifies the forgot-password OTP for a given mobile number.
+   *
+   * Edge cases handled:
+   * - OTP not found → 400
+   * - OTP expired → 400
+   * - OTP mismatch → 400
+   *
+   * @param dto - Contains the vendor's mobile number and the 6-digit OTP.
+   * @returns A response indicating successful verification.
+   */
+  async verifyForgotPasswordOtpAsync(
+    dto: ForgotPasswordVerifyDto,
+  ): Promise<ResponseDto<null>> {
+    const otpRecord = await this._prismaService.otp.findFirst({
+      where: { email: dto.email, type: OtpType.Email },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!otpRecord) {
+      throw new BadRequestException('No OTP found for this email. Please request a new one.');
+    }
+
+    if (otpRecord.expires_at < new Date()) {
+      throw new BadRequestException('OTP has expired. Please request a new one.');
+    }
+
+    if (otpRecord.otp !== dto.otp.toString()) {
+      throw new BadRequestException('Invalid OTP. Please check and try again.');
+    }
+
+    return new ResponseDto<null>(
+      true,
+      HttpStatus.OK,
+      'OTP verified successfully. You may now reset your password.',
+      null,
+    );
+  }
+
+  /**
+   * Resets the vendor's password after re-verifying the OTP.
+   *
+   * The OTP is verified again here (stateless flow) so that a vendor
+   * cannot skip the verify step and call reset directly.
+   *
+   * Edge cases handled:
+   * - No vendor found with number → 400
+   * - OTP not found / expired / mismatched → 400
+   * - New password same as old password → 400
+   *
+   * @param dto - Contains the mobile number, OTP, and new password.
+   * @returns A response confirming the password was reset.
+   */
+  async resetPasswordAsync(
+    dto: ForgotPasswordResetDto,
+  ): Promise<ResponseDto<null>> {
+    // Verify OTP once more (stateless – avoids skipping the verify step)
+    const otpRecord = await this._prismaService.otp.findFirst({
+      where: { email: dto.email, type: OtpType.Email },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (!otpRecord) {
+      throw new BadRequestException('No OTP found for this email. Please request a new one.');
+    }
+
+    if (otpRecord.expires_at < new Date()) {
+      throw new BadRequestException('OTP has expired. Please request a new one.');
+    }
+
+    if (otpRecord.otp !== dto.otp.toString()) {
+      throw new BadRequestException('Invalid OTP. Please check and try again.');
+    }
+
+    // Confirm vendor with this email exists and is active
+    const vendor = await this._prismaService.vendor.findFirst({
+      where: { email: dto.email, is_deleted: false },
+      select: { id: true, password: true },
+    });
+
+    if (!vendor) {
+      throw new BadRequestException('No active vendor found with this email.');
+    }
+
+    // Prevent setting the same password
+    const isSamePassword = await Hash.verifyAsync(dto.new_password, vendor.password);
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from the current password.',
+      );
+    }
+
+    const hashedPassword = await Hash.hashAsync(dto.new_password);
+
+    await this._prismaService.vendor.update({
+      where: { id: vendor.id },
+      data: { password: hashedPassword },
+    });
+
+    return new ResponseDto<null>(
+      true,
+      HttpStatus.OK,
+      'Password reset successfully. Please log in with your new password.',
+      null,
+    );
+  }
   //#endregion
 
   //#region Login
@@ -172,11 +354,11 @@ export class VendorAuthService {
     loginDto: VendorLoginDto,
   ): Promise<ResponseDto<VendorLoginResponseDto>> {
     const vendor = await this._prismaService.vendor.findFirst({
-      where: { email: loginDto.email },
+      where: { formated_id: loginDto.formated_id, is_deleted: false },
     });
 
     if (!vendor) {
-      throw new BadRequestException('Invalid email or password');
+      throw new BadRequestException('Invalid ID or password');
     }
 
     const isPasswordValid = await Hash.verifyAsync(

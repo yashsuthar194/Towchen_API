@@ -36,14 +36,14 @@ export class DriverAuthService {
   ) {}
 
   /**
-   * Logs in a driver.
-   * @param request The login request containing email and password.
-   * @returns The login response containing access and refresh tokens, and verification statuses.
+   * Logs in a driver using formated_id and password.
+   * @param request The login request containing formated_id and password.
+   * @returns The login response containing access and refresh tokens.
    */
   async loginAsync(request: DriverLoginDto): Promise<DriverLoginResponseDto> {
     const driver = await this._prismaService.driver.findFirst({
       where: {
-        email: request.email,
+        formated_id: request.formated_id,
         is_deleted: false,
       },
     });
@@ -69,7 +69,118 @@ export class DriverAuthService {
       refresh_token: tokens.refresh_token,
       is_email_verified: driver.is_email_verified,
       is_number_verified: driver.is_number_verified,
+      is_documents_uploaded: this.checkDocumentsUploaded(driver),
     };
+  }
+
+  /**
+   * Changes the password for an authenticated driver.
+   */
+  async changePasswordAsync(driverId: number, dto: any) {
+    const driver = await this._prismaService.driver.findUnique({
+      where: { id: driverId },
+    });
+
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const isPassVerified = await Hash.verifyAsync(
+      dto.old_password,
+      driver.password,
+    );
+
+    if (!isPassVerified) {
+      throw new BadRequestException('Incorrect old password');
+    }
+
+    const hashedPassword = await Hash.hashAsync(dto.new_password);
+
+    await this._prismaService.driver.update({
+      where: { id: driverId },
+      data: { password: hashedPassword },
+    });
+
+    return ResponseDto.success('Password changed successfully');
+  }
+
+  /**
+   * Sends a forgot password OTP to the driver's registered mobile number.
+   */
+  async sendForgotPasswordOtpAsync(dto: any) {
+    const driver = await this._prismaService.driver.findFirst({
+      where: {
+        formated_id: dto.formated_id,
+        is_deleted: false,
+      },
+    });
+
+    if (!driver) {
+      throw new NotFoundException('Driver with this ID not found');
+    }
+
+    const otpCode = Utility.generateOtp(OTP_LENGTH);
+    const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+    await this._prismaService.otp.create({
+      data: {
+        otp: otpCode.toString(),
+        number: driver.mobile_number,
+        type: OtpType.Number,
+        expires_at: expiresAt,
+      },
+    });
+
+    const smsResponse = await this._smsService.sendSmsAsync({
+      to: `+91${driver.mobile_number}`,
+      message: `Your password reset OTP for Towchen is ${otpCode}. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+    });
+
+    if (!smsResponse?.success) {
+      throw new BadRequestException('Failed to send OTP. Please try again.');
+    }
+
+    return ResponseDto.success(`OTP sent to registered mobile number ending in ${driver.mobile_number.slice(-4)}`);
+  }
+
+  /**
+   * Resets the password using OTP.
+   */
+  async resetPasswordAsync(dto: any) {
+    const driver = await this._prismaService.driver.findFirst({
+      where: {
+        formated_id: dto.formated_id,
+        is_deleted: false,
+      },
+    });
+
+    if (!driver) throw new NotFoundException('Driver not found');
+
+    const dbOtp = await this._prismaService.otp.findFirst({
+      where: {
+        number: driver.mobile_number,
+        type: OtpType.Number,
+        otp: dto.otp,
+      },
+      orderBy: {
+        id: 'desc',
+      },
+    });
+
+    if (!dbOtp) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    if (dbOtp.expires_at < new Date()) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const hashedPassword = await Hash.hashAsync(dto.new_password);
+
+    await this._prismaService.driver.update({
+      where: { id: driver.id },
+      data: { password: hashedPassword },
+    });
+
+    return ResponseDto.success('Password reset successfully. You can now login with your new password.');
   }
 
   /**
@@ -78,13 +189,27 @@ export class DriverAuthService {
    * @returns A response indicating the success or failure of the OTP sending process.
    */
   async sendVerificationOtpAsync(request: DriverVerificationRequestDto) {
-    const driver = await this._prismaService.driver.findFirst({
-      where: {
-        mobile_number: request.number,
-        email: request.email,
-        is_deleted: false,
-      },
-    });
+    let driver;
+
+    if (request.formated_id) {
+      driver = await this._prismaService.driver.findFirst({
+        where: {
+          formated_id: request.formated_id.trim(),
+          is_deleted: false,
+        },
+      });
+    } else if (request.email && request.number) {
+      driver = await this._prismaService.driver.findFirst({
+        where: {
+          mobile_number: request.number.trim(),
+          email: {
+            equals: request.email.trim(),
+            mode: 'insensitive',
+          },
+          is_deleted: false,
+        },
+      });
+    }
 
     if (!driver) throw new NotFoundException('Driver not found');
 
@@ -97,13 +222,13 @@ export class DriverAuthService {
       data: [
         {
           otp: smsOtp.toString(),
-          number: request.number,
+          number: driver.mobile_number,
           type: OtpType.Number,
           expires_at: expiresAt,
         },
         {
           otp: emailOtp.toString(),
-          email: request.email,
+          email: driver.email,
           type: OtpType.Email,
           expires_at: expiresAt,
         },
@@ -126,11 +251,11 @@ export class DriverAuthService {
 
     const [smsResponse, emailResponse] = await Promise.all([
       this._smsService.sendSmsAsync({
-        to: `+91${request.number}`,
+        to: `+91${driver.mobile_number}`,
         message: `Your OTP is ${smsOtp}`,
       }),
       this._emailService.sendMailAsync({
-        to: request.email,
+        to: driver.email,
         subject: 'OTP verification',
         text: 'OTP verification email',
         html: template,
@@ -155,10 +280,34 @@ export class DriverAuthService {
    * @returns A response indicating the success or failure of the OTP verification process.
    */
   async verifyVerificationOtpAsync(request: DriverVerificationDto) {
+    let driver;
+
+    if (request.formated_id) {
+      driver = await this._prismaService.driver.findFirst({
+        where: {
+          formated_id: request.formated_id.trim(),
+          is_deleted: false,
+        },
+      });
+    } else if (request.email && request.number) {
+      driver = await this._prismaService.driver.findFirst({
+        where: {
+          mobile_number: request.number.trim(),
+          email: {
+            equals: request.email.trim(),
+            mode: 'insensitive',
+          },
+          is_deleted: false,
+        },
+      });
+    }
+
+    if (!driver) throw new NotFoundException('Driver not found');
+
     const [emailOtp, mobileOtp] = await Promise.all([
       this._prismaService.otp.findFirst({
         where: {
-          email: request.email,
+          email: driver.email,
           type: OtpType.Email,
         },
         orderBy: {
@@ -167,7 +316,7 @@ export class DriverAuthService {
       }),
       this._prismaService.otp.findFirst({
         where: {
-          number: request.number,
+          number: driver.mobile_number,
           type: OtpType.Number,
         },
         orderBy: {
@@ -184,23 +333,14 @@ export class DriverAuthService {
       throw new BadRequestException('Invalid email OTP');
     }
 
-    if (mobileOtp.expires_at < new Date()) {
+    const now = new Date();
+    if (mobileOtp.expires_at < now) {
       throw new BadRequestException('Mobile OTP expired');
     }
 
-    if (emailOtp.expires_at < new Date()) {
+    if (emailOtp.expires_at < now) {
       throw new BadRequestException('Email OTP expired');
     }
-
-    const vendor = await this._prismaService.driver.findFirst({
-      where: {
-        mobile_number: request.number,
-        email: request.email,
-        is_deleted: false,
-      },
-    });
-
-    if (!vendor) throw new NotFoundException('Driver not found');
 
     await this._prismaService.driver.update({
       data: {
@@ -208,19 +348,7 @@ export class DriverAuthService {
         is_number_verified: true,
       },
       where: {
-        id: vendor.id,
-      },
-    });
-
-    if (!vendor) throw new NotFoundException('Driver not found');
-
-    await this._prismaService.driver.updateMany({
-      data: {
-        is_email_verified: true,
-        is_number_verified: true,
-      },
-      where: {
-        id: vendor.id,
+        id: driver.id,
       },
     });
 
@@ -321,6 +449,19 @@ export class DriverAuthService {
       refresh_token: tokens.refresh_token,
       is_email_verified: driver.is_email_verified,
       is_number_verified: driver.is_number_verified,
+      is_documents_uploaded: this.checkDocumentsUploaded(driver),
     });
+  }
+
+  /**
+   * Helper to check if all required driver documents are uploaded.
+   * @param driver The driver object from Prisma
+   */
+  private checkDocumentsUploaded(driver: any): boolean {
+    return !!(
+      driver.aadhar_card_url &&
+      driver.pan_card_url &&
+      driver.driver_license_url
+    );
   }
 }

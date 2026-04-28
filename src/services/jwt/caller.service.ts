@@ -61,7 +61,13 @@ export class CallerService {
   constructor(
     @Inject(REQUEST) private readonly request: Request,
     private readonly jwtService: JwtService,
-  ) {}
+  ) {
+    // Mark request start time immediately when this service is first created
+    // (happens at the start of the request lifecycle)
+    if (!(this.request as any)['_log_start']) {
+      (this.request as any)['_log_start'] = Date.now();
+    }
+  }
 
   /**
    * Extracts the JWT token from the Authorization header
@@ -278,5 +284,63 @@ export class CallerService {
    */
   getToken(): string | null {
     return this.extractToken();
+  }
+
+  // ============================================
+  // Log Meta-Data Store
+  // Stored on the request object so singleton-scoped
+  // interceptors/filters can read it without scope issues.
+  // ============================================
+
+  /**
+   * Store a key/value pair that will be persisted to the `meta_data`
+   * column of the request log.
+   *
+   * Call this from any business service to attach debug/audit data.
+   *
+   * @example
+   * ```typescript
+   * this.callerService.setMeta('approved_vendor_id', vendor.id);
+   * this.callerService.setMeta('previous_status', 'Pending');
+   * ```
+   */
+  setMeta(key: string, value: unknown): void {
+    const meta = this._getMeta();
+    meta[key] = value;
+    (this.request as any)['_log_meta'] = meta;
+  }
+
+  /**
+   * Append a value to an array key in the meta_data store.
+   *
+   * Useful for collecting multiple items across service calls.
+   *
+   * @example
+   * ```typescript
+   * this.callerService.appendMeta('updated_fields', 'email');
+   * this.callerService.appendMeta('updated_fields', 'mobile_number');
+   * // meta_data.updated_fields => ['email', 'mobile_number']
+   * ```
+   */
+  appendMeta(key: string, value: unknown): void {
+    const meta = this._getMeta();
+    if (!Array.isArray(meta[key])) {
+      meta[key] = [];
+    }
+    (meta[key] as unknown[]).push(value);
+    (this.request as any)['_log_meta'] = meta;
+  }
+
+  /**
+   * Read the accumulated meta_data for this request.
+   * Returns an empty object if nothing was set.
+   */
+  getMetaData(): Record<string, unknown> {
+    return this._getMeta();
+  }
+
+  /** @internal */
+  private _getMeta(): Record<string, unknown> {
+    return (this.request as any)['_log_meta'] ?? {};
   }
 }

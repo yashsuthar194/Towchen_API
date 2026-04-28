@@ -1,10 +1,15 @@
 import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
+import { JwtService } from 'src/services/jwt/jwt.service';
+import { Role } from '@prisma/client';
 
 @Injectable()
 export class CustomerService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly _jwtService: JwtService,
+    ) { }
 
     /**
      * Registers a new customer and their vehicle
@@ -49,7 +54,16 @@ export class CustomerService {
                 },
             });
 
-            return newCustomer;
+            // Generate tokens for the new customer
+            const tokens = await this._jwtService.generateTokens({
+                id: newCustomer.id,
+                email: newCustomer.email,
+                type: Role.Customer,
+            });
+
+            return {
+                ...tokens,
+            };
         } catch (error) {
             console.error('Error creating customer:', error);
             throw new InternalServerErrorException('Failed to register customer. Please try again later.');

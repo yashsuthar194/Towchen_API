@@ -1,10 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MinLength,
@@ -14,7 +15,6 @@ import {
   VendorServices,
 } from '@prisma/client';
 import { VendorDto } from './vendor.dto';
-import { Match } from 'src/shared/validators/match.decorator';
 
 /**
  * DTO for creating a new vendor account.
@@ -67,12 +67,13 @@ export class CreateVendorDto implements Partial<VendorDto> {
   @ApiProperty({ example: 'StrongP@ss1' })
   password: string;
 
-  /** Services the vendor provides */
+  /** Services the vendor provides (multi-select) */
   @IsArray()
   @IsEnum(VendorServices, { each: true })
   @ApiProperty({
     type: [String],
     enum: VendorServices,
+    isArray: true,
     example: [VendorServices.Towing],
   })
   select_services: VendorServices[];
@@ -88,20 +89,15 @@ export class CreateVendorDto implements Partial<VendorDto> {
   @ApiProperty({ enum: OrganizationType, example: OrganizationType.Cooperative })
   organization_type: OrganizationType;
 
-  /** Whether the vendor is GST-registered */
-  @IsBoolean()
-  @IsNotEmpty()
-  @ApiProperty({ example: true })
-  is_gst_vendor: boolean;
-
   /** GST identification number (15-character alphanumeric format) */
-  @IsNotEmpty()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
   @IsString()
   @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, {
     message: 'gst_number must be a valid GST number',
   })
   @ApiProperty({ example: '27AAPFU0939F1ZV' })
-  gst_number: string;
+  gst_number?: string;
 
   // ── Bank detail fields (flattened for JSON compatibility) ──
 
@@ -158,7 +154,12 @@ export class CreateVendorDto implements Partial<VendorDto> {
       select_services,
       ...vendorData
     } = dto;
-    return { services: select_services, ...vendorData };
+    return {
+      ...vendorData,
+      services: select_services,
+      gst_number: dto.gst_number ?? null,
+      is_gst_vendor: !!dto.gst_number,
+    };
   }
 
   /**

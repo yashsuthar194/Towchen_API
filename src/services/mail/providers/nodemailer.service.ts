@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import * as SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { IMailService } from '../interfaces/mail.interface';
 import { SendMailDto } from '../types/send-mail.dto';
 import { MailResponseDto } from '../types/mail-response.dto';
@@ -40,14 +41,19 @@ export class NodemailerService implements IMailService {
     }
 
     this.transporter = nodemailer.createTransport({
-      host: mailConfig.MAIL_HOST,
-      port: mailConfig.MAIL_PORT || 587,
-      secure: mailConfig.MAIL_PORT === 465,
+      host: "smtp.gmail.com",
+      port: 587,          // ✅ must be 587
+      secure: false,      // ✅ false for 587
       auth: {
         user: mailConfig.MAIL_USER,
         pass: mailConfig.MAIL_PASS,
       },
-    });
+      family: 4,          // ✅ IPv4 fix
+      tls: {
+        rejectUnauthorized: false,
+      },
+      connectionTimeout: 10000, // optional but helpful
+    } as SMTPTransport.Options);
 
     this.logger.log('Nodemailer service initialized');
   }

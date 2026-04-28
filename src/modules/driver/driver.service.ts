@@ -7,12 +7,17 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { StorageService } from 'src/services/storage/storage.service';
-import { DriverUploadFilesPostDto } from './dto/driver-upload-files.post.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { Hash } from 'src/shared/helper/hash';
 import { DriverDetailDto } from './dto/driver-detail.dto';
 import { DriverListDto } from './dto/driver-list.dto';
-import { DriverUploadFilesPutDto } from './dto/driver-upload-files.put.dto';
+import { DriverStatus, VehicleStatus } from '@prisma/client';
+import { PaginatedListDto } from '../../core/response/dto/paginated-list.dto';
+import { VehicleService } from '../vehicle/vehicle.service';
+import { AssignVehicleDto } from './dto/assign-vehicle.dto';
+import { Utility } from 'src/shared/helper/utility';
+
+type DriverDocumentType = 'aadhar' | 'pan' | 'license' | 'profile_image';
 
 @Injectable()
 export class DriverService {
@@ -20,26 +25,46 @@ export class DriverService {
     private readonly _prismaService: PrismaService,
     private readonly _storageService: StorageService,
     private readonly _callerService: CallerService,
-  ) {}
+    private readonly _vehicleService: VehicleService,
+  ) { }
 
   // #region Get
   /**
    * Gets a list of active drivers for the current vendor
    * @returns Array of drivers with vehicle details
    */
-  async getListAsync(): Promise<DriverListDto[]> {
-    return this._prismaService.driver.findMany({
-      where: { is_deleted: false, vendor_id: this._callerService.getUserId() },
-      select: {
-        id: true,
-        formated_id: true,
-        driver_name: true,
-        email: true,
-        alternate_mobile_number: true,
-        status: true,
-        created_at: true,
-      },
-    });
+  async getListAsync(status?: DriverStatus): Promise<PaginatedListDto<DriverListDto>> {
+    const where = {
+      is_deleted: false,
+      ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+      ...(status ? { status } : {}),
+    };
+
+    const [drivers, totalCount] = await Promise.all([
+      this._prismaService.driver.findMany({
+        where,
+        select: {
+          id: true,
+          formated_id: true,
+          driver_name: true,
+          email: true,
+          alternate_mobile_number: true,
+          status: true,
+          availability_status: true,
+          services: true,
+          created_at: true,
+          vehicle: true,
+        },
+      }),
+      this._prismaService.driver.count({ where }),
+    ]);
+
+    const list = drivers.map((d) => ({
+      ...d,
+      availability_status: (d.availability_status as string).replace(/_/g, ' ') as any,
+    })) as unknown as DriverListDto[];
+
+    return new PaginatedListDto(totalCount, list);
   }
 
   /**
@@ -49,10 +74,11 @@ export class DriverService {
    * @throws NotFoundException if driver not found
    */
   async getByIdAsync(id: number): Promise<DriverDetailDto> {
-    const driver = await this._prismaService.driver.findUnique({
+    const driver = await this._prismaService.driver.findFirst({
       where: {
         id,
         is_deleted: false,
+        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
       },
       include: {
         vehicle: true,
@@ -61,10 +87,12 @@ export class DriverService {
       },
     });
     if (!driver) {
-      throw new NotFoundException(`Driver with ID ${id} not found`);
+      throw new NotFoundException(`Driver not found`);
     }
-    return driver as unknown as DriverDetailDto;
+
+    return this._mapToDetailDto(driver);
   }
+
   // #endregion
 
   // #region Create
@@ -76,20 +104,11 @@ export class DriverService {
    */
   async createAsync(
     dto: CreateDriverDto,
-    files: DriverUploadFilesPostDto,
   ): Promise<DriverDetailDto> {
-    this._validateRequiredFiles(files);
     await this._validateUniqueness(dto.email, dto.mobile_number);
 
     const driver = await this._createDriverRecord(dto);
-
-    try {
-      const fileUrls = await this._uploadDriverFiles(driver.id, files);
-      return await this._updateDriverWithFileUrls(driver.id, fileUrls);
-    } catch (error) {
-      await this._rollbackDriverCreation(driver.id);
-      throw error;
-    }
+    return driver;
   }
 
   /**
@@ -111,7 +130,7 @@ export class DriverService {
       );
     }
 
-    return this._prismaService.driver.create({
+    const driver = await this._prismaService.driver.create({
       data: {
         ...driverData,
         vendor_id: vendorId,
@@ -125,82 +144,236 @@ export class DriverService {
         startLocation: true,
         endLocation: true,
       },
-    }) as unknown as Promise<DriverDetailDto>;
+    });
+
+    return this._mapToDetailDto(driver);
   }
 
+  // #endregion
+
   /**
-   * Updates driver record with uploaded file URLs
-   * @private
+   * Gets the full profile for a driver, including vendor and vehicle details
+   * @param id - Driver ID
+   * @returns Detailed driver profile
    */
-  private async _updateDriverWithFileUrls(
-    driverId: number,
-    fileUrls: {
-      aadhar_card_url: string;
-      pan_card_url: string;
-      driver_license_url: string;
-    },
-  ): Promise<DriverDetailDto> {
-    return (await this._prismaService.driver.update({
-      where: { id: driverId },
-      data: fileUrls,
+  async getProfileAsync(id: number): Promise<DriverDetailDto> {
+    const driver = await this._prismaService.driver.findFirst({
+      where: {
+        id,
+        is_deleted: false,
+        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+      },
       include: {
+        vendor: {
+          select: {
+            id: true,
+            formated_id: true,
+            vendor_name: true,
+          },
+        },
         vehicle: true,
         startLocation: true,
         endLocation: true,
       },
-    })) as unknown as DriverDetailDto;
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    return this._mapToDetailDto(driver);
   }
 
   /**
-   * Compensating action: removes driver on failure
-   * @private
+   * Updates the driver's own profile information
+   * @param id - Driver ID
+   * @param dto - Profile update data
    */
-  private async _rollbackDriverCreation(driverId: number): Promise<void> {
-    await this._prismaService.driver.delete({ where: { id: driverId } });
-  }
-  // #endregion
+  async updateProfileAsync(
+    id: number,
+    dto: any, // Using any here to facilitate internal mapping, but Controller uses UpdateDriverProfileDto
+  ): Promise<DriverDetailDto> {
+    const currentDriver = await this._prismaService.driver.findUnique({
+      where: { id },
+    });
 
-  // #region Update
+    if (!currentDriver) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    const { location_spot, ...restDto } = dto;
+    const updateData: any = { ...restDto };
+
+    if (location_spot !== undefined) {
+      updateData.start_location_id = location_spot;
+      updateData.end_location_id = location_spot;
+    }
+
+    // Reset verification if email or mobile number changes
+    if (dto.email && dto.email !== currentDriver.email) {
+      updateData.is_email_verified = false;
+    }
+
+    if (dto.mobile_number && dto.mobile_number !== currentDriver.mobile_number) {
+      updateData.is_number_verified = false;
+    }
+
+    const result = await this._prismaService.driver.update({
+      where: { id },
+      data: {
+        ...updateData,
+      },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            formated_id: true,
+            vendor_name: true,
+          },
+        },
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    await this._checkAndSetUnderApprovalStatusAsync(id);
+    return this._mapToDetailDto(result);
+  }
+
   /**
-   * Updates an existing driver's information and hashes the password if provided
+   * Updates an existing driver's information (Vendor/Admin use)
    * @param id - Driver ID
    * @param dto - Data to update
-   * @param files - Optional file updates
    * @returns The updated driver with vehicle details
    */
   async updateAsync(
     id: number,
     dto: UpdateDriverDto,
-    files?: DriverUploadFilesPutDto,
   ): Promise<DriverDetailDto> {
     // Check if exists
     await this.getByIdAsync(id);
 
     await this._validateUniqueness(dto.email, dto.mobile_number, id);
 
-    const updatedFiles = files
-      ? await this._updateDriverFilesAsync(id, files)
-      : {};
-
     const driverData = UpdateDriverDto.toDriverData(dto);
+
+    // Prevent vendors from altering the vendor_id or password of a driver
+    if (this._callerService.isVendor()) {
+      delete (driverData as any).vendor_id;
+      delete (driverData as any).password;
+      (driverData as any).status = DriverStatus.Banned;
+    }
+
     if (driverData.password) {
       driverData.password = await Hash.hashAsync(driverData.password);
     }
 
-    return (await this._prismaService.driver.update({
+    const result = await this._prismaService.driver.update({
       where: { id },
       data: {
         ...driverData,
-        ...updatedFiles,
       },
       include: {
         vehicle: true,
         startLocation: true,
         endLocation: true,
       },
-    })) as unknown as DriverDetailDto;
+    });
+
+    if (!this._callerService.isVendor()) {
+      await this._checkAndSetUnderApprovalStatusAsync(id);
+    }
+    return this._mapToDetailDto(result);
   }
-  // #endregion
+
+  /**
+   * Assigns a vehicle to a specific driver.
+   * 
+   * @param dto - Assignment data (vehicle_id)
+   * @returns Updated driver details
+   */
+  async assignVehicleAsync(
+    id: number,
+    dto: AssignVehicleDto,
+  ): Promise<DriverDetailDto> {
+    const { vehicle_id } = dto;
+    const driver = await this._prismaService.driver.findUnique({
+      where: { id, is_deleted: false },
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    // Ensure ownership if vendor
+    if (this._callerService.isVendor() && driver.vendor_id !== this._callerService.getUserId()) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    // Case 1: Unassign the current vehicle
+    if (vehicle_id === 0) {
+      const result = await this._prismaService.driver.update({
+        where: { id },
+        data: { vehicle_id: null },
+        include: {
+          vehicle: true,
+          startLocation: true,
+          endLocation: true,
+        },
+      });
+
+      // Mark the old vehicle as Available
+      if (driver.vehicle_id) {
+        await this._updateVehicleAvailabilityAsync(driver.vehicle_id, undefined);
+      }
+
+      return this._mapToDetailDto(result);
+    }
+
+    // Case 2: Assign a new vehicle
+    // Validate the new vehicle
+    await this._validateVehicleStatus(vehicle_id);
+
+    // Update driver assignment
+    const result = await this._prismaService.driver.update({
+      where: { id },
+      data: { vehicle_id: vehicle_id },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    // Update vehicle availability statuses
+    await this._updateVehicleAvailabilityAsync(driver.vehicle_id || undefined, vehicle_id);
+
+    return this._mapToDetailDto(result);
+  }
+
+  /**
+   * Directly sets a driver's status to Banned.
+   * Ensures the driver belongs to the vendor if a vendor is making the request.
+   * 
+   * @param id - Driver ID
+   * @returns Updated driver details
+   */
+  async banAsync(id: number): Promise<DriverDetailDto> {
+    await this.getByIdAsync(id);
+
+    const result = await this._prismaService.driver.update({
+      where: { id },
+      data: { status: DriverStatus.Banned },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    return this._mapToDetailDto(result);
+  }
 
   // #region Delete
   /**
@@ -208,49 +381,190 @@ export class DriverService {
    * @param id - Driver ID
    * @returns The deleted driver record
    */
-  async deleteAsync(id: number) {
+  async deleteAsync(id: number, deletedById?: number) {
     // Check if exists
-    await this.getByIdAsync(id);
-    return this._prismaService.driver.update({
+    const driver = await this.getByIdAsync(id);
+    const result = await this._prismaService.driver.update({
       where: { id },
       data: {
         is_deleted: true,
+        is_deleted_by: deletedById,
       },
     });
+
+    if (driver.vehicle_id) {
+      await this._updateVehicleAvailabilityAsync(driver.vehicle_id, undefined);
+    }
+
+    return result;
+  }
+  // #endregion
+
+  // #region Document Upload
+  /**
+   * Uploads (or replaces) a single driver document.
+   *
+   * @param driverId - ID of the driver
+   * @param documentType - Which document to upload (aadhar, pan, license)
+   * @param file - The uploaded file
+   * @returns An object containing the public URL of the uploaded file
+   */
+  async uploadDocumentAsync(
+    driverId: number,
+    documentType: DriverDocumentType,
+    file: Express.Multer.File,
+  ): Promise<{ url: string }> {
+    // Verify driver exists
+    await this.getByIdAsync(driverId);
+
+    const folderPath = `driver/${driverId}/documents/${documentType}`;
+    const result = await this._uploadFileAsync(file, folderPath);
+
+    const updateData: any = this.buildDocumentUpdateData(documentType, result.url);
+    if (this._callerService.isVendor()) {
+      updateData.status = DriverStatus.Banned;
+    }
+
+    await this._prismaService.driver.update({
+      where: { id: driverId },
+      data: updateData,
+    });
+
+    if (!this._callerService.isVendor()) {
+      await this._checkAndSetUnderApprovalStatusAsync(driverId);
+    }
+
+    return { url: result.url };
+  }
+
+  /**
+   * Explicitly submits a driver for approval, changing status to UnderApproval.
+   * Performs extensive validation to ensure all required fields and documents are present
+   * and contact details are verified.
+   *
+   * @param id - Driver ID
+   * @throws BadRequestException if any required field is missing or unverified
+   */
+  async submitForApprovalAsync(id: number): Promise<DriverDetailDto> {
+    // 1. Retrieve driver (handles existence and vendor ownership check)
+    const driver = await this._prismaService.driver.findUnique({
+      where: { id, is_deleted: false },
+    });
+
+    if (!driver) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    // Ensure ownership if vendor
+    if (this._callerService.isVendor() && driver.vendor_id !== this._callerService.getUserId()) {
+      throw new NotFoundException(`Driver not found`);
+    }
+
+    // 2. Perform Validations
+    const errors: string[] = [];
+
+    // Required Strings (must be present and not empty)
+    if (!driver.email) errors.push('Email is required');
+    if (!driver.driver_name) errors.push('Driver name is required');
+    if (!driver.mobile_number) errors.push('Mobile number is required');
+    if (!driver.alternate_mobile_number) errors.push('Alternate mobile number is required');
+
+    // Required Documents (Optional in schema, but required for approval)
+    if (!driver.pan_card_url) errors.push('PAN card document is required');
+    if (!driver.driver_license_url) errors.push('Driver license document is required');
+    if (!driver.aadhar_card_url) errors.push('Aadhaar card document is required');
+
+    // Required Identifiers (Optional in schema, but required for approval)
+    if (!driver.vehicle_id) {
+      errors.push('Vehicle assignment is required');
+    } else {
+      const vehicle = await this._prismaService.vehicle.findUnique({
+        where: { id: driver.vehicle_id },
+        select: { status: true },
+      });
+      if (vehicle?.status === VehicleStatus.Banned) {
+        errors.push('Assigned vehicle is banned');
+      }
+    }
+
+    if (!driver.start_location_id) errors.push('Start location is required');
+    if (!driver.end_location_id) errors.push('End location is required');
+
+    // Required Service
+    if (!driver.services) {
+      errors.push('A service must be assigned');
+    }
+
+    // Verification Flags
+    if (!driver.is_email_verified) errors.push('Email must be verified');
+    if (!driver.is_number_verified) errors.push('Mobile number must be verified');
+
+    if (errors.length > 0) {
+      throw new BadRequestException(`Submission failed: ${errors.join(', ')}`);
+    }
+
+    // 3. Update Status
+    const result = await this._prismaService.driver.update({
+      where: { id },
+      data: { status: DriverStatus.UnderApproval },
+      include: {
+        vehicle: true,
+        startLocation: true,
+        endLocation: true,
+      },
+    });
+
+    return this._mapToDetailDto(result);
+  }
+
+  /**
+   * Maps a document type to the Prisma update payload that sets
+   * the correct URL column.
+   *
+   * @param type - The document type identifier
+   * @param url - The uploaded file's public URL
+   * @returns A Prisma-compatible update data object
+   */
+  private buildDocumentUpdateData(
+    type: DriverDocumentType,
+    url: string,
+  ): Record<string, any> {
+    const mapping: Record<DriverDocumentType, Record<string, any>> = {
+      aadhar: { aadhar_card_url: url },
+      pan: { pan_card_url: url },
+      license: { driver_license_url: url },
+      profile_image: { driver_image_url: url },
+    };
+
+    return mapping[type];
+  }
+
+  /**
+   * Automatically sets the driver status to UnderApproval if all documents
+   * are uploaded and contact details are verified.
+   * @private
+   */
+  private async _checkAndSetUnderApprovalStatusAsync(driverId: number) {
+    const driver = await this._prismaService.driver.findUnique({
+      where: { id: driverId },
+    });
+
+    if (
+      driver &&
+      driver.aadhar_card_url &&
+      driver.pan_card_url &&
+      driver.driver_license_url
+    ) {
+      await this._prismaService.driver.update({
+        where: { id: driverId },
+        data: { status: DriverStatus.UnderApproval },
+      });
+    }
   }
   // #endregion
 
   // #region Private Methods
   /**
-   * Updates driver documents in storage if provided
-   * @private
-   */
-  private async _updateDriverFilesAsync(
-    driverId: number,
-    files: DriverUploadFilesPutDto,
-  ) {
-    const [adharCardResult, panCardResult, driverLicenseResult] =
-      await Promise.all([
-        this._updateFileAsync(
-          files.aadhar_card?.[0],
-          `driver/${driverId}/documents/aadhar`,
-        ),
-        this._updateFileAsync(
-          files.pan_card?.[0],
-          `driver/${driverId}/documents/pan`,
-        ),
-        this._updateFileAsync(
-          files.driver_license?.[0],
-          `driver/${driverId}/documents/license`,
-        ),
-      ]);
-
-    return {
-      aadhar_card_url: adharCardResult?.url || undefined,
-      pan_card_url: panCardResult?.url || undefined,
-      driver_license_url: driverLicenseResult?.url || undefined,
-    };
-  }
 
   /**
    * Validates that email and number are unique across active drivers and vendors
@@ -322,56 +636,6 @@ export class DriverService {
     }
   }
 
-  /**
-   * Validates that all required files are present during creation
-   * @private
-   */
-  private _validateRequiredFiles(files: DriverUploadFilesPostDto): void {
-    const requiredFiles: (keyof DriverUploadFilesPostDto)[] = [
-      'aadhar_card',
-      'pan_card',
-      'driver_license',
-    ];
-
-    const missingFiles = requiredFiles.filter((field) => !files[field]);
-
-    if (missingFiles.length > 0) {
-      throw new BadRequestException(
-        `Missing required files: ${missingFiles.join(', ')}`,
-      );
-    }
-  }
-
-  /**
-   * Uploads driver-related documents to storage
-   * @private
-   */
-  private async _uploadDriverFiles(
-    driverId: number,
-    files: DriverUploadFilesPostDto,
-  ) {
-    const [adharCardResult, panCardResult, driverLicenseResult] =
-      await Promise.all([
-        this._uploadFileAsync(
-          files.aadhar_card[0],
-          `driver/${driverId}/documents/aadhar`,
-        ),
-        this._uploadFileAsync(
-          files.pan_card[0],
-          `driver/${driverId}/documents/pan`,
-        ),
-        this._uploadFileAsync(
-          files.driver_license[0],
-          `driver/${driverId}/documents/license`,
-        ),
-      ]);
-
-    return {
-      aadhar_card_url: adharCardResult.url,
-      pan_card_url: panCardResult.url,
-      driver_license_url: driverLicenseResult.url,
-    };
-  }
 
   /**
    * Helper to upload a single file to storage
@@ -412,6 +676,88 @@ export class DriverService {
       size: singleFile.size,
       folderPath,
     });
+  }
+
+  /**
+   * Validates that a vehicle is not banned before assigning it to a driver.
+   * @private
+   */
+  private async _validateVehicleStatus(vehicleId: number) {
+    const vehicle = await this._prismaService.vehicle.findUnique({
+      where: { id: vehicleId, is_deleted: false },
+      select: { status: true, availability_status: true },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException(`Vehicle with ID ${vehicleId} not found`);
+    }
+
+    if (vehicle.status !== VehicleStatus.Available) {
+      throw new BadRequestException(
+        `Cannot assign vehicle. Status is ${vehicle.status}, but it must be Available.`,
+      );
+    }
+
+    if (vehicle.availability_status !== 'Available') {
+      throw new BadRequestException(
+        `Cannot assign vehicle. It is currently ${vehicle.availability_status.replace(/_/g, ' ')}.`,
+      );
+    }
+  }
+
+  /**
+   * Maps a driver database record to DriverDetailDto,
+   * Transforming startLocation to location_spot and removing sensitive fields.
+   * @private
+   */
+  private _mapToDetailDto(driver: any): DriverDetailDto {
+    const {
+      password,
+      startLocation,
+      endLocation,
+      start_location_id,
+      end_location_id,
+      ...rest
+    } = driver;
+
+    const is_documents_uploaded = !!(
+      driver.aadhar_card_url &&
+      driver.pan_card_url &&
+      driver.driver_license_url &&
+      driver.driver_image_url
+    );
+
+    if (rest.availability_status) {
+      rest.availability_status = (rest.availability_status as string).replace(/_/g, ' ') as any;
+    }
+
+    return {
+      ...rest,
+      location_spot: startLocation ? { ...startLocation, address: Utility.formatAddress(startLocation) } : undefined,
+      is_documents_uploaded,
+    } as unknown as DriverDetailDto;
+  }
+
+  /**
+   * Updates availability_status of vehicles when assignment changes
+   * @private
+   */
+  private async _updateVehicleAvailabilityAsync(oldId?: number, newId?: number) {
+    if (oldId && oldId === newId) return;
+
+    if (oldId) {
+      await this._prismaService.vehicle.update({
+        where: { id: oldId },
+        data: { availability_status: 'Available' },
+      });
+    }
+
+    if (newId) {
+      await this._prismaService.vehicle.update({
+        where: { id: newId },
+        data: { availability_status: 'Unavailable' },
+      });
+    }
   }
   // #endregion
 }

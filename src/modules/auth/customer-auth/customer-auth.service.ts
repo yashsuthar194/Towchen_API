@@ -31,7 +31,17 @@ export class CustomerAuthService {
      * @param loginDto Contains the customer's mobile number
      */
     async sendLoginOtpAsync(loginDto: CustomerLoginDto): Promise<ResponseDto<null>> {
-        // Remove existence check to allow any number to receive OTP
+        // 1. Check if customer exists
+        const customer = await this._prismaService.customer.findFirst({
+            where: {
+                number: loginDto.number,
+                is_deleted: false,
+            },
+        });
+
+        if (!customer) {
+            throw new NotFoundException('Customer not found');
+        }
 
         // 2. Generate OTP
         const otpCode = Utility.generateOtp(OTP_LENGTH);
@@ -95,22 +105,19 @@ export class CustomerAuthService {
         }
 
         // 3. Generate tokens if customer exists
-        if (customer) {
-            const tokens = await this._jwtService.generateTokens({
-                id: customer.id,
-                email: customer.email,
-                type: Role.Customer,
-            });
-
-            return ResponseDto.success('Login successful', {
-                ...tokens,
-                is_registered: true,
-            });
+        if (!customer) {
+            throw new NotFoundException('Customer not found');
         }
 
-        // If customer doesn't exist, return verified but not registered
-        return ResponseDto.success('Verification successful', {
-            is_registered: false,
+        const tokens = await this._jwtService.generateTokens({
+            id: customer.id,
+            email: customer.email,
+            type: Role.Customer,
+        });
+
+        return ResponseDto.success('Login successful', {
+            ...tokens,
+            is_registered: true,
         });
     }
 }

@@ -6,6 +6,7 @@ export enum MailProvider {
   Nodemailer = 'nodemailer',
   SendGrid = 'sendgrid',
   AWSSES = 'aws-ses',
+  Resend = 'resend',
 }
 
 @ConfigNamespace('mail')
@@ -39,6 +40,16 @@ export class MailConfig {
   @IsOptional()
   MAIL_FROM?: string;
 
+  // Resend Configuration
+  @IsString({ message: 'RESEND_API_KEY must be a string' })
+  @IsOptional()
+  RESEND_API_KEY?: string;
+
+  // SendGrid Configuration
+  @IsString({ message: 'SENDGRID_API_KEY must be a string' })
+  @IsOptional()
+  SENDGRID_API_KEY?: string;
+
   // Computed properties for easier access
   get provider(): MailProvider {
     return this.MAIL_PROVIDER;
@@ -62,6 +73,14 @@ export class MailConfig {
 
   get pass(): string {
     return this.MAIL_PASS || '';
+  }
+
+  get resendApiKey(): string {
+    return this.RESEND_API_KEY || '';
+  }
+
+  get sendgridApiKey(): string {
+    return this.SENDGRID_API_KEY || '';
   }
 }
 

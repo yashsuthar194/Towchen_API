@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -6,7 +7,7 @@ import {
   IsArray,
   IsEnum,
   Matches,
-  IsBoolean,
+  IsOptional,
 } from 'class-validator';
 import {
   OrganizationType,
@@ -50,12 +51,13 @@ export class UpdateVendorDto {
   @ApiProperty({ example: '8765432109' })
   alternate_number: string;
 
-  /** Services the vendor provides */
+  /** Services the vendor provides (multi-select) */
   @IsArray()
   @IsEnum(VendorServices, { each: true })
   @ApiProperty({
     type: [String],
     enum: VendorServices,
+    isArray: true,
     example: [VendorServices.Towing],
   })
   select_services: VendorServices[];
@@ -70,19 +72,14 @@ export class UpdateVendorDto {
   @ApiProperty({ enum: OrganizationType, example: OrganizationType.Cooperative })
   organization_type: OrganizationType;
 
-  /** Whether the vendor is GST-registered */
-  @IsBoolean()
-  @IsNotEmpty()
-  @ApiProperty({ example: true })
-  is_gst_vendor: boolean;
-
-  @IsNotEmpty()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsOptional()
   @IsString()
   @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, {
     message: 'gst_number must be a valid GST number',
   })
   @ApiProperty({ example: '27AAPFU0939F1ZV' })
-  gst_number: string;
+  gst_number?: string;
 
   // ── Bank detail fields (flattened for JSON compatibility) ──
 
@@ -130,7 +127,12 @@ export class UpdateVendorDto {
       select_services,
       ...vendorData
     } = dto;
-    return { services: select_services, ...vendorData };
+    return {
+      ...vendorData,
+      services: select_services,
+      gst_number: dto.gst_number ?? null,
+      is_gst_vendor: !!dto.gst_number,
+    };
   }
 
   /**

@@ -11,7 +11,8 @@ import { JwtModule } from './services/jwt/jwt.module';
 import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { CustomerModule } from './modules/customer/customer.module';
 import { DriverLocationModule } from './modules/driver-location/driver-location.module';
-import { OrderModule } from './modules/order/order.module';
+import { SharedModule } from './shared/shared.module';
+import { LogModule } from './modules/log/log.module';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { OrderModule } from './modules/order/order.module';
     VehicleModule,
     CustomerModule,
     DriverLocationModule,
-    OrderModule,
+    SharedModule,
+    LogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

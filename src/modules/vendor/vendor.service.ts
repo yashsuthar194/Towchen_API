@@ -113,7 +113,7 @@ export class VendorService {
 
     return {
       ...vendor,
-      is_a_gst_vendor: vendor.is_gst_vendor ? 'Yes' : 'No',
+      is_gst_vendor: vendor.is_gst_vendor,
     };
   }
 
@@ -147,6 +147,7 @@ export class VendorService {
   async createAsync(
     dto: CreateVendorDto,
   ): Promise<VendorRegistrationResponseDto> {
+    await this.validateDuplicateVendorAsync(dto.mobile_number, dto.email);
     const vendor = await this.createVendorRecord(dto);
     const vendorDetail = await this.getByIdAsync(vendor.id);
 
@@ -296,6 +297,8 @@ export class VendorService {
     dto: UpdateVendorDto,
     id: number,
   ): Promise<VendorDetailDto> {
+    await this.validateDuplicateVendorAsync(dto.mobile_number, dto.email, id);
+
     const vendorData = UpdateVendorDto.toVendorData(dto);
     const bankDetail = UpdateVendorDto.toBankDetail(dto);
 
@@ -323,6 +326,7 @@ export class VendorService {
         aadhar_card_url: true,
         organization_name: true,
         organization_certificate_url: true,
+        organization_type: true,
         gst_number: true,
         gst_certificate_url: true,
         approved_by: true,
@@ -331,12 +335,13 @@ export class VendorService {
         updated_at: true,
         bank_detail: true,
         is_gst_vendor: true,
+        signature_url: true,
       },
     });
 
     return {
       ...vendor,
-      is_a_gst_vendor: vendor.is_gst_vendor ? 'Yes' : 'No',
+      is_gst_vendor: vendor.is_gst_vendor,
     };
   }
   //#endregion
@@ -358,6 +363,20 @@ export class VendorService {
         is_deleted: true,
       },
     });
+  }
+
+  /**
+   * Soft-deletes the currently authenticated vendor's own account.
+   *
+   * The vendor ID is extracted from the JWT token via CallerService,
+   * so no ID parameter is required. Delegates to `deleteAsync` internally.
+   *
+   * @throws {UnauthorizedException} If no valid JWT token is present
+   * @throws {NotFoundException} If the vendor record no longer exists
+   */
+  async deleteMyAccountAsync(): Promise<void> {
+    const vendorId = this._callerService.getUserId();
+    await this.deleteAsync(vendorId);
   }
   //#endregion
 
@@ -457,6 +476,37 @@ export class VendorService {
       size: singleFile.size,
       folderPath,
     });
+  }
+  //#endregion
+
+  //#region Private Function
+  /**
+   * Validate duplicate vendor
+   * @param mobileNumber 
+   * @param email 
+   * @param id 
+   */
+  private async validateDuplicateVendorAsync(
+    mobileNumber: string,
+    email: string,
+    id?: number,
+  ) {
+    const existingVendor = await this._prismaService.vendor.findFirst({
+      where: {
+        OR: [{ mobile_number: mobileNumber }, { email: email }],
+        ...(id && { id: { not: id } }),
+      },
+    });
+    if (existingVendor && existingVendor.email === email) {
+      throw new BadRequestException(
+        'Vendor with this email already exists',
+      );
+    }
+    if (existingVendor && existingVendor.mobile_number === mobileNumber) {
+      throw new BadRequestException(
+        'Vendor with this mobile number already exists',
+      );
+    }
   }
   //#endregion
 }

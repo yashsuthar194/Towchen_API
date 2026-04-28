@@ -7,7 +7,7 @@ import {
   IsInt,
 } from 'class-validator';
 import { FleetType } from '@prisma/client';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 
 export class CreateVehicleDto {
@@ -42,6 +42,10 @@ export class CreateVehicleDto {
   @IsNotEmpty()
   @IsString()
   engine_number: string;
+
+  @IsOptional()
+  @IsString()
+  vehicle_class?: string;
 
   @IsDate()
   @Transform(({ value }) => {
@@ -112,3 +116,7 @@ export class CreateVehicleDto {
     return vehicleData;
   }
 }
+
+export class VendorCreateVehicleDto extends OmitType(CreateVehicleDto, [
+  'vendor_id',
+] as const) {}

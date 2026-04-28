@@ -5,10 +5,17 @@ import {
   OnModuleDestroy,
   Logger,
 } from '@nestjs/common';
+import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+});
+const adapter = new PrismaPg(pool);
 
 @Injectable()
 export class PrismaService
@@ -29,6 +36,10 @@ export class PrismaService
     });
 
     this.$on('query' as never, (event: { duration: number; query: string }) => {
+      // Ignore queries to the logs table to prevent console spam
+      if (event.query.includes('"public"."logs"')) {
+        return;
+      }
       this._logger.warn(`Query time (${event.duration}ms): ${event.query}`);
     });
 

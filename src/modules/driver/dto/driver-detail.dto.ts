@@ -1,4 +1,4 @@
-import { driver, DriverStatus } from '@prisma/client';
+import { driver, DriverStatus, VendorServices, AvailabilityStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class DriverDetailDto implements Partial<driver> {
@@ -41,14 +41,20 @@ export class DriverDetailDto implements Partial<driver> {
   @ApiProperty({ description: 'URL to Driver License document' })
   driver_license_url: string;
 
-  @ApiProperty({ description: 'ID of the start location', nullable: true })
-  start_location_id: number | null;
+  @ApiProperty({ description: 'URL to Driver Profile Image', nullable: true })
+  driver_image_url: string | null;
 
-  @ApiProperty({ description: 'ID of the end location', nullable: true })
-  end_location_id: number | null;
+  @ApiProperty({ description: 'Location details (Unified start/end location)', required: false })
+  location_spot?: any;
 
   @ApiProperty({ enum: DriverStatus, description: 'Current status of the driver' })
   status: DriverStatus;
+
+  @ApiProperty({ enum: AvailabilityStatus, description: 'Driver online/offline status' })
+  availability_status: AvailabilityStatus;
+
+  @ApiProperty({ enum: VendorServices, description: 'Service provided by the driver', required: false, nullable: true })
+  services?: VendorServices;
 
   @ApiProperty({ description: 'Record creation timestamp' })
   created_at: Date;
@@ -59,11 +65,8 @@ export class DriverDetailDto implements Partial<driver> {
   @ApiProperty({ description: 'Assigned vehicle details', required: false })
   vehicle?: any;
 
-  @ApiProperty({ description: 'Start location details', required: false })
-  startLocation?: any;
-
-  @ApiProperty({ description: 'End location details', required: false })
-  endLocation?: any;
+  @ApiProperty({ description: 'Vendor details', required: false })
+  vendor?: any;
 
   @ApiProperty({ description: 'ID of the user who deleted this record', nullable: true, required: false })
   is_deleted_by?: number | null | undefined;
