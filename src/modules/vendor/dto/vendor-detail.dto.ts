@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { OrganizationType, VendorServices, VendorStatus } from '@prisma/client';
+import { OrganizationType, VendorStatus } from '@prisma/client';
+import { ServiceDto } from './service.dto';
 import { VendorBankDetailDto } from '../../vendor-bank-detail/dto/vendor-bank-detail.dto';
 
 /**
@@ -38,11 +39,10 @@ export class VendorDetailDto {
   updated_at: Date;
 
   @ApiProperty({
-    enum: Object.values(VendorServices),
+    type: ServiceDto,
     isArray: true,
-    example: [VendorServices.Towing],
   })
-  services: VendorServices[];
+  services: ServiceDto[];
 
   @ApiProperty({
     enum: Object.values(VendorStatus),

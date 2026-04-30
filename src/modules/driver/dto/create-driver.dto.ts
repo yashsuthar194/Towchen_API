@@ -8,12 +8,13 @@ import {
   Matches,
   MinLength,
   IsEnum,
+  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { driver, VendorServices } from '@prisma/client';
+import { driver } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 
-export class CreateDriverDto implements Partial<driver> {
+export class CreateDriverDto {
   @ApiProperty({ description: 'Full name of the driver', example: 'John Doe' })
   @IsNotEmpty()
   @IsString()
@@ -48,12 +49,13 @@ export class CreateDriverDto implements Partial<driver> {
   password: string;
 
   @ApiProperty({
-    description: 'Service provided by the driver',
-    enum: VendorServices,
-    example: VendorServices.Towing,
+    description: 'ID of the sub-service provided by the driver',
+    type: Number,
+    example: 1,
   })
-  @IsEnum(VendorServices)
-  select_services: VendorServices;
+  @IsInt()
+  @Type(() => Number)
+  sub_service_id: number;
 
 
 
@@ -74,10 +76,10 @@ export class CreateDriverDto implements Partial<driver> {
    * Extracts driver-only data
    */
   static toDriverData(dto: CreateDriverDto) {
-    const { location_spot, select_services, ...rest } = dto;
+    const { location_spot, sub_service_id, ...rest } = dto;
     return {
       ...rest,
-      services: select_services,
+      sub_service_id: Number(sub_service_id),
       ...(location_spot !== undefined ? { start_location_id: location_spot, end_location_id: location_spot } : {})
     };
   }

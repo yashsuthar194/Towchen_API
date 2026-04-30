@@ -67,7 +67,8 @@ export class VehicleService {
       throw new NotFoundException('No vehicles found');
     }
 
-    const list = vehicles.map((v) => this._mapToDto<VehicleListDto>(v));
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    const list = vehicles.map((v) => this._mapToDto<VehicleListDto>(v, allSubServices));
     return new PaginatedListDto(totalCount, list);
   }
 
@@ -113,7 +114,8 @@ export class VehicleService {
       throw new NotFoundException('No vehicles are available');
     }
 
-    return vehicles.map((v) => this._mapToDto<VehicleListDto>(v));
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return vehicles.map((v) => this._mapToDto<VehicleListDto>(v, allSubServices));
   }
 
   /**
@@ -142,7 +144,8 @@ export class VehicleService {
     if (!vehicle) {
       throw new NotFoundException(`Vehicle with ID ${id} not found`);
     }
-    return this._mapToDto<VehicleDetailDto>(vehicle);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDto<VehicleDetailDto>(vehicle, allSubServices);
   }
   // #endregion
 
@@ -162,7 +165,8 @@ export class VehicleService {
     );
 
     const vehicle = await this._createVehicleRecord(dto);
-    return this._mapToDto<VehicleDetailDto>(vehicle);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDto<VehicleDetailDto>(vehicle, allSubServices);
   }
 
   /**
@@ -180,6 +184,9 @@ export class VehicleService {
     if (!vendorId) {
       throw new BadRequestException('vendor_id is required when an Admin creates a vehicle.');
     }
+
+    // Validate that the chosen fleet_type (sub-service) matches the vendor's assigned services
+    await this._validateSubServiceMatchAsync(vendorId, dto.fleet_type);
 
     return this._prismaService.vehicle.create({
       data: {
@@ -228,6 +235,15 @@ export class VehicleService {
       delete (vehicleData as any).vendor_id;
     }
 
+    // Validate fleet_type (sub-service) if provided
+    if (dto.fleet_type) {
+      const existingVehicle = await this._prismaService.vehicle.findUnique({ where: { id } });
+      const vendorId = this._callerService.isVendor() ? this._callerService.getUserId() : existingVehicle?.vendor_id;
+      if (vendorId) {
+        await this._validateSubServiceMatchAsync(vendorId, dto.fleet_type);
+      }
+    }
+
     const data: any = {
       ...vehicleData,
     };
@@ -241,7 +257,8 @@ export class VehicleService {
       where: { id },
       data,
     });
-    return this._mapToDto<VehicleDetailDto>(result);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDto<VehicleDetailDto>(result, allSubServices);
   }
   // #endregion
 
@@ -368,7 +385,8 @@ export class VehicleService {
       data: { status: 'UnderApproval', availability_status: 'Onboard_Pending' },
     });
 
-    return this._mapToDto<VehicleDetailDto>(updatedVehicle);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDto<VehicleDetailDto>(updatedVehicle, allSubServices);
   }
 
   /**
@@ -397,7 +415,8 @@ export class VehicleService {
       data: { status: 'Banned', availability_status: 'Unavailable' },
     });
 
-    return this._mapToDto<VehicleDetailDto>(updatedVehicle);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDto<VehicleDetailDto>(updatedVehicle, allSubServices);
   }
   // #endregion
 
@@ -472,9 +491,17 @@ export class VehicleService {
    * Helper to map database record to DTO and format fields
    * @private
    */
-  private _mapToDto<T>(vehicle: any): T {
+  private _mapToDto<T>(vehicle: any, allSubServices: any[] = []): T {
     if (vehicle && vehicle.availability_status) {
       vehicle.availability_status = vehicle.availability_status.replace(/_/g, ' ');
+    }
+
+    // Map fleet_type (ID) to sub-service name
+    if (vehicle && vehicle.fleet_type && typeof vehicle.fleet_type === 'number') {
+      const subService = allSubServices?.find((ss) => ss.id === vehicle.fleet_type);
+      if (subService) {
+        vehicle.fleet_type = subService.name;
+      }
     }
 
     // Ensure document URLs return null instead of empty objects or literal "{}"
@@ -496,7 +523,7 @@ export class VehicleService {
         vehicle[field] = null;
       }
     });
-    
+
     if (vehicle && vehicle.drivers) {
       const { drivers, ...rest } = vehicle;
       return {
@@ -504,7 +531,39 @@ export class VehicleService {
         driver: drivers.length > 0 ? drivers[0] : null,
       } as T;
     }
-    
+
     return vehicle as T;
+  }
+
+  /**
+   * Validates that the provided sub_service_id belongs to a service
+   * that the vendor is authorized to provide.
+   * @private
+   */
+  private async _validateSubServiceMatchAsync(vendorId: number, subServiceId: number) {
+    const [vendor, subService] = await Promise.all([
+      this._prismaService.vendor.findUnique({
+        where: { id: vendorId },
+        select: { service_ids: true },
+      }),
+      this._prismaService.sub_service.findUnique({
+        where: { id: subServiceId },
+        select: { service_id: true, name: true },
+      }),
+    ]);
+
+    if (!vendor) {
+      throw new NotFoundException(`Vendor with ID ${vendorId} not found`);
+    }
+
+    if (!subService) {
+      throw new NotFoundException(`Sub-service (fleet type) with ID ${subServiceId} not found`);
+    }
+
+    if (!vendor.service_ids.includes(subService.service_id)) {
+      throw new BadRequestException(
+        `Vendor not authorized for fleet type: ${subService.name}`,
+      );
+    }
   }
 }
