@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { VendorListDto } from './dto/vendor-list.dto';
 import { VendorDetailDto } from './dto/vendor-detail.dto';
+import { SubServiceDto } from './dto/service.dto';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { VendorRegistrationResponseDto } from './dto/vendor-registration-response.dto';
 import { StorageService } from 'src/services/storage/storage.service';
@@ -112,6 +113,41 @@ export class VendorService {
   async getMyProfileAsync(): Promise<VendorDetailDto> {
     const userId = this._callerService.getUserId();
     return this.getByIdAsync(userId);
+  }
+
+  /**
+   * Retrieves all active sub-services linked to the services associated
+   * with the currently authenticated vendor.
+   *
+   * @returns An array of sub-services
+   */
+  async getMySubServicesAsync(): Promise<SubServiceDto[]> {
+    const vendorId = this._callerService.getUserId();
+    const vendor = await this._prismaService.vendor.findFirst({
+      where: {
+        id: vendorId,
+        is_deleted: false,
+      },
+      include: {
+        services: {
+          where: { is_active: true },
+          include: {
+            sub_services: {
+              where: { is_active: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException(`Vendor with ID ${vendorId} not found`);
+    }
+
+    // Extract all sub-services from all linked services and flatten them into a single list
+    const subServices = vendor.services.flatMap((s) => s.sub_services);
+
+    return subServices as unknown as SubServiceDto[];
   }
   //#endregion
 

@@ -16,6 +16,7 @@ import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { VendorService } from './vendor.service';
 import { VendorListDto } from './dto/vendor-list.dto';
 import { VendorDetailDto } from './dto/vendor-detail.dto';
+import { SubServiceDto } from './dto/service.dto';
 import { CreateVendorDto } from './dto/create-vendor.dto';
 import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { VendorAgreementDto } from './dto/vendor-agreement.dto';
@@ -68,6 +69,24 @@ export class VendorController {
   async getProfile(): Promise<ResponseDto<VendorDetailDto>> {
     const vendor = await this._vendorService.getMyProfileAsync();
     return ResponseDto.retrieved('Profile retrieved successfully', vendor);
+  }
+
+  /**
+   * Retrieves all active sub-services linked to the currently authenticated
+   * vendor's services.
+   *
+   * @returns A list of sub-services
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponseDto(SubServiceDto, true, 200)
+  @Get('me/sub-services')
+  async getSubServices(): Promise<ResponseDto<SubServiceDto[]>> {
+    const subServices = await this._vendorService.getMySubServicesAsync();
+    return ResponseDto.retrieved(
+      'Sub-services retrieved successfully',
+      subServices,
+    );
   }
 
   /**
