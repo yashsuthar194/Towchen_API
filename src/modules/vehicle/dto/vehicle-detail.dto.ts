@@ -1,7 +1,10 @@
 import { VehicleStatus, AvailabilityStatus } from '@prisma/client';
 
+import { SubServiceDto } from '../../vendor/dto/service.dto';
+
 export class VehicleDetailDto {
     id: number;
+    fleet_type: string;
     vendor_id: number;
     registration_number: string;
     chassis_number: string;

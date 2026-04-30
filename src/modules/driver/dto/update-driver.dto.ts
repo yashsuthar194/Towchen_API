@@ -8,10 +8,10 @@ export class UpdateDriverDto extends PartialType(CreateDriverDto) {
    * Extracts driver-only data
    */
   static toDriverData(dto: UpdateDriverDto) {
-    const { location_spot, select_services, ...rest } = dto;
+    const { location_spot, sub_service_id, ...rest } = dto;
     return {
       ...rest,
-      ...(select_services !== undefined ? { services: select_services } : {}),
+      ...(sub_service_id !== undefined ? { sub_service_id: Number(sub_service_id) } : {}),
       ...(location_spot !== undefined ? { start_location_id: location_spot, end_location_id: location_spot } : {})
     };
   }

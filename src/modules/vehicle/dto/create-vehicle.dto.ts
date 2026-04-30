@@ -6,14 +6,14 @@ import {
   IsOptional,
   IsInt,
 } from 'class-validator';
-import { FleetType } from '@prisma/client';
 import { ApiProperty, OmitType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 
 export class CreateVehicleDto {
-  @ApiProperty({ enum: FleetType })
-  @IsEnum(FleetType)
-  fleet_type: FleetType;
+  @ApiProperty({ description: 'ID of the sub-service (Fleet Type)', example: 1 })
+  @IsInt()
+  @Type(() => Number)
+  fleet_type: number;
 
   @IsNotEmpty()
   @IsString()

@@ -1,8 +1,9 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { VendorServices, VendorStatus } from '@prisma/client';
+import { OrganizationType, VendorStatus } from '@prisma/client';
 import { VendorDto } from './vendor.dto';
+import { ServiceDto } from './service.dto';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class VendorListDto implements Partial<VendorDto> {
+export class VendorListDto {
   id: number;
   formated_id: string;
   vendor_name: string;
@@ -10,11 +11,10 @@ export class VendorListDto implements Partial<VendorDto> {
   mobile_number: string;
 
   @ApiProperty({
-    enum: Object.values(VendorServices),
+    type: ServiceDto,
     isArray: true,
-    example: [VendorServices.Towing],
   })
-  services: VendorServices[];
+  services: ServiceDto[];
 
   approved_by: number | null;
 

@@ -1,7 +1,6 @@
 import { IsInt, IsNotEmpty, IsEnum, IsOptional, ValidateNested, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { VendorServices, FleetType } from '@prisma/client';
 import { CreateDriverLocationDto } from '../../driver-location/dto/create-driver-location.dto';
 
 export class CreateOrderDto {
@@ -15,15 +14,20 @@ export class CreateOrderDto {
   @IsInt()
   customer_vehicle_id?: number;
 
-  @ApiProperty({ description: 'Service Type', enum: VendorServices })
+  @ApiProperty({ description: 'Service ID' })
   @IsNotEmpty()
-  @IsEnum(VendorServices)
-  service_type: VendorServices;
+  @IsInt()
+  service_id: number;
 
-  @ApiProperty({ description: 'Fleet Type', enum: FleetType })
+  @ApiPropertyOptional({ description: 'Sub-Service ID' })
+  @IsOptional()
+  @IsInt()
+  sub_service_id?: number;
+
+  @ApiProperty({ description: 'ID of the sub-service (Fleet Type)', example: 1 })
   @IsNotEmpty()
-  @IsEnum(FleetType)
-  fleet_type: FleetType;
+  @IsInt()
+  fleet_type: number;
 
   @ApiProperty({ description: 'Breakdown Location Details' })
   @IsNotEmpty()
