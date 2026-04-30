@@ -51,7 +51,7 @@ export class DriverService {
           alternate_mobile_number: true,
           status: true,
           availability_status: true,
-          services: true,
+          sub_service_id: true,
           created_at: true,
           vehicle: true,
         },
@@ -59,11 +59,29 @@ export class DriverService {
       this._prismaService.driver.count({ where }),
     ]);
 
-    const list = drivers.map((d) => ({
-      ...d,
-      availability_status: (d.availability_status as string).replace(/_/g, ' ') as any,
-    })) as unknown as DriverListDto[];
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+ 
+    const list = drivers.map((d) => {
+      const subService = allSubServices.find(ss => ss.id === d.sub_service_id);
+      
+      let mappedVehicle: any = null;
+      if (d.vehicle) {
+        const vehicle = d.vehicle;
+        const vehicleSubService = allSubServices.find(ss => ss.id === vehicle.fleet_type);
+        mappedVehicle = {
+          ...vehicle,
+          fleet_type: vehicleSubService ? vehicleSubService.name : vehicle.fleet_type
+        };
+      }
 
+      return {
+        ...d,
+        vehicle: mappedVehicle,
+        sub_service: subService ? subService.name : null,
+        availability_status: (d.availability_status as string).replace(/_/g, ' ') as any,
+      };
+    }) as unknown as DriverListDto[];
+ 
     return new PaginatedListDto(totalCount, list);
   }
 
@@ -90,7 +108,9 @@ export class DriverService {
       throw new NotFoundException(`Driver not found`);
     }
 
-    return this._mapToDetailDto(driver);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+ 
+    return this._mapToDetailDto(driver, allSubServices);
   }
 
   // #endregion
@@ -130,6 +150,9 @@ export class DriverService {
       );
     }
 
+    // Validate that the chosen sub-service matches the vendor's assigned services
+    await this._validateSubServiceMatchAsync(vendorId, dto.sub_service_id);
+
     const driver = await this._prismaService.driver.create({
       data: {
         ...driverData,
@@ -146,7 +169,8 @@ export class DriverService {
       },
     });
 
-    return this._mapToDetailDto(driver);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDetailDto(driver, allSubServices);
   }
 
   // #endregion
@@ -181,7 +205,8 @@ export class DriverService {
       throw new NotFoundException(`Driver not found`);
     }
 
-    return this._mapToDetailDto(driver);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDetailDto(driver, allSubServices);
   }
 
   /**
@@ -238,7 +263,10 @@ export class DriverService {
     });
 
     await this._checkAndSetUnderApprovalStatusAsync(id);
-    return this._mapToDetailDto(result);
+
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+ 
+    return this._mapToDetailDto(result, allSubServices);
   }
 
   /**
@@ -269,6 +297,15 @@ export class DriverService {
       driverData.password = await Hash.hashAsync(driverData.password);
     }
 
+    // Validate sub-service if provided
+    if (dto.sub_service_id) {
+      const existingDriver = await this._prismaService.driver.findUnique({ where: { id } });
+      const vendorId = this._callerService.isVendor() ? this._callerService.getUserId() : existingDriver?.vendor_id;
+      if (vendorId) {
+        await this._validateSubServiceMatchAsync(vendorId, dto.sub_service_id);
+      }
+    }
+
     const result = await this._prismaService.driver.update({
       where: { id },
       data: {
@@ -284,7 +321,8 @@ export class DriverService {
     if (!this._callerService.isVendor()) {
       await this._checkAndSetUnderApprovalStatusAsync(id);
     }
-    return this._mapToDetailDto(result);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDetailDto(result, allSubServices);
   }
 
   /**
@@ -328,12 +366,13 @@ export class DriverService {
         await this._updateVehicleAvailabilityAsync(driver.vehicle_id, undefined);
       }
 
-      return this._mapToDetailDto(result);
+      const allSubServices = await this._prismaService.sub_service.findMany() || [];
+      return this._mapToDetailDto(result, allSubServices);
     }
 
     // Case 2: Assign a new vehicle
     // Validate the new vehicle
-    await this._validateVehicleStatus(vehicle_id);
+    await this._validateVehicleStatus(vehicle_id, driver.sub_service_id);
 
     // Update driver assignment
     const result = await this._prismaService.driver.update({
@@ -349,7 +388,8 @@ export class DriverService {
     // Update vehicle availability statuses
     await this._updateVehicleAvailabilityAsync(driver.vehicle_id || undefined, vehicle_id);
 
-    return this._mapToDetailDto(result);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDetailDto(result, allSubServices);
   }
 
   /**
@@ -372,7 +412,8 @@ export class DriverService {
       },
     });
 
-    return this._mapToDetailDto(result);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDetailDto(result, allSubServices);
   }
 
   // #region Delete
@@ -491,8 +532,12 @@ export class DriverService {
     if (!driver.end_location_id) errors.push('End location is required');
 
     // Required Service
-    if (!driver.services) {
-      errors.push('A service must be assigned');
+    const driverWithService = await this._prismaService.driver.findUnique({
+      where: { id, is_deleted: false },
+      select: { sub_service_id: true },
+    });
+    if (!driverWithService?.sub_service_id) {
+      errors.push('Sub-service must be assigned');
     }
 
     // Verification Flags
@@ -514,7 +559,8 @@ export class DriverService {
       },
     });
 
-    return this._mapToDetailDto(result);
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDetailDto(result, allSubServices);
   }
 
   /**
@@ -682,10 +728,10 @@ export class DriverService {
    * Validates that a vehicle is not banned before assigning it to a driver.
    * @private
    */
-  private async _validateVehicleStatus(vehicleId: number) {
+  private async _validateVehicleStatus(vehicleId: number, driverSubServiceId?: number | null) {
     const vehicle = await this._prismaService.vehicle.findUnique({
       where: { id: vehicleId, is_deleted: false },
-      select: { status: true, availability_status: true },
+      select: { status: true, availability_status: true, fleet_type: true },
     });
 
     if (!vehicle) {
@@ -703,6 +749,12 @@ export class DriverService {
         `Cannot assign vehicle. It is currently ${vehicle.availability_status.replace(/_/g, ' ')}.`,
       );
     }
+
+    if (driverSubServiceId && vehicle.fleet_type !== driverSubServiceId) {
+      throw new BadRequestException(
+        'Cannot assign vehicle. The vehicle fleet type does not match the driver\'s assigned sub-service.',
+      );
+    }
   }
 
   /**
@@ -710,7 +762,7 @@ export class DriverService {
    * Transforming startLocation to location_spot and removing sensitive fields.
    * @private
    */
-  private _mapToDetailDto(driver: any): DriverDetailDto {
+  private _mapToDetailDto(driver: any, allSubServices: any[] = []): DriverDetailDto {
     const {
       password,
       startLocation,
@@ -719,23 +771,69 @@ export class DriverService {
       end_location_id,
       ...rest
     } = driver;
-
+ 
     const is_documents_uploaded = !!(
       driver.aadhar_card_url &&
       driver.pan_card_url &&
       driver.driver_license_url &&
       driver.driver_image_url
     );
-
+ 
     if (rest.availability_status) {
       rest.availability_status = (rest.availability_status as string).replace(/_/g, ' ') as any;
     }
 
+    const subService = allSubServices.find(ss => ss.id === rest.sub_service_id);
+    
+    let mappedVehicle: any = null;
+    if (rest.vehicle) {
+      const vehicle = rest.vehicle;
+      const vehicleSubService = allSubServices.find(ss => ss.id === vehicle.fleet_type);
+      mappedVehicle = {
+        ...vehicle,
+        fleet_type: vehicleSubService ? vehicleSubService.name : vehicle.fleet_type
+      };
+    }
+ 
     return {
       ...rest,
+      vehicle: mappedVehicle,
       location_spot: startLocation ? { ...startLocation, address: Utility.formatAddress(startLocation) } : undefined,
       is_documents_uploaded,
+      sub_service: subService ? subService.name : null,
     } as unknown as DriverDetailDto;
+  }
+
+  /**
+   * Validates that the provided sub_service_id belongs to a service
+   * that the vendor is authorized to provide.
+   * @private
+   */
+  private async _validateSubServiceMatchAsync(vendorId: number, subServiceId: number) {
+    const [vendor, subService] = await Promise.all([
+      this._prismaService.vendor.findUnique({
+        where: { id: vendorId },
+        select: { service_ids: true },
+      }),
+      this._prismaService.sub_service.findUnique({
+        where: { id: subServiceId },
+        select: { service_id: true, name: true },
+      }),
+    ]);
+
+    if (!vendor) {
+      throw new NotFoundException(`Vendor with ID ${vendorId} not found`);
+    }
+
+    if (!subService) {
+      throw new NotFoundException(`Sub-service with ID ${subServiceId} not found`);
+    }
+
+    if (!vendor.service_ids.includes(subService.service_id)) {
+      throw new BadRequestException(
+        `Vendor not authorized for service: ${subService.name}`,
+      );
+    }
   }
 
   /**

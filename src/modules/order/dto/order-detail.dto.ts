@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { OrderStatus, VendorServices, FleetType, LocationType } from '@prisma/client';
+import { OrderStatus, LocationType } from '@prisma/client';
+import { ServiceDto, SubServiceDto } from '../../vendor/dto/service.dto';
 
 class OrderLocationDetailDto {
   @ApiProperty()
@@ -43,11 +44,20 @@ export class OrderDetailDto {
   @ApiPropertyOptional()
   vehicle_id?: number;
 
-  @ApiProperty({ enum: VendorServices })
-  service_type: VendorServices;
+  @ApiProperty()
+  service_id: number;
 
-  @ApiProperty({ enum: FleetType })
-  fleet_type: FleetType;
+  @ApiPropertyOptional()
+  sub_service_id?: number;
+
+  @ApiProperty({ type: ServiceDto })
+  service: ServiceDto;
+
+  @ApiPropertyOptional({ type: SubServiceDto, nullable: true })
+  sub_service?: SubServiceDto | null;
+
+  @ApiProperty({ description: 'ID of the sub-service (Fleet Type)' })
+  fleet_type: number;
 
   @ApiProperty({ enum: OrderStatus })
   status: OrderStatus;

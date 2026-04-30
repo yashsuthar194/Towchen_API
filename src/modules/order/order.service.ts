@@ -181,7 +181,8 @@ export class OrderService {
           data: {
             customer_id: dto.customer_id,
             customer_vehicle_id: dto.customer_vehicle_id,
-            service_type: dto.service_type,
+            service_id: dto.service_id,
+            sub_service_id: dto.sub_service_id,
             fleet_type: dto.fleet_type,
             status: OrderStatus.New,
             formated_id: '', // Handled by DB trigger
@@ -234,7 +235,10 @@ export class OrderService {
         id: true,
         formated_id: true,
         customer_id: true,
-        service_type: true,
+        service_id: true,
+        sub_service_id: true,
+        service: true,
+        sub_service: true,
         fleet_type: true,
         status: true,
         created_at: true,
@@ -257,6 +261,8 @@ export class OrderService {
         driver: true,
         vehicle: true,
         vendor: true,
+        service: true,
+        sub_service: true,
       },
     });
 
@@ -384,6 +390,8 @@ export class OrderService {
             locations: {
               include: { location: true },
             },
+            service: true,
+            sub_service: true,
           },
         }) as unknown as OrderDetailDto;
       });

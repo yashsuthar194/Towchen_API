@@ -12,7 +12,6 @@ import {
 } from 'class-validator';
 import {
   OrganizationType,
-  VendorServices,
 } from '@prisma/client';
 import { VendorDto } from './vendor.dto';
 
@@ -29,7 +28,7 @@ import { VendorDto } from './vendor.dto';
  * - Documents (PAN, Aadhaar, etc.) are uploaded via
  *   `PUT /vendor/document/*` endpoints.
  */
-export class CreateVendorDto implements Partial<VendorDto> {
+export class CreateVendorDto {
   /** Full name of the vendor or business owner */
   @IsNotEmpty()
   @IsString()
@@ -67,16 +66,14 @@ export class CreateVendorDto implements Partial<VendorDto> {
   @ApiProperty({ example: 'StrongP@ss1' })
   password: string;
 
-  /** Services the vendor provides (multi-select) */
+  /** IDs of the services the vendor provides */
   @IsArray()
-  @IsEnum(VendorServices, { each: true })
   @ApiProperty({
-    type: [String],
-    enum: VendorServices,
+    type: [Number],
     isArray: true,
-    example: [VendorServices.Towing],
+    example: [1, 2],
   })
-  select_services: VendorServices[];
+  service_ids: number[];
 
   /** Name of the vendor's organization or business */
   @IsNotEmpty()
@@ -151,12 +148,12 @@ export class CreateVendorDto implements Partial<VendorDto> {
       ifsc_code,
       branch_name,
       account_holder_name,
-      select_services,
+      service_ids,
       ...vendorData
     } = dto;
     return {
       ...vendorData,
-      services: select_services,
+      service_ids: service_ids.map((id) => Number(id)),
       gst_number: dto.gst_number ?? null,
       is_gst_vendor: !!dto.gst_number,
     };

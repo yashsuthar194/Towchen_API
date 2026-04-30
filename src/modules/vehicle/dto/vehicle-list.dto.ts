@@ -1,10 +1,14 @@
 import { VehicleStatus, AvailabilityStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
 import { PaginatedListDto } from '../../../core/response/dto/paginated-list.dto';
+import { SubServiceDto } from '../../vendor/dto/service.dto';
 
 export class VehicleListDto {
   @ApiProperty({ example: 1 })
   id: number;
+
+  @ApiProperty({ example: 'Underlift' })
+  fleet_type: string;
 
   @ApiProperty({ example: 'MH12AB1234' })
   registration_number: string;

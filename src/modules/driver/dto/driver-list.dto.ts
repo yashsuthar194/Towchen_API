@@ -1,8 +1,9 @@
-import { driver, DriverStatus, VendorServices, AvailabilityStatus } from '@prisma/client';
+import { driver, DriverStatus, AvailabilityStatus } from '@prisma/client';
+import { SubServiceDto } from '../../vendor/dto/service.dto';
 import { ApiProperty } from '@nestjs/swagger';
 import { PaginatedListDto } from '../../../core/response/dto/paginated-list.dto';
 
-export class DriverListDto implements Partial<driver> {
+export class DriverListDto {
   @ApiProperty({ description: 'Unique identifier for the driver' })
   id: number;
 
@@ -24,8 +25,8 @@ export class DriverListDto implements Partial<driver> {
   @ApiProperty({ enum: AvailabilityStatus, description: 'Driver online/offline status' })
   availability_status: AvailabilityStatus;
 
-  @ApiProperty({ enum: VendorServices, description: 'Service provided by the driver', required: false })
-  services?: VendorServices;
+  @ApiProperty({ example: 'Underlift', required: false })
+  sub_service?: string;
 
   @ApiProperty({ description: 'Assigned vehicle details', required: false })
   vehicle?: any;

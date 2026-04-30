@@ -38,11 +38,12 @@ model vendor {
   signature_type               SignatureType
   vendor_name                  String              @db.VarChar(255)
   vendor_profile_image_url     String
-  services                     VendorServices[]
+  service_ids                  Int[]
   bank_detail                  vendor_bank_detail?
   drivers                      driver[]
   vehicles                     vehicle[]
   orders                       order[]
+  services                     service[]
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -99,7 +100,7 @@ model driver {
   end_location_id         Int?
   start_location_id       Int?
   availability_status     AvailabilityStatus @default(Onboard_Pending)
-  services                VendorServices     @default(Towing)
+  sub_service_id          Int?
   startLocation           location?          @relation("DriverStartLocation", fields: [start_location_id], references: [id])
   endLocation             location?          @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
@@ -116,7 +117,7 @@ model driver {
 
 model vehicle {
   id                  Int                @id @default(autoincrement())
-  fleet_type          FleetType
+  fleet_type          Int
   vendor_id           Int
   fleet_location      String             @db.VarChar(255)
   registration_number String             @db.VarChar(20)
@@ -183,21 +184,21 @@ model customer_vehicle {
 }
 
 model location {
-  id           Int              @id @default(autoincrement())
-  address      String?
-  street       String?
-  area         String?
-  city         String?
-  state        String?
-  pincode      String?
-  country      String?
-  latitude     Float
-  longitude    Float
-  landmark     String?
-  description  String?
-  category     LocationCategory @default(Driver)
-  created_at   DateTime         @default(now())
-  startDrivers driver[]         @relation("DriverStartLocation")
+  id              Int              @id @default(autoincrement())
+  address         String?
+  street          String?
+  area            String?
+  city            String?
+  state           String?
+  pincode         String?
+  country         String?
+  latitude        Float
+  longitude       Float
+  landmark        String?
+  description     String?
+  category        LocationCategory @default(Driver)
+  created_at      DateTime         @default(now())
+  startDrivers    driver[]         @relation("DriverStartLocation")
   endDrivers      driver[]         @relation("DriverEndLocation")
   order_locations order_location[]
 
@@ -207,23 +208,24 @@ model location {
 }
 
 model order {
-  id                  Int            @id @default(autoincrement())
-  formated_id         String         @unique
+  id                  Int         @id @default(autoincrement())
+  formated_id         String      @unique
   customer_id         Int
   customer_vehicle_id Int?
   vendor_id           Int?
   driver_id           Int?
   vehicle_id          Int?
-  service_type        VendorServices
-  fleet_type          FleetType
-  status              OrderStatus    @default(New)
+  service_id          Int
+  sub_service_id      Int?
+  fleet_type          Int
+  status              OrderStatus @default(New)
   assign_time         DateTime?
   start_time          DateTime?
   completion_time     DateTime?
   remarks             String?
   cancel_reason       String?
-  created_at          DateTime       @default(now())
-  updated_at          DateTime       @default(now()) @updatedAt
+  created_at          DateTime    @default(now())
+  updated_at          DateTime    @default(now()) @updatedAt
 
   customer         customer          @relation(fields: [customer_id], references: [id])
   customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
@@ -231,6 +233,8 @@ model order {
   driver           driver?           @relation(fields: [driver_id], references: [id])
   vehicle          vehicle?          @relation(fields: [vehicle_id], references: [id])
   locations        order_location[]
+  service          service           @relation(fields: [service_id], references: [id])
+  sub_service      sub_service?      @relation(fields: [sub_service_id], references: [id])
   otps             order_otp[]
 
   @@index([customer_id])
@@ -289,24 +293,51 @@ model logs {
   error_stack      String?    @db.Text // full stack trace, only on errors
   req_body         Json?
   req_query_params Json?
-  req_header       Json?               // authorization header is excluded (stored in raw_token)
-  req_files        Json?               // multipart file metadata only (no binary)
-  req_content_type String?             // e.g. "application/json" | "multipart/form-data"
+  req_header       Json? // authorization header is excluded (stored in raw_token)
+  req_files        Json? // multipart file metadata only (no binary)
+  req_content_type String? // e.g. "application/json" | "multipart/form-data"
   res_body         Json?
-  raw_token        String?             // raw Bearer token from Authorization header
-  decoded_token    Json?               // decoded JWT payload
+  raw_token        String? // raw Bearer token from Authorization header
+  decoded_token    Json? // decoded JWT payload
   user_role        Role?
   user_id          Int?
   user_formated_id String?
   user_agent       String?
   ip_address       String?
-  endpoint_group   String?             // auto-derived from URL first segment, e.g. "driver", "vendor"
-  meta_data        Json?               // debug data set by business services via CallerService.setMeta()
+  endpoint_group   String? // auto-derived from URL first segment, e.g. "driver", "vendor"
+  meta_data        Json? // debug data set by business services via CallerService.setMeta()
 
   @@index([date])
   @@index([success, status_code])
   @@index([user_id, user_role])
   @@index([endpoint_group])
+}
+
+model service {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(255)
+  description String?  @db.Text
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now()) @updatedAt
+
+  sub_services sub_service[]
+  orders       order[]
+  vendors      vendor[]
+}
+
+model sub_service {
+  id         Int      @id @default(autoincrement())
+  name       String   @db.VarChar(255)
+  service_id Int
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  service service @relation(fields: [service_id], references: [id])
+  orders  order[]
+
+  @@unique([name, service_id])
 }
 
 //#region enums
@@ -318,13 +349,6 @@ enum HttpMethod {
   PATCH
   OPTIONS
   HEAD
-}
-
-enum VendorServices {
-  Towing
-  Technician
-  Custody
-  Hydra
 }
 
 enum OtpType {
@@ -342,14 +366,6 @@ enum DriverStatus {
   Busy
   UnderApproval
   Banned
-}
-
-enum FleetType {
-  Flatbed
-  UnderLift
-  ZeroDegree
-  TwoWFlatbed
-  Hydra
 }
 
 enum FuelType {

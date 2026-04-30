@@ -11,7 +11,6 @@ import {
 } from 'class-validator';
 import {
   OrganizationType,
-  VendorServices,
 } from '@prisma/client';
 
 /**
@@ -51,16 +50,14 @@ export class UpdateVendorDto {
   @ApiProperty({ example: '8765432109' })
   alternate_number: string;
 
-  /** Services the vendor provides (multi-select) */
+  /** IDs of the services the vendor provides */
   @IsArray()
-  @IsEnum(VendorServices, { each: true })
   @ApiProperty({
-    type: [String],
-    enum: VendorServices,
+    type: [Number],
     isArray: true,
-    example: [VendorServices.Towing],
+    example: [1, 2],
   })
-  select_services: VendorServices[];
+  service_ids: number[];
 
   @IsNotEmpty()
   @IsString()
@@ -124,12 +121,12 @@ export class UpdateVendorDto {
       ifsc_code,
       branch_name,
       account_holder_name,
-      select_services,
+      service_ids,
       ...vendorData
     } = dto;
     return {
       ...vendorData,
-      services: select_services,
+      service_ids: service_ids.map((id) => Number(id)),
       gst_number: dto.gst_number ?? null,
       is_gst_vendor: !!dto.gst_number,
     };

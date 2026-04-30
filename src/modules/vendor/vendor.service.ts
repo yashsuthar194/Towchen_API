@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { VendorListDto } from './dto/vendor-list.dto';
 import { VendorDetailDto } from './dto/vendor-detail.dto';
@@ -41,7 +41,7 @@ export class VendorService {
     private readonly _storageService: StorageService,
     private readonly _callerService: CallerService,
     private readonly _jwtService: JwtService,
-  ) {}
+  ) { }
 
   //#region Get
   /**
@@ -50,25 +50,23 @@ export class VendorService {
    * @returns An array of vendor list DTOs sorted by ID ascending
    */
   async getListAsync(): Promise<VendorListDto[]> {
-    return await this._prismaService.vendor.findMany({
+    const vendors = await this._prismaService.vendor.findMany({
       where: {
         is_deleted: false,
       },
       orderBy: {
         id: 'asc',
       },
-      select: {
-        id: true,
-        formated_id: true,
-        vendor_name: true,
-        email: true,
-        mobile_number: true,
-        services: true,
-        approved_by: true,
-        status: true,
-        created_at: true,
+      include: {
+        services: {
+          include: {
+            sub_services: true,
+          },
+        },
       },
     });
+
+    return vendors as unknown as VendorListDto[];
   }
 
   /**
@@ -79,42 +77,26 @@ export class VendorService {
    * @throws {NotFoundException} If no active vendor with the given ID exists
    */
   async getByIdAsync(id: number): Promise<VendorDetailDto> {
-    const vendor = await this._prismaService.vendor.findFirstOrThrow({
-      select: {
-        id: true,
-        formated_id: true,
-        vendor_name: true,
-        email: true,
-        mobile_number: true,
-        alternate_number: true,
-        is_email_verified: true,
-        vendor_profile_image_url: true,
-        services: true,
-        pan_card_url: true,
-        aadhar_card_url: true,
-        organization_name: true,
-        organization_certificate_url: true,
-        organization_type: true,
-        gst_number: true,
-        gst_certificate_url: true,
-        approved_by: true,
-        status: true,
-        created_at: true,
-        updated_at: true,
-        bank_detail: true,
-        signature_url: true,
-        is_gst_vendor: true,
-      },
+    const vendor = await this._prismaService.vendor.findFirst({
       where: {
         id,
         is_deleted: false,
       },
+      include: {
+        bank_detail: true,
+        services: {
+          include: {
+            sub_services: true,
+          },
+        },
+      },
     });
 
-    return {
-      ...vendor,
-      is_gst_vendor: vendor.is_gst_vendor,
-    };
+    if (!vendor) {
+      throw new NotFoundException(`Vendor with ID ${id} not found`);
+    }
+
+    return vendor as unknown as VendorDetailDto;
   }
 
   /**
@@ -199,6 +181,9 @@ export class VendorService {
         representative_name: '',
         representative_designation: '',
         signature_type: SignatureType.Upload,
+        services: {
+          connect: dto.service_ids.map((id) => ({ id })),
+        },
         bank_detail: {
           create: {
             ...bankDetail,
@@ -250,7 +235,7 @@ export class VendorService {
     if (dto.signature_type === SignatureType.Upload && !signature) {
       throw new BadRequestException(
         'Signature file is required when signature_type is "Upload". ' +
-          'Attach it as the "signature" field in multipart/form-data.',
+        'Attach it as the "signature" field in multipart/form-data.',
       );
     }
 
@@ -305,6 +290,9 @@ export class VendorService {
     const vendor = await this._prismaService.vendor.update({
       data: {
         ...vendorData,
+        services: {
+          set: dto.service_ids.map((id) => ({ id })),
+        },
         bank_detail: {
           update: {
             ...bankDetail,
@@ -312,37 +300,17 @@ export class VendorService {
         },
       },
       where: { id },
-      select: {
-        id: true,
-        formated_id: true,
-        vendor_name: true,
-        email: true,
-        mobile_number: true,
-        alternate_number: true,
-        is_email_verified: true,
-        vendor_profile_image_url: true,
-        services: true,
-        pan_card_url: true,
-        aadhar_card_url: true,
-        organization_name: true,
-        organization_certificate_url: true,
-        organization_type: true,
-        gst_number: true,
-        gst_certificate_url: true,
-        approved_by: true,
-        status: true,
-        created_at: true,
-        updated_at: true,
+      include: {
         bank_detail: true,
-        is_gst_vendor: true,
-        signature_url: true,
+        services: {
+          include: {
+            sub_services: true,
+          },
+        },
       },
     });
 
-    return {
-      ...vendor,
-      is_gst_vendor: vendor.is_gst_vendor,
-    };
+    return vendor as unknown as VendorDetailDto;
   }
   //#endregion
 
@@ -412,7 +380,7 @@ export class VendorService {
       if (!bankDetail) {
         throw new BadRequestException(
           'Cannot upload passbook: no bank detail record found for this vendor. ' +
-            'Ensure the vendor was created with bank details.',
+          'Ensure the vendor was created with bank details.',
         );
       }
     }
