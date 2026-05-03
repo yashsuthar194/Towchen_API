@@ -5,6 +5,7 @@ import {
   IsString,
   IsEmail,
   IsArray,
+  ArrayNotEmpty,
   IsEnum,
   Matches,
   IsOptional,
@@ -52,6 +53,7 @@ export class UpdateVendorDto {
 
   /** IDs of the services the vendor provides */
   @IsArray()
+  @ArrayNotEmpty({ message: 'service_ids cannot be empty' })
   @ApiProperty({
     type: [Number],
     isArray: true,

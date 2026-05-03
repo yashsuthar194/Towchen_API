@@ -195,6 +195,11 @@ export class VendorService {
    */
   private async createVendorRecord(dto: CreateVendorDto) {
     const vendorData = CreateVendorDto.toVendorData(dto);
+
+    if (!dto.service_ids || dto.service_ids.length === 0) {
+      throw new BadRequestException('service_ids cannot be empty');
+    }
+
     vendorData.password = await Hash.hashAsync(dto.password);
 
     const bankDetail = CreateVendorDto.toBankDetail(dto);
@@ -319,6 +324,10 @@ export class VendorService {
     id: number,
   ): Promise<VendorDetailDto> {
     await this.validateDuplicateVendorAsync(dto.mobile_number, dto.email, id);
+
+    if (!dto.service_ids || dto.service_ids.length === 0) {
+      throw new BadRequestException('service_ids cannot be empty');
+    }
 
     const vendorData = UpdateVendorDto.toVendorData(dto);
     const bankDetail = UpdateVendorDto.toBankDetail(dto);

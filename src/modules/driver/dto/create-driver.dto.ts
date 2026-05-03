@@ -53,6 +53,7 @@ export class CreateDriverDto {
     type: Number,
     example: 1,
   })
+  @IsNotEmpty({ message: 'sub_service_id cannot be empty' })
   @IsInt()
   @Type(() => Number)
   sub_service_id: number;

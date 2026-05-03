@@ -175,6 +175,9 @@ export class VehicleService {
    */
   private async _createVehicleRecord(dto: CreateVehicleDto) {
     const vehicleData = CreateVehicleDto.toVehicleData(dto);
+    if (!dto.fleet_type) {
+      throw new BadRequestException('fleet_type cannot be empty');
+    }
 
     // If Admin creates vehicle, require and use vendor_id from DTO
     // If Vendor creates vehicle, use their own ID automatically
@@ -220,6 +223,10 @@ export class VehicleService {
   ): Promise<VehicleDetailDto> {
     // Check if exists
     await this.getByIdAsync(id);
+
+    if (dto.fleet_type === 0) {
+      throw new BadRequestException('fleet_type cannot be empty');
+    }
 
     await this._validateUniqueness(
       dto.registration_number,

@@ -11,6 +11,7 @@ import { Transform, Type } from 'class-transformer';
 
 export class CreateVehicleDto {
   @ApiProperty({ description: 'ID of the sub-service (Fleet Type)', example: 1 })
+  @IsNotEmpty({ message: 'fleet_type cannot be empty' })
   @IsInt()
   @Type(() => Number)
   fleet_type: number;

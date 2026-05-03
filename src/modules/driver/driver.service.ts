@@ -137,6 +137,9 @@ export class DriverService {
    */
   private async _createDriverRecord(dto: CreateDriverDto) {
     const driverData = CreateDriverDto.toDriverData(dto);
+    if (!dto.sub_service_id) {
+      throw new BadRequestException('sub_service_id cannot be empty');
+    }
     driverData.password = await Hash.hashAsync(dto.password);
 
     // If Admin creates driver, require and use vendor_id from DTO
@@ -281,6 +284,10 @@ export class DriverService {
   ): Promise<DriverDetailDto> {
     // Check if exists
     await this.getByIdAsync(id);
+
+    if (dto.sub_service_id === 0) {
+      throw new BadRequestException('sub_service_id cannot be empty');
+    }
 
     await this._validateUniqueness(dto.email, dto.mobile_number, id);
 

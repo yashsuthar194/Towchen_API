@@ -159,6 +159,9 @@ export class OrderService {
    */
   async createAsync(dto: CreateOrderDto): Promise<OrderDetailDto> {
     try {
+      if (!dto.fleet_type) {
+        throw new BadRequestException('fleet_type cannot be empty');
+      }
       return await this._prisma.$transaction(async (tx) => {
         // 1. Create Breakdown Location
         const breakdownLocation = await tx.location.create({
