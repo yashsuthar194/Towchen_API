@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
-import { RegisterCustomerDto } from './dto/register-customer.dto';
+import { RegisterCustomerDto, RegisterCustomerVehicleDto } from './dto/register-customer.dto';
 import { JwtService } from 'src/services/jwt/jwt.service';
 import { Role } from '@prisma/client';
 
@@ -92,6 +92,57 @@ export class CustomerService {
         }
 
         return customer;
+    }
+
+    /**
+     * Adds a new vehicle to an existing customer
+     * @param customerId The customer ID
+     * @param dto Data for the new vehicle
+     */
+    async addVehicleAsync(customerId: number, dto: RegisterCustomerVehicleDto) {
+        // Ensure customer exists
+        await this.getByIdAsync(customerId);
+
+        try {
+            const newVehicle = await this.prisma.customer_vehicle.create({
+                data: {
+                    customer_id: customerId,
+                    make: dto.make,
+                    model: dto.model,
+                    registration_number: dto.registration_number,
+                    class: dto.class,
+                    fuel_type: dto.fuel_type,
+                },
+            });
+
+            return newVehicle;
+        } catch (error) {
+            console.error('Error adding customer vehicle:', error);
+            throw new InternalServerErrorException('Failed to add vehicle to customer.');
+        }
+    }
+
+    /**
+     * Retrieves all vehicles for a customer
+     * @param customerId The customer ID
+     */
+    async getVehiclesAsync(customerId: number) {
+        // Ensure customer exists
+        await this.getByIdAsync(customerId);
+
+        try {
+            const vehicles = await this.prisma.customer_vehicle.findMany({
+                where: {
+                    customer_id: customerId,
+                    is_deleted: false,
+                },
+            });
+
+            return vehicles;
+        } catch (error) {
+            console.error('Error retrieving customer vehicles:', error);
+            throw new InternalServerErrorException('Failed to retrieve vehicles.');
+        }
     }
 
     /**

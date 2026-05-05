@@ -207,6 +207,26 @@ model location {
   @@index([category])
 }
 
+model dummy_address {
+  id              Int      @id @default(autoincrement())
+  address         String?
+  street          String?
+  area            String?
+  city            String?
+  state           String?
+  pincode         String?
+  country         String?
+  latitude        Float
+  longitude       Float
+  landmark        String?
+  description     String?
+  created_at      DateTime @default(now())
+
+  @@index([city])
+  @@index([state])
+  @@index([pincode])
+}
+
 model order {
   id                  Int         @id @default(autoincrement())
   formated_id         String      @unique

@@ -15,6 +15,7 @@ import { SharedModule } from './shared/shared.module';
 import { LogModule } from './modules/log/log.module';
 import { OrderModule } from './modules/order/order.module';
 import { ServiceModule } from './modules/service/service.module';
+import { DummyAddressModule } from './modules/dummy-address/dummy-address.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ServiceModule } from './modules/service/service.module';
     LogModule,
     OrderModule,
     ServiceModule,
+    DummyAddressModule,
   ],
   controllers: [AppController],
   providers: [AppService],
