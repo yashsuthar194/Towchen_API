@@ -16,6 +16,7 @@ import { LogModule } from './modules/log/log.module';
 import { OrderModule } from './modules/order/order.module';
 import { ServiceModule } from './modules/service/service.module';
 import { DummyAddressModule } from './modules/dummy-address/dummy-address.module';
+import { LocationModule } from './modules/location/location.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { DummyAddressModule } from './modules/dummy-address/dummy-address.module
     OrderModule,
     ServiceModule,
     DummyAddressModule,
+    LocationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

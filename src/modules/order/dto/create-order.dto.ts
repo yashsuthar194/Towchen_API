@@ -1,14 +1,9 @@
-import { IsInt, IsNotEmpty, IsEnum, IsOptional, ValidateNested, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, ValidateNested, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { CreateDriverLocationDto } from '../../driver-location/dto/create-driver-location.dto';
+import { OrderLocationInputDto } from './order-location-input.dto';
 
 export class CreateOrderDto {
-  @ApiProperty({ description: 'Customer ID' })
-  @IsNotEmpty()
-  @IsInt()
-  customer_id: number;
-
   @ApiPropertyOptional({ description: 'Customer Vehicle ID' })
   @IsOptional()
   @IsInt()
@@ -19,27 +14,28 @@ export class CreateOrderDto {
   @IsInt()
   service_id: number;
 
-  @ApiPropertyOptional({ description: 'Sub-Service ID' })
-  @IsOptional()
-  @IsInt()
-  sub_service_id?: number;
-
-  @ApiProperty({ description: 'ID of the sub-service (Fleet Type)', example: 1 })
+  @ApiProperty({ description: 'Sub-Service ID (Fleet Type)' })
   @IsNotEmpty()
   @IsInt()
-  fleet_type: number;
+  sub_service_id: number;
 
-  @ApiProperty({ description: 'Breakdown Location Details' })
+  @ApiProperty({
+    description: 'Breakdown location — send the place_id from address search predictions',
+    type: OrderLocationInputDto,
+  })
   @IsNotEmpty()
   @ValidateNested()
-  @Type(() => CreateDriverLocationDto)
-  breakdown_location: CreateDriverLocationDto;
+  @Type(() => OrderLocationInputDto)
+  breakdown_location: OrderLocationInputDto;
 
-  @ApiProperty({ description: 'Drop Location Details' })
+  @ApiProperty({
+    description: 'Drop location — send the place_id from address search predictions',
+    type: OrderLocationInputDto,
+  })
   @IsNotEmpty()
   @ValidateNested()
-  @Type(() => CreateDriverLocationDto)
-  drop_location: CreateDriverLocationDto;
+  @Type(() => OrderLocationInputDto)
+  drop_location: OrderLocationInputDto;
 
   @ApiPropertyOptional({ description: 'Breakdown Contact Name' })
   @IsOptional()

@@ -5,12 +5,14 @@ import { OrderListDto } from './dto/order-list.dto';
 import { OrderDetailDto } from './dto/order-detail.dto';
 import { OrderStatus, LocationCategory, LocationType, OrderOtpType } from '@prisma/client';
 import { CallerService } from 'src/services/jwt/caller.service';
+import { MapsService } from 'src/services/maps/maps.service';
 
 @Injectable()
 export class OrderService {
   constructor(
     private readonly _prisma: PrismaService,
     private readonly _callerService: CallerService,
+    private readonly _mapsService: MapsService,
   ) { }
 
   /**
@@ -159,22 +161,49 @@ export class OrderService {
    */
   async createAsync(dto: CreateOrderDto): Promise<OrderDetailDto> {
     try {
-      if (!dto.fleet_type) {
-        throw new BadRequestException('fleet_type cannot be empty');
+      const customerId = this._callerService.getUserId();
+
+      if (!dto.sub_service_id) {
+        throw new BadRequestException('sub_service_id cannot be empty');
       }
+
+      // Resolve both place_ids in parallel — gets full address including lat/lng
+      const [breakdownAddress, dropAddress] = await Promise.all([
+        this._mapsService.resolveAddressByPlaceIdAsync(dto.breakdown_location.place_id),
+        this._mapsService.resolveAddressByPlaceIdAsync(dto.drop_location.place_id),
+      ]);
+
       return await this._prisma.$transaction(async (tx) => {
-        // 1. Create Breakdown Location
+        // 1. Create Breakdown Location from resolved address
         const breakdownLocation = await tx.location.create({
           data: {
-            ...dto.breakdown_location,
+            address: breakdownAddress.address,
+            street: breakdownAddress.street,
+            area: breakdownAddress.area,
+            city: breakdownAddress.city,
+            state: breakdownAddress.state,
+            pincode: breakdownAddress.pincode,
+            country: breakdownAddress.country,
+            latitude: breakdownAddress.latitude,
+            longitude: breakdownAddress.longitude,
+            landmark: breakdownAddress.landmark,
             category: LocationCategory.Order,
           },
         });
 
-        // 2. Create Drop Location
+        // 2. Create Drop Location from resolved address
         const dropLocation = await tx.location.create({
           data: {
-            ...dto.drop_location,
+            address: dropAddress.address,
+            street: dropAddress.street,
+            area: dropAddress.area,
+            city: dropAddress.city,
+            state: dropAddress.state,
+            pincode: dropAddress.pincode,
+            country: dropAddress.country,
+            latitude: dropAddress.latitude,
+            longitude: dropAddress.longitude,
+            landmark: dropAddress.landmark,
             category: LocationCategory.Order,
           },
         });
@@ -182,11 +211,11 @@ export class OrderService {
         // 3. Create Order
         const order = await tx.order.create({
           data: {
-            customer_id: dto.customer_id,
+            customer_id: customerId,
             customer_vehicle_id: dto.customer_vehicle_id,
             service_id: dto.service_id,
             sub_service_id: dto.sub_service_id,
-            fleet_type: dto.fleet_type,
+            fleet_type: dto.sub_service_id, // Maps sub_service_id to fleet_type
             status: OrderStatus.New,
             formated_id: '', // Handled by DB trigger
           },
