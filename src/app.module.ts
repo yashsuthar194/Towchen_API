@@ -17,6 +17,7 @@ import { OrderModule } from './modules/order/order.module';
 import { ServiceModule } from './modules/service/service.module';
 import { DummyAddressModule } from './modules/dummy-address/dummy-address.module';
 import { LocationModule } from './modules/location/location.module';
+import { CustomerAddressModule } from './modules/customer-address/customer-address.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { LocationModule } from './modules/location/location.module';
     ServiceModule,
     DummyAddressModule,
     LocationModule,
+    CustomerAddressModule,
   ],
   controllers: [AppController],
   providers: [AppService],

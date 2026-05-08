@@ -163,6 +163,7 @@ model customer {
   is_deleted_by     Int?
   customer_vehicles customer_vehicle[]
   orders            order[]
+  customer_addresses customer_address[]
 }
 
 model customer_vehicle {
@@ -207,24 +208,28 @@ model location {
   @@index([category])
 }
 
-model dummy_address {
-  id              Int      @id @default(autoincrement())
-  address         String?
-  street          String?
-  area            String?
-  city            String?
-  state           String?
-  pincode         String?
-  country         String?
-  latitude        Float
-  longitude       Float
-  landmark        String?
-  description     String?
-  created_at      DateTime @default(now())
+model customer_address {
+  id          Int      @id @default(autoincrement())
+  customer_id Int
+  label       String   // e.g., "Home", "Work", "Office"
+  is_default  Boolean  @default(false)
+  address     String?
+  street      String?
+  area        String?
+  city        String?
+  state       String?
+  pincode     String?
+  country     String?
+  latitude    Float
+  longitude   Float
+  landmark    String?
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
 
-  @@index([city])
-  @@index([state])
-  @@index([pincode])
+  customer    customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@index([customer_id])
 }
 
 model order {

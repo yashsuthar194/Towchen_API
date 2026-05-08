@@ -28,19 +28,5 @@ export class LocationController {
     return await this.locationService.searchPredictionsAsync(query);
   }
 
-  @Get('resolve-address')
-  @ApiOperation({
-    summary: 'Step 2 — Resolve a selected place_id to a full address',
-    description:
-      'Takes the place_id from a prediction (returned by search-address) and ' +
-      'returns the fully formatted address object ready to be stored in the DB or used in an order payload.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Fully formatted address object',
-    type: LocationResponseDto,
-  })
-  async resolveAddress(@Query() query: ResolveAddressDto): Promise<LocationResponseDto> {
-    return await this.locationService.resolveAddressAsync(query);
-  }
+
 }

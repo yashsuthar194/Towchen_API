@@ -1,6 +1,7 @@
-import { Body, Controller, Delete, Param, ParseIntPipe, Post, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Param, ParseIntPipe, Post, Get, UseGuards, Put } from '@nestjs/common';
 import { CustomerService } from './customer.service';
 import { RegisterCustomerDto, RegisterCustomerVehicleDto } from './dto/register-customer.dto';
+import { UpdateCustomerVehicleDto } from './dto/update-customer-vehicle.dto';
 import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
 import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
@@ -56,5 +57,46 @@ export class CustomerController {
     async remove(@Param('id', ParseIntPipe) id: number) {
         await this.customerService.deleteAsync(id);
         return ResponseDto.deleted('Customer deleted successfully');
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Put('vehicle/:id')
+    @ApiOperation({ summary: 'Update a specific vehicle for the authenticated customer' })
+    @ApiBody({ type: UpdateCustomerVehicleDto })
+    @ApiResponseDtoNull(200)
+    async updateVehicle(
+        @Param('id', ParseIntPipe) vehicleId: number,
+        @Body() dto: UpdateCustomerVehicleDto
+    ) {
+        const customerId = this.callerService.getUserId();
+        const result = await this.customerService.updateVehicleAsync(customerId, vehicleId, dto);
+        return ResponseDto.updated('Vehicle updated successfully', result);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Delete('vehicle/:id')
+    @ApiOperation({ summary: 'Delete a specific vehicle for the authenticated customer' })
+    @ApiResponseDtoNull(200)
+    async deleteVehicle(
+        @Param('id', ParseIntPipe) vehicleId: number
+    ) {
+        const customerId = this.callerService.getUserId();
+        await this.customerService.deleteVehicleAsync(customerId, vehicleId);
+        return ResponseDto.deleted('Vehicle deleted successfully');
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Get('vehicle/:id')
+    @ApiOperation({ summary: 'Get details of a specific vehicle' })
+    @ApiResponseDtoNull(200)
+    async getVehicle(
+        @Param('id', ParseIntPipe) vehicleId: number
+    ) {
+        const customerId = this.callerService.getUserId();
+        const result = await this.customerService.getVehicleByIdAsync(customerId, vehicleId);
+        return ResponseDto.retrieved('Vehicle details retrieved successfully', result);
     }
 }
