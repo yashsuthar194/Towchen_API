@@ -15,7 +15,6 @@ import { SharedModule } from './shared/shared.module';
 import { LogModule } from './modules/log/log.module';
 import { OrderModule } from './modules/order/order.module';
 import { ServiceModule } from './modules/service/service.module';
-import { DummyAddressModule } from './modules/dummy-address/dummy-address.module';
 import { LocationModule } from './modules/location/location.module';
 import { CustomerAddressModule } from './modules/customer-address/customer-address.module';
 
@@ -35,7 +34,6 @@ import { CustomerAddressModule } from './modules/customer-address/customer-addre
     LogModule,
     OrderModule,
     ServiceModule,
-    DummyAddressModule,
     LocationModule,
     CustomerAddressModule,
   ],
