@@ -21,6 +21,15 @@ export class SubServiceDto {
 
   @ApiProperty()
   updated_at: Date;
+
+  @ApiProperty()
+  fix_distance: number;
+
+  @ApiProperty()
+  fix_price: number;
+
+  @ApiProperty()
+  extra_price: number;
 }
 
 export class ServiceDto {

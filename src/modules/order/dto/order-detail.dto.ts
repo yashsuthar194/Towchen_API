@@ -70,4 +70,7 @@ export class OrderDetailDto {
 
   @ApiProperty({ type: [OrderLocationDetailDto] })
   locations: OrderLocationDetailDto[];
+
+  @ApiPropertyOptional({ description: 'Order metadata (JSON) containing nested sub_service estimate details' })
+  meta_data?: any;
 }

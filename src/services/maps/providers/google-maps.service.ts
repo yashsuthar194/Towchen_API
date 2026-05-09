@@ -1,9 +1,10 @@
 import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { Client, AddressComponent } from '@googlemaps/google-maps-services-js';
+import { Client, AddressComponent, TrafficModel } from '@googlemaps/google-maps-services-js';
 import { TypedConfigService } from 'src/core/config/typed-config.service';
 import { IMapsService } from '../interfaces/maps.interface';
 import { AddressPredictionDto } from '../types/address-prediction.dto';
 import { LocationResponseDto } from 'src/modules/location/dto/location-response.dto';
+import { DistanceMatrixResultDto } from '../types/distance-matrix-result.dto';
 
 /**
  * Google Maps implementation of IMapsService.
@@ -98,6 +99,71 @@ export class GoogleMapsService implements IMapsService {
     } catch (error) {
       const errorMsg = error.response?.data?.error_message || error.message || 'Failed to resolve address details';
       this.logger.error(`Error resolving place_id "${placeId}": ${errorMsg}`);
+      throw new InternalServerErrorException(errorMsg);
+    }
+  }
+
+  /**
+   * {@inheritDoc IMapsService.getDistanceMatrixAsync}
+   *
+   * @remarks
+   * Uses the `place_id:` prefix in origins/destinations to avoid a separate geocoding call.
+   * Sets `departure_time: 'now'` to unlock traffic-aware duration.
+   * `duration_in_traffic` may be absent on basic API keys (returns undefined gracefully).
+   */
+  async getDistanceMatrixAsync(
+    originPlaceId: string,
+    destinationPlaceId: string,
+  ): Promise<DistanceMatrixResultDto> {
+    try {
+      const response = await this.client.distancematrix({
+        params: {
+          origins: [`place_id:${originPlaceId}`],
+          destinations: [`place_id:${destinationPlaceId}`],
+          key: this.geocodeApiKey,
+          departure_time: Date.now(),
+          traffic_model: TrafficModel.best_guess,
+        },
+      });
+
+      const status = response.data.status;
+      if (status !== 'OK') {
+        const errorMsg = response.data.error_message || status;
+        throw new Error(`Google Distance Matrix API error: ${errorMsg}`);
+      }
+
+      const element = response.data.rows?.[0]?.elements?.[0];
+
+      if (!element || element.status !== 'OK') {
+        const elementStatus = element?.status || 'NO_RESULT';
+        throw new Error(`Distance Matrix element error: ${elementStatus}. Check that both place_ids are valid and routable.`);
+      }
+
+      const result: DistanceMatrixResultDto = {
+        distance: {
+          raw_value: element.distance.value,
+          formatted: element.distance.text,
+        },
+        travel_time: {
+          raw_value: element.duration.value,
+          formatted: element.duration.text,
+        },
+      };
+
+      // traffic_aware_duration is only present with a premium API key
+      if (element.duration_in_traffic) {
+        result.traffic_aware_duration = {
+          raw_value: element.duration_in_traffic.value,
+          formatted: element.duration_in_traffic.text,
+        };
+      }
+
+      return result;
+    } catch (error) {
+      const errorMsg = error.response?.data?.error_message || error.message || 'Failed to calculate distance';
+      this.logger.error(
+        `Error calculating distance from "${originPlaceId}" to "${destinationPlaceId}": ${errorMsg}`,
+      );
       throw new InternalServerErrorException(errorMsg);
     }
   }

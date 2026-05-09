@@ -218,6 +218,7 @@ export class OrderService {
             fleet_type: dto.sub_service_id, // Maps sub_service_id to fleet_type
             status: OrderStatus.New,
             formated_id: '', // Handled by DB trigger
+            meta_data: dto.sub_service_estimate ? { sub_service: dto.sub_service_estimate } : undefined,
           },
         });
 

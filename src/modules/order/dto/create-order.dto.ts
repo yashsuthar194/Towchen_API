@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, ValidateNested, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, ValidateNested, IsString, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderLocationInputDto } from './order-location-input.dto';
@@ -56,4 +56,11 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   drop_contact_number?: string;
+
+  @ApiPropertyOptional({ 
+    description: 'Sub-service estimate details including formatted and raw pricing data. Passed directly from the estimate API response.'
+  })
+  @IsOptional()
+  @IsObject()
+  sub_service_estimate?: Record<string, any>;
 }

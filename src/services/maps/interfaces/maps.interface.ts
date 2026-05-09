@@ -1,5 +1,6 @@
 import { AddressPredictionDto } from '../types/address-prediction.dto';
 import { LocationResponseDto } from 'src/modules/location/dto/location-response.dto';
+import { DistanceMatrixResultDto } from '../types/distance-matrix-result.dto';
 
 /**
  * Interface defining the contract for all Maps service providers.
@@ -42,4 +43,22 @@ export interface IMapsService {
    * ```
    */
   resolveAddressByPlaceIdAsync(placeId: string): Promise<LocationResponseDto>;
+
+  /**
+   * Calculates real road distance, travel time, and traffic-aware duration between two places.
+   *
+   * @param originPlaceId - Google Maps place_id for the origin (e.g. breakdown location)
+   * @param destinationPlaceId - Google Maps place_id for the destination (e.g. dropoff location)
+   * @returns Promise resolving to distance, travel_time and traffic_aware_duration
+   *
+   * @example
+   * ```typescript
+   * const result = await mapsService.getDistanceMatrixAsync('ChIJ...origin', 'ChIJ...dest');
+   * // Returns: { distance: { raw_value: 15200, formatted: '15.2 km' }, travel_time: {...}, traffic_aware_duration: {...} }
+   * ```
+   */
+  getDistanceMatrixAsync(
+    originPlaceId: string,
+    destinationPlaceId: string,
+  ): Promise<DistanceMatrixResultDto>;
 }

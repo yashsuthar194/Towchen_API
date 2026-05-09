@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { IMapsService } from './interfaces/maps.interface';
 import { AddressPredictionDto } from './types/address-prediction.dto';
 import { LocationResponseDto } from 'src/modules/location/dto/location-response.dto';
+import { DistanceMatrixResultDto } from './types/distance-matrix-result.dto';
 
 /**
  * Main Maps service that acts as a facade/context for the Strategy pattern.
@@ -44,5 +45,15 @@ export class MapsService implements IMapsService {
    */
   async resolveAddressByPlaceIdAsync(placeId: string): Promise<LocationResponseDto> {
     return this.mapsProvider.resolveAddressByPlaceIdAsync(placeId);
+  }
+
+  /**
+   * {@inheritDoc IMapsService.getDistanceMatrixAsync}
+   */
+  async getDistanceMatrixAsync(
+    originPlaceId: string,
+    destinationPlaceId: string,
+  ): Promise<DistanceMatrixResultDto> {
+    return this.mapsProvider.getDistanceMatrixAsync(originPlaceId, destinationPlaceId);
   }
 }

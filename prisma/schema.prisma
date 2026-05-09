@@ -151,18 +151,18 @@ model vehicle {
 }
 
 model customer {
-  id                Int                @id @default(autoincrement())
-  formated_id       String             @unique
-  full_name         String             @db.VarChar(255)
-  is_verified       Boolean            @default(false)
-  number            String             @db.VarChar(20)
-  email             String             @db.VarChar(255)
-  is_deleted        Boolean            @default(false)
-  created_at        DateTime           @default(now())
-  updated_at        DateTime           @default(now()) @updatedAt
-  is_deleted_by     Int?
-  customer_vehicles customer_vehicle[]
-  orders            order[]
+  id                 Int                @id @default(autoincrement())
+  formated_id        String             @unique
+  full_name          String             @db.VarChar(255)
+  is_verified        Boolean            @default(false)
+  number             String             @db.VarChar(20)
+  email              String             @db.VarChar(255)
+  is_deleted         Boolean            @default(false)
+  created_at         DateTime           @default(now())
+  updated_at         DateTime           @default(now()) @updatedAt
+  is_deleted_by      Int?
+  customer_vehicles  customer_vehicle[]
+  orders             order[]
   customer_addresses customer_address[]
 }
 
@@ -211,7 +211,7 @@ model location {
 model customer_address {
   id          Int      @id @default(autoincrement())
   customer_id Int
-  label       String   // e.g., "Home", "Work", "Office"
+  label       String // e.g., "Home", "Work", "Office"
   is_default  Boolean  @default(false)
   address     String?
   street      String?
@@ -227,7 +227,7 @@ model customer_address {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
-  customer    customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+  customer customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
 
   @@index([customer_id])
 }
@@ -251,6 +251,8 @@ model order {
   cancel_reason       String?
   created_at          DateTime    @default(now())
   updated_at          DateTime    @default(now()) @updatedAt
+
+  meta_data Json?
 
   customer         customer          @relation(fields: [customer_id], references: [id])
   customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
@@ -358,6 +360,10 @@ model sub_service {
   is_active  Boolean  @default(true)
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt
+
+  fix_distance Float @default(0)
+  fix_price    Float @default(0)
+  extra_price  Float @default(0)
 
   service service @relation(fields: [service_id], references: [id])
   orders  order[]

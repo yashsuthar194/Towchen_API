@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsString, IsInt } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsInt, IsNumber, IsOptional, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateSubServiceDto {
   @ApiProperty({ description: 'Name of the sub-service', example: 'Flatbed Towing' })
@@ -11,4 +11,19 @@ export class CreateSubServiceDto {
   @IsNotEmpty()
   @IsInt()
   service_id: number;
+
+  @ApiProperty({ description: 'Fixed distance for the base price', example: 5, default: 0 })
+  @IsNumber()
+  @Min(0)
+  fix_distance: number;
+
+  @ApiProperty({ description: 'Fixed price for the base distance', example: 100, default: 0 })
+  @IsNumber()
+  @Min(0)
+  fix_price: number;
+
+  @ApiProperty({ description: 'Extra price per unit distance beyond fixed distance', example: 20, default: 0 })
+  @IsNumber()
+  @Min(0)
+  extra_price: number;
 }
