@@ -26,4 +26,10 @@ export class CreateSubServiceDto {
   @IsNumber()
   @Min(0)
   extra_price: number;
+
+  @ApiProperty({ description: 'Weight capacity in tons', example: 1.5, default: 0 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  ton?: number;
 }

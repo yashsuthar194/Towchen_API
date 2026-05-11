@@ -12,6 +12,9 @@ export class PricedSubServiceDto {
   @ApiProperty({ description: 'Sub-service name', example: 'Flatbed Towing' })
   name: string;
 
+  @ApiProperty({ description: 'Weight capacity in tons', example: 1.5 })
+  ton: number;
+
   @ApiProperty({
     description: 'Fixed distance covered by the base price (in km)',
     example: 10,

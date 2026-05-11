@@ -364,6 +364,7 @@ model sub_service {
   fix_distance Float @default(0)
   fix_price    Float @default(0)
   extra_price  Float @default(0)
+  ton          Float @default(0)
 
   service service @relation(fields: [service_id], references: [id])
   orders  order[]

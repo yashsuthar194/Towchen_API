@@ -71,6 +71,7 @@ export class LocationService {
       return {
         id: ss.id,
         name: ss.name,
+        ton: ss.ton,
         fix_distance: ss.fix_distance,
 
         // Formatted strings (human-readable)

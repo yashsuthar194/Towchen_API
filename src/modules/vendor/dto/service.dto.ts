@@ -30,6 +30,9 @@ export class SubServiceDto {
 
   @ApiProperty()
   extra_price: number;
+
+  @ApiProperty()
+  ton: number;
 }
 
 export class ServiceDto {
