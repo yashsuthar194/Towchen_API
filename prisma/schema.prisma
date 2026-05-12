@@ -197,6 +197,7 @@ model location {
   longitude       Float
   landmark        String?
   description     String?
+  place_id        String
   category        LocationCategory @default(Driver)
   created_at      DateTime         @default(now())
   startDrivers    driver[]         @relation("DriverStartLocation")
@@ -206,6 +207,7 @@ model location {
   @@index([city])
   @@index([state])
   @@index([category])
+  @@index([place_id])
 }
 
 model customer_address {
@@ -224,12 +226,14 @@ model customer_address {
   longitude   Float
   landmark    String?
   description String?
+  place_id    String
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
   customer customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
 
   @@index([customer_id])
+  @@index([place_id])
 }
 
 model order {

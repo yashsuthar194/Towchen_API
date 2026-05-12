@@ -3,6 +3,7 @@ import { IMapsService } from './interfaces/maps.interface';
 import { AddressPredictionDto } from './types/address-prediction.dto';
 import { LocationResponseDto } from 'src/modules/location/dto/location-response.dto';
 import { DistanceMatrixResultDto } from './types/distance-matrix-result.dto';
+import { CoordinateDistanceResultDto } from './types/coordinate-distance-result.dto';
 
 /**
  * Main Maps service that acts as a facade/context for the Strategy pattern.
@@ -55,5 +56,16 @@ export class MapsService implements IMapsService {
     destinationPlaceId: string,
   ): Promise<DistanceMatrixResultDto> {
     return this.mapsProvider.getDistanceMatrixAsync(originPlaceId, destinationPlaceId);
+  }
+
+  /**
+   * {@inheritDoc IMapsService.getDistanceMatrixByCoordinatesAsync}
+   */
+  async getDistanceMatrixByCoordinatesAsync(
+    origins: { lat: number; lng: number }[],
+    destinationLat: number,
+    destinationLng: number,
+  ): Promise<CoordinateDistanceResultDto[]> {
+    return this.mapsProvider.getDistanceMatrixByCoordinatesAsync(origins, destinationLat, destinationLng);
   }
 }

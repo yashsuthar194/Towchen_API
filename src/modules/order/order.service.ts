@@ -187,6 +187,7 @@ export class OrderService {
             latitude: breakdownAddress.latitude,
             longitude: breakdownAddress.longitude,
             landmark: breakdownAddress.landmark,
+            place_id: dto.breakdown_location.place_id,
             category: LocationCategory.Order,
           },
         });
@@ -204,6 +205,7 @@ export class OrderService {
             latitude: dropAddress.latitude,
             longitude: dropAddress.longitude,
             landmark: dropAddress.landmark,
+            place_id: dto.drop_location.place_id,
             category: LocationCategory.Order,
           },
         });

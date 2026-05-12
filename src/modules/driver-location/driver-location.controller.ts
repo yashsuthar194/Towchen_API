@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   ParseIntPipe,
@@ -69,7 +69,7 @@ export class DriverLocationController {
    * @param updateDriverLocationDto - The updated data
    * @returns The updated driver location record
    */
-  @Patch(':id')
+  @Put(':id')
   @ApiOperation({ summary: 'Update a driver location' })
   async update(
     @Param('id', ParseIntPipe) id: number,

@@ -61,6 +61,7 @@ export class CustomerAddressService {
         latitude: resolvedAddress.latitude,
         longitude: resolvedAddress.longitude,
         landmark: resolvedAddress.landmark,
+        place_id: dto.place_id,
       },
     });
 

@@ -3,6 +3,29 @@ import { LocationResponseDto } from './location-response.dto';
 import { DistanceMatrixLegDto } from 'src/services/maps/types/distance-matrix-result.dto';
 
 /**
+ * ETA details for the nearest available service location to the breakdown point.
+ */
+export class ServiceArrivalEstimateDto {
+  @ApiProperty({
+    description: 'Road distance from the nearest service location to the breakdown point',
+    type: DistanceMatrixLegDto,
+  })
+  distance: DistanceMatrixLegDto;
+
+  @ApiProperty({
+    description: 'Estimated travel time (without traffic) to the breakdown point',
+    type: DistanceMatrixLegDto,
+  })
+  eta: DistanceMatrixLegDto;
+
+  @ApiPropertyOptional({
+    description: 'Traffic-aware travel time (premium API key required)',
+    type: DistanceMatrixLegDto,
+  })
+  traffic_aware_eta?: DistanceMatrixLegDto;
+}
+
+/**
  * Pricing breakdown for a single sub-service, calculated using actual road distance.
  */
 export class PricedSubServiceDto {
@@ -73,6 +96,14 @@ export class PricedSubServiceDto {
 
   @ApiProperty({ description: 'Total price as raw number', example: 630 })
   total_price: number;
+
+  @ApiPropertyOptional({
+    description:
+      'ETA estimate for the nearest available service location to reach the breakdown location. ' +
+      'Null when no service location is available for this sub-service.',
+    type: ServiceArrivalEstimateDto,
+  })
+  arrival_estimate?: ServiceArrivalEstimateDto | null;
 }
 
 /**

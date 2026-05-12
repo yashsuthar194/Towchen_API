@@ -17,6 +17,7 @@ import { OrderModule } from './modules/order/order.module';
 import { ServiceModule } from './modules/service/service.module';
 import { LocationModule } from './modules/location/location.module';
 import { CustomerAddressModule } from './modules/customer-address/customer-address.module';
+import { DispatchModule } from './modules/dispatch/dispatch.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { CustomerAddressModule } from './modules/customer-address/customer-addre
     ServiceModule,
     LocationModule,
     CustomerAddressModule,
+    DispatchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

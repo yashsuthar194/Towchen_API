@@ -5,6 +5,7 @@ import { IMapsService } from '../interfaces/maps.interface';
 import { AddressPredictionDto } from '../types/address-prediction.dto';
 import { LocationResponseDto } from 'src/modules/location/dto/location-response.dto';
 import { DistanceMatrixResultDto } from '../types/distance-matrix-result.dto';
+import { CoordinateDistanceResultDto } from '../types/coordinate-distance-result.dto';
 
 /**
  * Google Maps implementation of IMapsService.
@@ -164,6 +165,71 @@ export class GoogleMapsService implements IMapsService {
       this.logger.error(
         `Error calculating distance from "${originPlaceId}" to "${destinationPlaceId}": ${errorMsg}`,
       );
+      throw new InternalServerErrorException(errorMsg);
+    }
+  }
+
+  /**
+   * {@inheritDoc IMapsService.getDistanceMatrixByCoordinatesAsync}
+   *
+   * @remarks
+   * Sends all origins in a single batched Distance Matrix request to minimise
+   * API quota usage. Google supports up to 25 origins per call.
+   * Non-routable origins (e.g. off-road) are returned with status ≠ 'OK'
+   * and null distance/travel_time rather than throwing.
+   */
+  async getDistanceMatrixByCoordinatesAsync(
+    origins: { lat: number; lng: number }[],
+    destinationLat: number,
+    destinationLng: number,
+  ): Promise<CoordinateDistanceResultDto[]> {
+    try {
+      const response = await this.client.distancematrix({
+        params: {
+          origins: origins.map((o) => ({ lat: o.lat, lng: o.lng })),
+          destinations: [{ lat: destinationLat, lng: destinationLng }],
+          key: this.geocodeApiKey,
+          departure_time: Date.now(),
+          traffic_model: TrafficModel.best_guess,
+        },
+      });
+
+      const status = response.data.status;
+      if (status !== 'OK') {
+        const errorMsg = response.data.error_message || status;
+        throw new Error(`Google Distance Matrix API error: ${errorMsg}`);
+      }
+
+      return response.data.rows.map((row): CoordinateDistanceResultDto => {
+        const element = row.elements?.[0];
+        if (!element || element.status !== 'OK') {
+          return { status: element?.status || 'UNKNOWN', distance: null, travel_time: null };
+        }
+
+        const result: CoordinateDistanceResultDto = {
+          status: element.status,
+          distance: {
+            raw_value: element.distance.value,
+            formatted: element.distance.text,
+          },
+          travel_time: {
+            raw_value: element.duration.value,
+            formatted: element.duration.text,
+          },
+        };
+
+        if (element.duration_in_traffic) {
+          result.traffic_aware_duration = {
+            raw_value: element.duration_in_traffic.value,
+            formatted: element.duration_in_traffic.text,
+          };
+        }
+
+        return result;
+      });
+    } catch (error) {
+      const errorMsg = error.response?.data?.error_message || error.message || 'Failed to calculate coordinate-based distances';
+      this.logger.error(`Error in getDistanceMatrixByCoordinatesAsync: ${errorMsg}`);
       throw new InternalServerErrorException(errorMsg);
     }
   }

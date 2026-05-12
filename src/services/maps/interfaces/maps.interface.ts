@@ -1,6 +1,7 @@
 import { AddressPredictionDto } from '../types/address-prediction.dto';
 import { LocationResponseDto } from 'src/modules/location/dto/location-response.dto';
 import { DistanceMatrixResultDto } from '../types/distance-matrix-result.dto';
+import { CoordinateDistanceResultDto } from 'src/services/maps/types/coordinate-distance-result.dto';
 
 /**
  * Interface defining the contract for all Maps service providers.
@@ -61,4 +62,19 @@ export interface IMapsService {
     originPlaceId: string,
     destinationPlaceId: string,
   ): Promise<DistanceMatrixResultDto>;
+
+  /**
+   * Calculates real road travel time from a set of lat/lng origins to a single lat/lng destination.
+   * Used to measure ETA from stored driver locations (which have no place_id) to the breakdown point.
+   *
+   * @param origins - Array of { lat, lng } coordinate pairs (driver locations)
+   * @param destinationLat - Destination latitude (breakdown location)
+   * @param destinationLng - Destination longitude
+   * @returns Array of CoordinateDistanceResultDto, one per origin, in the same order
+   */
+  getDistanceMatrixByCoordinatesAsync(
+    origins: { lat: number; lng: number }[],
+    destinationLat: number,
+    destinationLng: number,
+  ): Promise<CoordinateDistanceResultDto[]>;
 }

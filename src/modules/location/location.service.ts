@@ -6,18 +6,24 @@ import { AutocompleteAddressDto } from './dto/autocomplete-address.dto';
 import { ResolveAddressDto } from './dto/resolve-address.dto';
 import { LocationResponseDto } from './dto/location-response.dto';
 import { OrderEstimateBodyDto } from './dto/order-estimate-body.dto';
-import { OrderEstimateResponseDto, PricedSubServiceDto } from './dto/order-estimate-response.dto';
+import {
+  OrderEstimateResponseDto,
+  PricedSubServiceDto,
+  ServiceArrivalEstimateDto,
+} from './dto/order-estimate-response.dto';
+import { sub_service } from '@prisma/client';
+import { DispatchService } from '../dispatch/dispatch.service';
 
 @Injectable()
 export class LocationService {
   constructor(
     private readonly mapsService: MapsService,
-    private readonly _prisma: PrismaService,
-  ) { }
+    private readonly prisma: PrismaService,
+    private readonly dispatchService: DispatchService,
+  ) {}
 
   /**
    * Step 1: Returns a list of address predictions for the user to choose from.
-   * Lightweight — no full address parsing, just prediction text and place_id.
    */
   async searchPredictionsAsync(dto: AutocompleteAddressDto): Promise<AddressPredictionDto[]> {
     return await this.mapsService.searchPredictionsAsync(dto.input);
@@ -25,45 +31,114 @@ export class LocationService {
 
   /**
    * Step 2: Resolves the user's selected place_id into a full formatted address object.
-   * The returned object matches the DB schema and can be directly passed to the order API.
    */
   async resolveAddressAsync(dto: ResolveAddressDto): Promise<LocationResponseDto> {
     return await this.mapsService.resolveAddressByPlaceIdAsync(dto.place_id);
   }
 
   /**
-   * Order estimate: resolves both place_ids, calculates real road distance via Google
-   * Distance Matrix API, then returns ALL active sub_services with their pricing
-   * calculated for this specific journey.
-   *
-   * @remarks
-   * Pricing formula per sub-service:
-   *   extraKm       = max(0, actual_km - fix_distance)
-   *   extra_charge  = extraKm × extra_price
-   *   total_price   = fix_price + extra_charge
-   *
-   * Both place_ids are resolved in parallel to minimize latency.
-   * All sub_services (across all services) are returned — not limited to a specific service.
+   * Main entry point for getting an order estimate.
+   * Broken down into discrete steps for clarity and maintainability.
    */
   async getOrderEstimateAsync(dto: OrderEstimateBodyDto): Promise<OrderEstimateResponseDto> {
-    // 1. Resolve both locations + fetch distance matrix — all in parallel
-    const [breakdownLocation, dropoffLocation, distanceResult] = await Promise.all([
+    // Step 1: Resolve geographic coordinates and breakdown-to-dropoff distance
+    const { breakdownLocation, dropoffLocation, travelMetrics } =
+      await this.resolveRouteMetricsAsync(dto);
+
+    // Step 2: Fetch all sub-services available for pricing
+    const subServices = await this.getActiveSubServicesAsync();
+
+    // Step 3: Get arrival time estimates for the nearest providers per service
+    const serviceArrivalEstimates = await this.calculateServiceArrivalEstimatesAsync(
+      subServices,
+      breakdownLocation.latitude,
+      breakdownLocation.longitude,
+    );
+
+    // Step 4: Combine metrics, pricing, and arrival estimates into the final result
+    const pricedSubServices = this.mapToPricedSubServices(
+      subServices,
+      travelMetrics.distance.raw_value,
+      serviceArrivalEstimates,
+    );
+
+    return {
+      breakdown_location: breakdownLocation,
+      dropoff_location: dropoffLocation,
+      distance: travelMetrics.distance,
+      travel_time: travelMetrics.travel_time,
+      traffic_aware_duration: travelMetrics.traffic_aware_duration,
+      sub_services: pricedSubServices,
+    };
+  }
+
+  /**
+   * Step 1 Logic: Resolves breakdown/dropoff place_ids and gets road distance matrix.
+   */
+  private async resolveRouteMetricsAsync(dto: OrderEstimateBodyDto) {
+    const [breakdownLocation, dropoffLocation, travelMetrics] = await Promise.all([
       this.mapsService.resolveAddressByPlaceIdAsync(dto.breakdown_place_id),
       this.mapsService.resolveAddressByPlaceIdAsync(dto.dropoff_place_id),
       this.mapsService.getDistanceMatrixAsync(dto.breakdown_place_id, dto.dropoff_place_id),
     ]);
 
-    // 2. Fetch ALL active sub_services (no service filter — covers all services)
-    const subServices = await this._prisma.sub_service.findMany({
+    return { breakdownLocation, dropoffLocation, travelMetrics };
+  }
+
+  /**
+   * Step 2 Logic: Retrieves all active sub-services from the database.
+   */
+  private async getActiveSubServicesAsync(): Promise<sub_service[]> {
+    return this.prisma.sub_service.findMany({
       where: { is_active: true },
-      orderBy: [{ service_id: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  /**
+   * Step 3 Logic: Batch calculates the arrival estimate from the nearest provider for every unique service.
+   */
+  private async calculateServiceArrivalEstimatesAsync(
+    subServices: sub_service[],
+    breakdownLat: number,
+    breakdownLng: number,
+  ): Promise<Map<number, ServiceArrivalEstimateDto | null>> {
+    const serviceIds = [...new Set(subServices.map((ss) => ss.service_id))];
+    const availableDriversByService = await this.dispatchService.getAvailableDriversByServiceIds(serviceIds);
+
+    const arrivalEstimates = new Map<number, ServiceArrivalEstimateDto | null>();
+
+    // Execute proximity calculations for all services in parallel
+    const estimateResults = await Promise.all(
+      serviceIds.map(async (serviceId) => {
+        const drivers = availableDriversByService.get(serviceId) ?? [];
+        const estimate = await this.dispatchService.calculateArrivalEstimateForDrivers(
+          drivers,
+          breakdownLat,
+          breakdownLng,
+        );
+        return { serviceId, estimate };
+      }),
+    );
+
+    // Populate the map with results
+    estimateResults.forEach(({ serviceId, estimate }) => {
+      arrivalEstimates.set(serviceId, estimate);
     });
 
-    // 3. Actual road distance in km (raw_value is in metres)
-    const actualKm = distanceResult.distance.raw_value / 1000;
+    return arrivalEstimates;
+  }
 
-    // 4. Calculate pricing for each sub-service
-    const pricedSubServices: PricedSubServiceDto[] = subServices.map((ss) => {
+  /**
+   * Step 4 Logic: Calculates pricing for each sub-service and links the arrival estimates.
+   */
+  private mapToPricedSubServices(
+    subServices: sub_service[],
+    actualDistanceMetres: number,
+    arrivalEstimates: Map<number, ServiceArrivalEstimateDto | null>,
+  ): PricedSubServiceDto[] {
+    const actualKm = actualDistanceMetres / 1000;
+
+    return subServices.map((ss) => {
       const extraKm = Math.max(0, actualKm - ss.fix_distance);
       const extraCharge = parseFloat((extraKm * ss.extra_price).toFixed(2));
       const totalPrice = parseFloat((ss.fix_price + extraCharge).toFixed(2));
@@ -74,29 +149,23 @@ export class LocationService {
         ton: ss.ton,
         fix_distance: ss.fix_distance,
 
-        // Formatted strings (human-readable)
+        // Human-readable formatted values
         fix_price_formatted: `₹${ss.fix_price}`,
         extra_price_per_km_formatted: `₹${ss.extra_price}/km`,
         calculated_distance_formatted: `${actualKm.toFixed(2)} km`,
         extra_charge_formatted: `₹${extraCharge}`,
         total_price_formatted: `₹${totalPrice}`,
 
-        // Raw numeric values (for programmatic use)
+        // Raw numeric values
         fix_price: ss.fix_price,
         extra_price_per_km: ss.extra_price,
         calculated_distance_km: parseFloat(actualKm.toFixed(2)),
         extra_charge: extraCharge,
         total_price: totalPrice,
+
+        // Arrival estimate (time/distance from nearest provider)
+        arrival_estimate: arrivalEstimates.get(ss.service_id) ?? null,
       };
     });
-
-    return {
-      breakdown_location: breakdownLocation,
-      dropoff_location: dropoffLocation,
-      distance: distanceResult.distance,
-      travel_time: distanceResult.travel_time,
-      traffic_aware_duration: distanceResult.traffic_aware_duration,
-      sub_services: pricedSubServices,
-    };
   }
 }

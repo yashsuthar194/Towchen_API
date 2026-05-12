@@ -13,6 +13,12 @@ export class CustomerAddressResponseDto {
   @ApiProperty({ description: 'Is this the default address?', example: false })
   is_default: boolean;
 
+  @ApiPropertyOptional({
+    description: 'The original Google Maps place_id used to resolve this address',
+    example: 'ChIJN1t_tDeuEmsRUsoyG83frY4',
+  })
+  place_id?: string;
+
   @ApiPropertyOptional({ description: 'Full address string', example: '123 Main St, Anytown, USA' })
   address?: string;
 

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, ParseIntPipe, UseGuards, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CustomerAddressService } from './customer-address.service';
 import { CreateCustomerAddressDto } from './dto/create-customer-address.dto';
@@ -39,7 +39,7 @@ export class CustomerAddressController {
     return ResponseDto.retrieved('Addresses retrieved successfully', result);
   }
 
-  @Patch(':id')
+  @Put(':id')
   @ApiOperation({ summary: 'Update a saved address' })
   @ApiBody({ type: UpdateCustomerAddressDto })
   @ApiResponseDto(CustomerAddressResponseDto)

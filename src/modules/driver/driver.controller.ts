@@ -8,11 +8,9 @@ import {
   Delete,
   ParseIntPipe,
   UseInterceptors,
-  UploadedFiles,
   UploadedFile,
   UseGuards,
   BadRequestException,
-  Patch,
   Query,
 } from '@nestjs/common';
 import { DriverService } from './driver.service';
