@@ -256,4 +256,42 @@ export class CustomerService {
 
         return vehicle;
     }
+
+    /**
+     * Updates customer profile information
+     * @param id Customer ID
+     * @param dto Update data
+     */
+    async updateAsync(id: number, dto: any) {
+        // Ensure customer exists
+        await this.getByIdAsync(id);
+
+        // Check for duplicates if email or number is being updated
+        if (dto.email || dto.number) {
+            const existing = await this.prisma.customer.findFirst({
+                where: {
+                    id: { not: id },
+                    OR: [
+                        dto.email ? { email: dto.email } : {},
+                        dto.number ? { number: dto.number } : {},
+                    ].filter(q => Object.keys(q).length > 0)
+                }
+            });
+
+            if (existing) {
+                if (existing.email === dto.email) throw new BadRequestException('Email already in use');
+                if (existing.number === dto.number) throw new BadRequestException('Mobile number already in use');
+            }
+        }
+
+        return await this.prisma.customer.update({
+            where: { id },
+            data: dto,
+            include: {
+                customer_vehicles: {
+                    where: { is_deleted: false }
+                }
+            }
+        });
+    }
 }

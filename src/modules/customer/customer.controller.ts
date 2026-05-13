@@ -3,6 +3,8 @@ import { CustomerService } from './customer.service';
 import { RegisterCustomerDto, RegisterCustomerVehicleDto } from './dto/register-customer.dto';
 import { UpdateCustomerVehicleDto } from './dto/update-customer-vehicle.dto';
 import { RegisterCustomerResponseDto } from './dto/register-customer-response.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { CustomerDetailDto } from './dto/customer-detail.dto';
 import { ApiTags, ApiOperation, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { ApiResponseDto, ApiResponseDtoNull } from 'src/core/response/decorators/api-response-dto.decorator';
@@ -98,5 +100,30 @@ export class CustomerController {
         const customerId = this.callerService.getUserId();
         const result = await this.customerService.getVehicleByIdAsync(customerId, vehicleId);
         return ResponseDto.retrieved('Vehicle details retrieved successfully', result);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Get('me')
+    @ApiOperation({ summary: 'Get current customer profile' })
+    @ApiResponseDto(CustomerDetailDto)
+    async getProfile() {
+        const customerId = this.callerService.getUserId();
+        const result = await this.customerService.getByIdAsync(customerId);
+        return ResponseDto.retrieved('Customer profile retrieved successfully', result);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth('JWT-auth')
+    @Put('me/info')
+    @ApiOperation({ summary: 'Update current customer profile info' })
+    @ApiBody({ type: UpdateCustomerDto })
+    @ApiResponseDto(CustomerDetailDto)
+    async updateProfileInfo(
+        @Body() dto: UpdateCustomerDto
+    ) {
+        const customerId = this.callerService.getUserId();
+        const result = await this.customerService.updateAsync(customerId, dto);
+        return ResponseDto.updated('Customer profile updated successfully', result);
     }
 }
