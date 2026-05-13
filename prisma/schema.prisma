@@ -227,6 +227,8 @@ model customer_address {
   landmark    String?
   description String?
   place_id    String
+  name        String   @default("")
+  number      String   @default("")
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 

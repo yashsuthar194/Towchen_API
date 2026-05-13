@@ -21,4 +21,14 @@ export class CreateCustomerAddressDto {
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiProperty({ description: 'Contact name for this address', example: 'John Doe' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({ description: 'Contact number for this address', example: '9876543210' })
+  @IsString()
+  @IsNotEmpty()
+  number: string;
 }

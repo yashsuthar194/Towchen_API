@@ -62,6 +62,8 @@ export class CustomerAddressService {
         longitude: resolvedAddress.longitude,
         landmark: resolvedAddress.landmark,
         place_id: dto.place_id,
+        name: dto.name,
+        number: dto.number,
       },
     });
 
@@ -78,6 +80,25 @@ export class CustomerAddressService {
     });
 
     return addresses as CustomerAddressResponseDto[];
+  }
+
+  /**
+   * Retrieves a specific saved address by its ID.
+   */
+  async getByIdAsync(customerId: number, id: number): Promise<CustomerAddressResponseDto> {
+    const address = await this.prisma.customer_address.findUnique({
+      where: { id },
+    });
+
+    if (!address) {
+      throw new NotFoundException(`Address with ID ${id} not found`);
+    }
+
+    if (address.customer_id !== customerId) {
+      throw new ForbiddenException('You do not have permission to access this address');
+    }
+
+    return address as CustomerAddressResponseDto;
   }
 
   /**
@@ -108,6 +129,8 @@ export class CustomerAddressService {
         label: dto.label,
         is_default: dto.is_default,
         description: dto.description,
+        name: dto.name,
+        number: dto.number,
       },
     });
 

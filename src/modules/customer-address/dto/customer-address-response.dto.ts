@@ -52,6 +52,12 @@ export class CustomerAddressResponseDto {
   @ApiPropertyOptional({ description: 'Additional description', example: 'Ring the bell twice' })
   description?: string;
 
+  @ApiProperty({ description: 'Contact name for this address', example: 'John Doe' })
+  name: string;
+
+  @ApiProperty({ description: 'Contact number for this address', example: '9876543210' })
+  number: string;
+
   @ApiProperty({ description: 'Creation date' })
   created_at: Date;
 

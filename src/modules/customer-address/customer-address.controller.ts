@@ -39,6 +39,15 @@ export class CustomerAddressController {
     return ResponseDto.retrieved('Addresses retrieved successfully', result);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get details of a specific saved address' })
+  @ApiResponseDto(CustomerAddressResponseDto)
+  async getById(@Param('id', ParseIntPipe) id: number) {
+    const customerId = this.callerService.getUserId();
+    const result = await this.addressService.getByIdAsync(customerId, id);
+    return ResponseDto.retrieved('Address details retrieved successfully', result);
+  }
+
   @Put(':id')
   @ApiOperation({ summary: 'Update a saved address' })
   @ApiBody({ type: UpdateCustomerAddressDto })
