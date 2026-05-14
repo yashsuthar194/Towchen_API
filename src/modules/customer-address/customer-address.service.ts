@@ -76,7 +76,7 @@ export class CustomerAddressService {
   async getByCustomerIdAsync(customerId: number): Promise<CustomerAddressResponseDto[]> {
     const addresses = await this.prisma.customer_address.findMany({
       where: { customer_id: customerId },
-      orderBy: { created_at: 'desc' },
+      orderBy: { id: 'asc' },
     });
 
     return addresses as CustomerAddressResponseDto[];

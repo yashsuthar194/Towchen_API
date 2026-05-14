@@ -91,6 +91,7 @@ export class LocationService {
   private async getActiveSubServicesAsync(): Promise<sub_service[]> {
     return this.prisma.sub_service.findMany({
       where: { is_active: true },
+      orderBy: { id: 'asc' },
     });
   }
 

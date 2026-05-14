@@ -137,6 +137,7 @@ export class CustomerService {
                     customer_id: customerId,
                     is_deleted: false,
                 },
+                orderBy: { id: 'asc' },
             });
 
             return vehicles;
