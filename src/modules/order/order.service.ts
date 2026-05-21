@@ -6,6 +6,7 @@ import { OrderDetailDto } from './dto/order-detail.dto';
 import { OrderStatus, LocationCategory, LocationType, OrderOtpType } from '@prisma/client';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { MapsService } from 'src/services/maps/maps.service';
+import { LocationResponseDto } from '../location/dto/location-response.dto';
 
 @Injectable()
 export class OrderService {
@@ -167,11 +168,29 @@ export class OrderService {
         throw new BadRequestException('sub_service_id cannot be empty');
       }
 
-      // Resolve both place_ids in parallel — gets full address including lat/lng
-      const [breakdownAddress, dropAddress] = await Promise.all([
-        this._mapsService.resolveAddressByPlaceIdAsync(dto.breakdown_location.place_id),
-        this._mapsService.resolveAddressByPlaceIdAsync(dto.drop_location.place_id),
-      ]);
+      // Query sub_service to check journey_type
+      const subService = await this._prisma.sub_service.findUnique({
+        where: { id: dto.sub_service_id },
+      });
+
+      if (!subService) {
+        throw new NotFoundException(`Sub-service with ID ${dto.sub_service_id} not found`);
+      }
+
+      const isFourWay = subService.journey_type === 'FourWay';
+
+      if (isFourWay && !dto.drop_location) {
+        throw new BadRequestException('drop_location is required for FourWay journey sub-services');
+      }
+
+      // Resolve breakdown location
+      const breakdownAddress = await this._mapsService.resolveAddressByPlaceIdAsync(dto.breakdown_location.place_id);
+
+      // Resolve drop location only if FourWay and provided
+      let dropAddress: LocationResponseDto | null = null;
+      if (isFourWay && dto.drop_location) {
+        dropAddress = await this._mapsService.resolveAddressByPlaceIdAsync(dto.drop_location.place_id);
+      }
 
       return await this._prisma.$transaction(async (tx) => {
         // 1. Create Breakdown Location from resolved address
@@ -192,23 +211,26 @@ export class OrderService {
           },
         });
 
-        // 2. Create Drop Location from resolved address
-        const dropLocation = await tx.location.create({
-          data: {
-            address: dropAddress.address,
-            street: dropAddress.street,
-            area: dropAddress.area,
-            city: dropAddress.city,
-            state: dropAddress.state,
-            pincode: dropAddress.pincode,
-            country: dropAddress.country,
-            latitude: dropAddress.latitude,
-            longitude: dropAddress.longitude,
-            landmark: dropAddress.landmark,
-            place_id: dto.drop_location.place_id,
-            category: LocationCategory.Order,
-          },
-        });
+        // 2. Create Drop Location from resolved address if FourWay
+        let dropLocation: { id: number } | null = null;
+        if (isFourWay && dropAddress && dto.drop_location) {
+          dropLocation = await tx.location.create({
+            data: {
+              address: dropAddress.address,
+              street: dropAddress.street,
+              area: dropAddress.area,
+              city: dropAddress.city,
+              state: dropAddress.state,
+              pincode: dropAddress.pincode,
+              country: dropAddress.country,
+              latitude: dropAddress.latitude,
+              longitude: dropAddress.longitude,
+              landmark: dropAddress.landmark,
+              place_id: dto.drop_location.place_id,
+              category: LocationCategory.Order,
+            },
+          });
+        }
 
         // 3. Create Order
         const order = await tx.order.create({
@@ -224,24 +246,35 @@ export class OrderService {
           },
         });
 
-        // 4. Link Locations to Order
+        // 4. Link Locations to Order dynamically
+        const orderLocationsToCreate: {
+          order_id: number;
+          location_id: number;
+          type: LocationType;
+          contact_name?: string;
+          contact_number?: string;
+        }[] = [
+          {
+            order_id: order.id,
+            location_id: breakdownLocation.id,
+            type: LocationType.Breakdown,
+            contact_name: dto.breakdown_contact_name,
+            contact_number: dto.breakdown_contact_number,
+          },
+        ];
+
+        if (isFourWay && dropLocation) {
+          orderLocationsToCreate.push({
+            order_id: order.id,
+            location_id: dropLocation.id,
+            type: LocationType.Drop,
+            contact_name: dto.drop_contact_name,
+            contact_number: dto.drop_contact_number,
+          });
+        }
+
         await tx.order_location.createMany({
-          data: [
-            {
-              order_id: order.id,
-              location_id: breakdownLocation.id,
-              type: LocationType.Breakdown,
-              contact_name: dto.breakdown_contact_name,
-              contact_number: dto.breakdown_contact_number,
-            },
-            {
-              order_id: order.id,
-              location_id: dropLocation.id,
-              type: LocationType.Drop,
-              contact_name: dto.drop_contact_name,
-              contact_number: dto.drop_contact_number,
-            },
-          ],
+          data: orderLocationsToCreate,
         });
 
         return await tx.order.findUnique({
@@ -255,6 +288,9 @@ export class OrderService {
       });
     } catch (error) {
       console.error('Error creating order:', error);
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
       throw new InternalServerErrorException('Failed to create order. Please try again.');
     }
   }

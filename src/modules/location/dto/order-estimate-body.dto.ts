@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 /**
  * Request body for the order estimate endpoint.
@@ -19,13 +19,13 @@ export class OrderEstimateBodyDto {
   @IsString()
   breakdown_place_id: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
       'Google Maps place_id for the drop-off (destination) location. ' +
-      'Obtain from GET /location/search-address.',
+      'Obtain from GET /location/search-address. Optional for ThreeWay journeys.',
     example: 'ChIJLU7jZClu5kcR4PcOOO6p5I0',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  dropoff_place_id: string;
+  dropoff_place_id?: string;
 }

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { JourneyType } from '@prisma/client';
 
 export class SubServiceDto {
   @ApiProperty()
@@ -33,6 +34,15 @@ export class SubServiceDto {
 
   @ApiProperty()
   ton: number;
+
+  @ApiProperty({ required: false, nullable: true })
+  image_url?: string | null;
+
+  @ApiProperty({ enum: JourneyType })
+  journey_type: JourneyType;
+
+  @ApiProperty({ type: [String] })
+  conditions: string[];
 }
 
 export class ServiceDto {

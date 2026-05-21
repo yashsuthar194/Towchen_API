@@ -28,14 +28,14 @@ export class CreateOrderDto {
   @Type(() => OrderLocationInputDto)
   breakdown_location: OrderLocationInputDto;
 
-  @ApiProperty({
-    description: 'Drop location — send the place_id from address search predictions',
+  @ApiPropertyOptional({
+    description: 'Drop location — send the place_id from address search predictions. Required only for FourWay journey sub-services.',
     type: OrderLocationInputDto,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @ValidateNested()
   @Type(() => OrderLocationInputDto)
-  drop_location: OrderLocationInputDto;
+  drop_location?: OrderLocationInputDto;
 
   @ApiPropertyOptional({ description: 'Breakdown Contact Name' })
   @IsOptional()

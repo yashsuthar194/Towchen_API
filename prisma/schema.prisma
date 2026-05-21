@@ -372,6 +372,10 @@ model sub_service {
   extra_price  Float @default(0)
   ton          Float @default(0)
 
+  image_url    String?
+  journey_type JourneyType @default(FourWay)
+  conditions   String[]
+
   service service @relation(fields: [service_id], references: [id])
   orders  order[]
 
@@ -379,6 +383,11 @@ model sub_service {
 }
 
 //#region enums
+enum JourneyType {
+  FourWay
+  ThreeWay
+}
+
 enum HttpMethod {
   GET
   POST

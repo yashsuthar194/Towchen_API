@@ -76,11 +76,22 @@ export class LocationService {
    * Step 1 Logic: Resolves breakdown/dropoff place_ids and gets road distance matrix.
    */
   private async resolveRouteMetricsAsync(dto: OrderEstimateBodyDto) {
-    const [breakdownLocation, dropoffLocation, travelMetrics] = await Promise.all([
-      this.mapsService.resolveAddressByPlaceIdAsync(dto.breakdown_place_id),
-      this.mapsService.resolveAddressByPlaceIdAsync(dto.dropoff_place_id),
-      this.mapsService.getDistanceMatrixAsync(dto.breakdown_place_id, dto.dropoff_place_id),
-    ]);
+    const breakdownLocation = await this.mapsService.resolveAddressByPlaceIdAsync(dto.breakdown_place_id);
+    let dropoffLocation: LocationResponseDto | null = null;
+    let travelMetrics: any = {
+      distance: { text: '0 km', raw_value: 0 },
+      travel_time: { text: '0 mins', raw_value: 0 },
+      traffic_aware_duration: { text: '0 mins', raw_value: 0 },
+    };
+
+    if (dto.dropoff_place_id) {
+      const [dropLoc, metrics] = await Promise.all([
+        this.mapsService.resolveAddressByPlaceIdAsync(dto.dropoff_place_id),
+        this.mapsService.getDistanceMatrixAsync(dto.breakdown_place_id, dto.dropoff_place_id),
+      ]);
+      dropoffLocation = dropLoc;
+      travelMetrics = metrics;
+    }
 
     return { breakdownLocation, dropoffLocation, travelMetrics };
   }
@@ -137,10 +148,12 @@ export class LocationService {
     actualDistanceMetres: number,
     arrivalEstimates: Map<number, ServiceArrivalEstimateDto | null>,
   ): PricedSubServiceDto[] {
-    const actualKm = actualDistanceMetres / 1000;
-
     return subServices.map((ss) => {
-      const extraKm = Math.max(0, actualKm - ss.fix_distance);
+      const isThreeWay = ss.journey_type === 'ThreeWay';
+      const distanceMetres = isThreeWay ? 0 : actualDistanceMetres;
+      const km = distanceMetres / 1000;
+
+      const extraKm = Math.max(0, km - ss.fix_distance);
       const extraCharge = parseFloat((extraKm * ss.extra_price).toFixed(2));
       const totalPrice = parseFloat((ss.fix_price + extraCharge).toFixed(2));
 
@@ -153,19 +166,24 @@ export class LocationService {
         // Human-readable formatted values
         fix_price_formatted: `₹${ss.fix_price}`,
         extra_price_per_km_formatted: `₹${ss.extra_price}/km`,
-        calculated_distance_formatted: `${actualKm.toFixed(2)} km`,
+        calculated_distance_formatted: `${km.toFixed(2)} km`,
         extra_charge_formatted: `₹${extraCharge}`,
         total_price_formatted: `₹${totalPrice}`,
 
         // Raw numeric values
         fix_price: ss.fix_price,
         extra_price_per_km: ss.extra_price,
-        calculated_distance_km: parseFloat(actualKm.toFixed(2)),
+        calculated_distance_km: parseFloat(km.toFixed(2)),
         extra_charge: extraCharge,
         total_price: totalPrice,
 
         // Arrival estimate (time/distance from nearest provider)
         arrival_estimate: arrivalEstimates.get(ss.service_id) ?? null,
+
+        // New fields mapped to DTO output
+        image_url: ss.image_url,
+        journey_type: ss.journey_type,
+        conditions: ss.conditions,
       };
     });
   }

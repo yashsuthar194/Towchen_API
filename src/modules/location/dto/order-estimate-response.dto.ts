@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LocationResponseDto } from './location-response.dto';
 import { DistanceMatrixLegDto } from 'src/services/maps/types/distance-matrix-result.dto';
+import { JourneyType } from '@prisma/client';
 
 /**
  * ETA details for the nearest available service location to the breakdown point.
@@ -104,6 +105,15 @@ export class PricedSubServiceDto {
     type: ServiceArrivalEstimateDto,
   })
   arrival_estimate?: ServiceArrivalEstimateDto | null;
+
+  @ApiPropertyOptional({ required: false, nullable: true })
+  image_url?: string | null;
+
+  @ApiProperty({ enum: JourneyType })
+  journey_type: JourneyType;
+
+  @ApiProperty({ type: [String] })
+  conditions: string[];
 }
 
 /**
@@ -120,31 +130,35 @@ export class OrderEstimateResponseDto {
   })
   breakdown_location: LocationResponseDto;
 
-  @ApiProperty({
-    description: 'Fully resolved drop-off (destination) location',
+  @ApiPropertyOptional({
+    description: 'Fully resolved drop-off (destination) location. Null for ThreeWay journeys.',
     type: LocationResponseDto,
+    nullable: true,
   })
-  dropoff_location: LocationResponseDto;
+  dropoff_location?: LocationResponseDto | null;
 
-  @ApiProperty({
-    description: 'Real road distance between the two locations',
+  @ApiPropertyOptional({
+    description: 'Real road distance between the two locations. Null for ThreeWay journeys.',
     type: DistanceMatrixLegDto,
+    nullable: true,
   })
-  distance: DistanceMatrixLegDto;
+  distance?: DistanceMatrixLegDto | null;
 
-  @ApiProperty({
-    description: 'Estimated travel time without real-time traffic',
+  @ApiPropertyOptional({
+    description: 'Estimated travel time without real-time traffic. Null for ThreeWay journeys.',
     type: DistanceMatrixLegDto,
+    nullable: true,
   })
-  travel_time: DistanceMatrixLegDto;
+  travel_time?: DistanceMatrixLegDto | null;
 
   @ApiPropertyOptional({
     description:
       'Traffic-aware travel time. Only populated when the Google Maps key ' +
-      'supports the Distance Matrix Advanced feature.',
+      'supports the Distance Matrix Advanced feature. Null for ThreeWay journeys.',
     type: DistanceMatrixLegDto,
+    nullable: true,
   })
-  traffic_aware_duration?: DistanceMatrixLegDto;
+  traffic_aware_duration?: DistanceMatrixLegDto | null;
 
   @ApiProperty({
     description: 'All active sub-services with pricing calculated for this journey',
