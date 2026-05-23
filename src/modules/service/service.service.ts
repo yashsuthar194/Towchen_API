@@ -28,7 +28,7 @@ export class ServiceService {
         name: true,
         description: true,
       },
-      orderBy: { name: 'asc' },
+      orderBy: { id: 'asc' },
     });
 
     return services;
@@ -241,10 +241,26 @@ export class ServiceService {
 
     const subServices = await this._prisma.sub_service.findMany({
       where: { service_id: serviceId, is_active: true },
-      orderBy: { name: 'asc' },
+      orderBy: { id: 'asc' },
     });
 
     return subServices as unknown as SubServiceDto[];
+  }
+
+  /**
+   * Fetches the conditions list for a specific sub-service by ID.
+   */
+  async findConditionsBySubServiceIdAsync(subServiceId: number): Promise<string[]> {
+    const subService = await this._prisma.sub_service.findUnique({
+      where: { id: subServiceId },
+      select: { conditions: true },
+    });
+
+    if (!subService) {
+      throw new NotFoundException(`Sub-service with ID ${subServiceId} not found`);
+    }
+
+    return subService.conditions ?? [];
   }
 
   // #endregion
