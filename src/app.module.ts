@@ -18,6 +18,7 @@ import { ServiceModule } from './modules/service/service.module';
 import { LocationModule } from './modules/location/location.module';
 import { CustomerAddressModule } from './modules/customer-address/customer-address.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
+import { SubServiceConditionModule } from './modules/sub-service-condition/sub-service-condition.module';
 
 @Module({
   imports: [
@@ -38,7 +39,8 @@ import { DispatchModule } from './modules/dispatch/dispatch.module';
     LocationModule,
     CustomerAddressModule,
     DispatchModule,
-  ],
+    SubServiceConditionModule,
+],
   controllers: [AppController],
   providers: [AppService],
 })

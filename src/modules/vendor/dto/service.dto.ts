@@ -1,6 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { JourneyType } from '@prisma/client';
 
+export class SubServiceConditionDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  sub_service_id: number;
+
+  @ApiProperty()
+  condition: string;
+
+  @ApiProperty()
+  created_at: Date;
+
+  @ApiProperty()
+  updated_at: Date;
+}
+
 export class SubServiceDto {
   @ApiProperty()
   id: number;
@@ -41,8 +58,8 @@ export class SubServiceDto {
   @ApiProperty({ enum: JourneyType })
   journey_type: JourneyType;
 
-  @ApiProperty({ type: [String] })
-  conditions: string[];
+  @ApiProperty({ type: [SubServiceConditionDto], required: false })
+  conditions?: SubServiceConditionDto[];
 }
 
 export class ServiceDto {

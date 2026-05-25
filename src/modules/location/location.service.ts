@@ -99,9 +99,12 @@ export class LocationService {
   /**
    * Step 2 Logic: Retrieves all active sub-services from the database.
    */
-  private async getActiveSubServicesAsync(): Promise<sub_service[]> {
+  private async getActiveSubServicesAsync(): Promise<any[]> {
     return this.prisma.sub_service.findMany({
       where: { is_active: true },
+      include: {
+        conditions: true,
+      },
       orderBy: { id: 'asc' },
     });
   }
@@ -110,7 +113,7 @@ export class LocationService {
    * Step 3 Logic: Batch calculates the arrival estimate from the nearest provider for every unique service.
    */
   private async calculateServiceArrivalEstimatesAsync(
-    subServices: sub_service[],
+    subServices: any[],
     breakdownLat: number,
     breakdownLng: number,
   ): Promise<Map<number, ServiceArrivalEstimateDto | null>> {
@@ -144,7 +147,7 @@ export class LocationService {
    * Step 4 Logic: Calculates pricing for each sub-service and links the arrival estimates.
    */
   private mapToPricedSubServices(
-    subServices: sub_service[],
+    subServices: any[],
     actualDistanceMetres: number,
     arrivalEstimates: Map<number, ServiceArrivalEstimateDto | null>,
   ): PricedSubServiceDto[] {
@@ -156,6 +159,12 @@ export class LocationService {
       const extraKm = Math.max(0, km - ss.fix_distance);
       const extraCharge = parseFloat((extraKm * ss.extra_price).toFixed(2));
       const totalPrice = parseFloat((ss.fix_price + extraCharge).toFixed(2));
+
+      // GST tax calculations
+      const cgst = parseFloat((totalPrice * 0.09).toFixed(2));
+      const sgst = parseFloat((totalPrice * 0.09).toFixed(2));
+      const otherTax = parseFloat((totalPrice * 0.00).toFixed(2));
+      const grandTotal = parseFloat((totalPrice + cgst + sgst + otherTax).toFixed(2));
 
       return {
         id: ss.id,
@@ -169,6 +178,10 @@ export class LocationService {
         calculated_distance_formatted: `${km.toFixed(2)} km`,
         extra_charge_formatted: `₹${extraCharge}`,
         total_price_formatted: `₹${totalPrice}`,
+        cgst_formatted: `₹${cgst.toFixed(2)}`,
+        sgst_formatted: `₹${sgst.toFixed(2)}`,
+        other_tax_formatted: `₹${otherTax.toFixed(2)}`,
+        grand_total_formatted: `₹${grandTotal.toFixed(2)}`,
 
         // Raw numeric values
         fix_price: ss.fix_price,
@@ -176,6 +189,13 @@ export class LocationService {
         calculated_distance_km: parseFloat(km.toFixed(2)),
         extra_charge: extraCharge,
         total_price: totalPrice,
+        cgst_rate: 9,
+        sgst_rate: 9,
+        other_tax_rate: 0,
+        cgst,
+        sgst,
+        other_tax: otherTax,
+        grand_total: grandTotal,
 
         // Arrival estimate (time/distance from nearest provider)
         arrival_estimate: arrivalEstimates.get(ss.service_id) ?? null,
@@ -183,7 +203,7 @@ export class LocationService {
         // New fields mapped to DTO output
         image_url: ss.image_url,
         journey_type: ss.journey_type,
-        conditions: ss.conditions,
+        conditions: ss.conditions || [],
       };
     });
   }

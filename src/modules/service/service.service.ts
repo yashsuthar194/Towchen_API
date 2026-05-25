@@ -40,7 +40,13 @@ export class ServiceService {
   async findOneAsync(id: number): Promise<ServiceDto> {
     const service = await this._prisma.service.findUnique({
       where: { id },
-      include: { sub_services: true },
+      include: {
+        sub_services: {
+          include: {
+            conditions: true,
+          },
+        },
+      },
     });
 
     if (!service) {
@@ -137,6 +143,9 @@ export class ServiceService {
         ...subServiceData,
         image_url: null,
       },
+      include: {
+        conditions: true,
+      },
     });
 
     if (file) {
@@ -152,6 +161,9 @@ export class ServiceService {
       const updated = await this._prisma.sub_service.update({
         where: { id: subService.id },
         data: { image_url: uploadResult.url },
+        include: {
+          conditions: true,
+        },
       });
 
       return updated as unknown as SubServiceDto;
@@ -210,6 +222,9 @@ export class ServiceService {
         ...subServiceData,
         ...(imageUrl && { image_url: imageUrl }),
       },
+      include: {
+        conditions: true,
+      },
     });
 
     return updated as unknown as SubServiceDto;
@@ -233,34 +248,18 @@ export class ServiceService {
     }
   }
 
-  /**
-   * Fetches all active sub-services for a specific service.
-   */
   async findSubServicesByServiceIdAsync(serviceId: number): Promise<SubServiceDto[]> {
     await this.findOneAsync(serviceId); // Verify service exists
 
     const subServices = await this._prisma.sub_service.findMany({
       where: { service_id: serviceId, is_active: true },
+      include: {
+        conditions: true,
+      },
       orderBy: { id: 'asc' },
     });
 
     return subServices as unknown as SubServiceDto[];
-  }
-
-  /**
-   * Fetches the conditions list for a specific sub-service by ID.
-   */
-  async findConditionsBySubServiceIdAsync(subServiceId: number): Promise<string[]> {
-    const subService = await this._prisma.sub_service.findUnique({
-      where: { id: subServiceId },
-      select: { conditions: true },
-    });
-
-    if (!subService) {
-      throw new NotFoundException(`Sub-service with ID ${subServiceId} not found`);
-    }
-
-    return subService.conditions ?? [];
   }
 
   // #endregion

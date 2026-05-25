@@ -374,12 +374,35 @@ model sub_service {
 
   image_url    String?
   journey_type JourneyType @default(FourWay)
-  conditions   String[]
 
   service service @relation(fields: [service_id], references: [id])
   orders  order[]
 
+  conditions sub_service_condtion[]
+
   @@unique([name, service_id])
+}
+
+model sub_service_condtion {
+  id             Int    @id @default(autoincrement())
+  sub_service_id Int
+  condition      String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  sub_service sub_service @relation(fields: [sub_service_id], references: [id])
+
+  @@index([sub_service_id])
+}
+
+model wallet {
+  id      Int   @id @default(autoincrement())
+  user_id Int
+  balance Float @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
 }
 
 //#region enums

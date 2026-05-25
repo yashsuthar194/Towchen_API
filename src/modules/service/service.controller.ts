@@ -104,30 +104,5 @@ export class ServiceController {
     return ResponseDto.deleted('Sub-service deleted successfully');
   }
 
-  @Get('sub-service/:id/conditions')
-  @ApiOperation({ summary: 'Get list of conditions for a specific sub-service by ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'Conditions retrieved successfully',
-    schema: {
-      type: 'object',
-      properties: {
-        is_success: { type: 'boolean', example: true },
-        status: { type: 'number', example: 200 },
-        status_message: { type: 'string', example: 'OK' },
-        message: { type: 'string', example: 'Conditions retrieved successfully' },
-        data: {
-          type: 'array',
-          items: { type: 'string' },
-          example: ['Condition A', 'Condition B'],
-        },
-      },
-    },
-  })
-  async getSubServiceConditions(@Param('id') id: number): Promise<ResponseDto<string[]>> {
-    const conditions = await this._serviceService.findConditionsBySubServiceIdAsync(id);
-    return ResponseDto.retrieved('Conditions retrieved successfully', conditions);
-  }
-
   // #endregion
 }

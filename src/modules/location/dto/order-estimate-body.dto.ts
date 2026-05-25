@@ -13,7 +13,7 @@ export class OrderEstimateBodyDto {
     description:
       'Google Maps place_id for the breakdown (pickup) location. ' +
       'Obtain from GET /location/search-address.',
-    example: 'ChIJN1t_tDeuEmsRUsoyG83frY4',
+    example: 'ChIJCWhtfJgrXDkRkQM-h6cGb_g',
   })
   @IsNotEmpty()
   @IsString()
@@ -23,7 +23,7 @@ export class OrderEstimateBodyDto {
     description:
       'Google Maps place_id for the drop-off (destination) location. ' +
       'Obtain from GET /location/search-address. Optional for ThreeWay journeys.',
-    example: 'ChIJLU7jZClu5kcR4PcOOO6p5I0',
+    example: 'ChIJQY5jK-m4XTkRwaZH0lU9jmg',
   })
   @IsOptional()
   @IsString()

@@ -45,22 +45,6 @@ export class CreateSubServiceDto {
   @IsEnum(JourneyType)
   journey_type?: JourneyType;
 
-  @ApiPropertyOptional({ type: [String], example: ['Condition 1', 'Condition 2'], required: false })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed;
-      } catch {}
-      return value.split(',').map((v) => v.trim()).filter(Boolean);
-    }
-    return value;
-  })
-  conditions?: string[];
-
   @ApiProperty({
     type: 'string',
     format: 'binary',

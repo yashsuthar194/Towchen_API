@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LocationResponseDto } from './location-response.dto';
 import { DistanceMatrixLegDto } from 'src/services/maps/types/distance-matrix-result.dto';
 import { JourneyType } from '@prisma/client';
+import { SubServiceConditionDto } from '../../vendor/dto/service.dto';
 
 /**
  * ETA details for the nearest available service location to the breakdown point.
@@ -112,8 +113,41 @@ export class PricedSubServiceDto {
   @ApiProperty({ enum: JourneyType })
   journey_type: JourneyType;
 
-  @ApiProperty({ type: [String] })
-  conditions: string[];
+  @ApiProperty({ description: 'CGST rate percentage', example: 9 })
+  cgst_rate: number;
+
+  @ApiProperty({ description: 'SGST rate percentage', example: 9 })
+  sgst_rate: number;
+
+  @ApiProperty({ description: 'Other tax rate percentage', example: 0 })
+  other_tax_rate: number;
+
+  @ApiProperty({ description: 'CGST amount', example: 56.7 })
+  cgst: number;
+
+  @ApiProperty({ description: 'SGST amount', example: 56.7 })
+  sgst: number;
+
+  @ApiProperty({ description: 'Other tax amount', example: 0 })
+  other_tax: number;
+
+  @ApiProperty({ description: 'Grand total including taxes', example: 743.4 })
+  grand_total: number;
+
+  @ApiProperty({ description: 'CGST formatted with rupee symbol', example: '₹56.70' })
+  cgst_formatted: string;
+
+  @ApiProperty({ description: 'SGST formatted with rupee symbol', example: '₹56.70' })
+  sgst_formatted: string;
+
+  @ApiProperty({ description: 'Other tax formatted with rupee symbol', example: '₹0.00' })
+  other_tax_formatted: string;
+
+  @ApiProperty({ description: 'Grand total formatted with rupee symbol', example: '₹743.40' })
+  grand_total_formatted: string;
+
+  @ApiProperty({ type: [SubServiceConditionDto] })
+  conditions: SubServiceConditionDto[];
 }
 
 /**
