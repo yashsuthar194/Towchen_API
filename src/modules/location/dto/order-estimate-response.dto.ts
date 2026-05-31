@@ -44,60 +44,60 @@ export class PricedSubServiceDto {
     description: 'Fixed distance covered by the base price (in km)',
     example: 10,
   })
-  fix_distance: number;
+  base_distance_int: number;
 
   @ApiProperty({
     description:
-      'Fixed base price charged regardless of distance (up to fix_distance). ' +
+      'Fixed base price charged regardless of distance (up to base_distance). ' +
       'Formatted with rupee symbol.',
     example: '₹500',
   })
-  fix_price_formatted: string;
+  base_rate_string: string;
 
   @ApiProperty({
     description:
-      'Rate charged per km beyond the fix_distance. Formatted with rupee symbol.',
+      'Rate charged per km beyond the base_distance. Formatted with rupee symbol.',
     example: '₹25/km',
   })
-  extra_price_per_km_formatted: string;
+  extra_distance_string: string;
 
   @ApiProperty({
     description: 'Actual road distance between breakdown and dropoff locations (in km)',
     example: '15.20 km',
   })
-  calculated_distance_formatted: string;
+  calculated_distance_string: string;
 
   @ApiPropertyOptional({
     description:
-      'Extra charge applied for the distance beyond fix_distance. ' +
+      'Extra charge applied for the distance beyond base_distance. ' +
       '0 when within the fixed zone. Formatted with rupee symbol.',
     example: '₹130',
   })
-  extra_charge_formatted: string;
+  extra_distance_rate_string: string;
 
   @ApiProperty({
     description:
-      'Total price = fix_price + extra_charge. Formatted with rupee symbol.',
+      'Total price = base_rate + extra_distance_rate. Formatted with rupee symbol.',
     example: '₹630',
   })
-  total_price_formatted: string;
+  final_amount_string: string;
 
   // --- Raw numeric values for programmatic use ---
 
-  @ApiProperty({ description: 'fix_price as raw number', example: 500 })
-  fix_price: number;
+  @ApiProperty({ description: 'base_rate as raw number', example: 500 })
+  base_rate_int: number;
 
-  @ApiProperty({ description: 'extra_price per km as raw number', example: 25 })
-  extra_price_per_km: number;
+  @ApiProperty({ description: 'extra_distance per km as raw number', example: 25 })
+  extra_distance_int: number;
 
   @ApiProperty({ description: 'Actual distance in km as raw number', example: 15.2 })
-  calculated_distance_km: number;
+  calculated_distance_int: number;
 
   @ApiProperty({ description: 'Extra charge as raw number', example: 130 })
-  extra_charge: number;
+  extra_distance_rate_int: number;
 
   @ApiProperty({ description: 'Total price as raw number', example: 630 })
-  total_price: number;
+  final_amount_int: number;
 
   @ApiPropertyOptional({
     description:
@@ -114,37 +114,37 @@ export class PricedSubServiceDto {
   journey_type: JourneyType;
 
   @ApiProperty({ description: 'CGST rate percentage', example: 9 })
-  cgst_rate: number;
+  cgst_rate_int: number;
 
   @ApiProperty({ description: 'SGST rate percentage', example: 9 })
-  sgst_rate: number;
+  sgst_rate_int: number;
 
   @ApiProperty({ description: 'Other tax rate percentage', example: 0 })
-  other_tax_rate: number;
+  other_tax_rate_int: number;
 
   @ApiProperty({ description: 'CGST amount', example: 56.7 })
-  cgst: number;
+  cgst_int: number;
 
   @ApiProperty({ description: 'SGST amount', example: 56.7 })
-  sgst: number;
+  sgst_int: number;
 
   @ApiProperty({ description: 'Other tax amount', example: 0 })
-  other_tax: number;
+  other_tax_int: number;
 
   @ApiProperty({ description: 'Grand total including taxes', example: 743.4 })
-  grand_total: number;
+  grand_total_int: number;
 
   @ApiProperty({ description: 'CGST formatted with rupee symbol', example: '₹56.70' })
-  cgst_formatted: string;
+  cgst_string: string;
 
   @ApiProperty({ description: 'SGST formatted with rupee symbol', example: '₹56.70' })
-  sgst_formatted: string;
+  sgst_string: string;
 
   @ApiProperty({ description: 'Other tax formatted with rupee symbol', example: '₹0.00' })
-  other_tax_formatted: string;
+  other_tax_string: string;
 
   @ApiProperty({ description: 'Grand total formatted with rupee symbol', example: '₹743.40' })
-  grand_total_formatted: string;
+  grand_total_string: string;
 
   @ApiProperty({ type: [SubServiceConditionDto] })
   conditions: SubServiceConditionDto[];
