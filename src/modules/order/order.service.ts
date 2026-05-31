@@ -3,10 +3,12 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderListDto } from './dto/order-list.dto';
 import { OrderDetailDto } from './dto/order-detail.dto';
-import { OrderStatus, LocationCategory, LocationType, OrderOtpType } from '@prisma/client';
+import { OrderStatus, LocationCategory, LocationType, OrderOtpType, TransactionType } from '@prisma/client';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { MapsService } from 'src/services/maps/maps.service';
 import { LocationResponseDto } from '../location/dto/location-response.dto';
+import { VoucherService } from '../voucher/voucher.service';
+import { WalletService } from '../wallet/wallet.service';
 
 @Injectable()
 export class OrderService {
@@ -14,6 +16,8 @@ export class OrderService {
     private readonly _prisma: PrismaService,
     private readonly _callerService: CallerService,
     private readonly _mapsService: MapsService,
+    private readonly _voucherService: VoucherService,
+    private readonly _walletService: WalletService,
   ) { }
 
   /**
@@ -127,16 +131,7 @@ export class OrderService {
       throw new BadRequestException('Invalid OTP');
     }
 
-    // Mark as verified
-    await this._prisma.order_otp.update({
-      where: { id: otpRecord.id },
-      data: {
-        is_verified: true,
-        verified_at: new Date(),
-      },
-    });
-
-    // Update Order Status and Timeline
+    // Perform verification and status update within a database transaction context
     const updateData: any = {
       status: type === OrderOtpType.START ? OrderStatus.InProgress : OrderStatus.Completed,
     };
@@ -147,9 +142,34 @@ export class OrderService {
       updateData.completion_time = new Date();
     }
 
-    await this._prisma.order.update({
-      where: { id: orderId },
-      data: updateData,
+    await this._prisma.$transaction(async (tx) => {
+      // Mark as verified
+      await tx.order_otp.update({
+        where: { id: otpRecord.id },
+        data: {
+          is_verified: true,
+          verified_at: new Date(),
+        },
+      });
+
+      // Update Order Status and Timeline
+      const updatedOrder = await tx.order.update({
+        where: { id: orderId },
+        data: updateData,
+        include: {
+          voucher: true
+        }
+      });
+
+      // If completing order and a voucher was applied, credit the creator's wallet with ₹75
+      if (type !== OrderOtpType.START && updatedOrder.voucher) {
+        await this._walletService.updateWallet(
+          updatedOrder.voucher.user_id,
+          75.0,
+          TransactionType.CREDIT,
+          tx
+        );
+      }
     });
 
     return { message: `OTP verified successfully. Order is now ${updateData.status.toLowerCase()}.` };
@@ -232,7 +252,33 @@ export class OrderService {
           });
         }
 
-        // 3. Create Order
+        // 3. Create Order with Voucher and Billing discounts
+        let appliedVoucherId: number | null = null;
+        let discountAmount = 0.0;
+        let finalAmount = dto.sub_service_estimate?.grand_total_int 
+          ? parseFloat(dto.sub_service_estimate.grand_total_int) 
+          : null;
+
+        if (dto.voucher_code) {
+          // Validate voucher (checks existence, expiry, and self-referral)
+          const voucher = await this._voucherService.validateVoucherAsync(dto.voucher_code, customerId);
+          appliedVoucherId = voucher.id;
+
+          // Compute percentage-based discount on base price (total_price -> final_amount_int)
+          const basePrice = dto.sub_service_estimate?.final_amount_int 
+            ? parseFloat(dto.sub_service_estimate.final_amount_int) 
+            : 0.0;
+          discountAmount = parseFloat((basePrice * (voucher.discount_percent / 100)).toFixed(2));
+
+          const grandTotal = dto.sub_service_estimate?.grand_total_int 
+            ? parseFloat(dto.sub_service_estimate.grand_total_int) 
+            : 0.0;
+          finalAmount = Math.max(0, parseFloat((grandTotal - discountAmount).toFixed(2)));
+
+          // Redeem voucher atomically inside order creation transaction context
+          await this._voucherService.redeemVoucherAsync(dto.voucher_code, customerId, tx);
+        }
+
         const order = await tx.order.create({
           data: {
             customer_id: customerId,
@@ -242,6 +288,9 @@ export class OrderService {
             fleet_type: dto.sub_service_id, // Maps sub_service_id to fleet_type
             status: OrderStatus.New,
             formated_id: '', // Handled by DB trigger
+            applied_voucher_id: appliedVoucherId,
+            discount_amount: discountAmount,
+            final_amount: finalAmount,
             meta_data: dto.sub_service_estimate ? { sub_service: dto.sub_service_estimate } : undefined,
           },
         });

@@ -4,12 +4,14 @@ import { RegisterCustomerDto, RegisterCustomerVehicleDto } from './dto/register-
 import { UpdateCustomerVehicleDto } from './dto/update-customer-vehicle.dto';
 import { JwtService } from 'src/services/jwt/jwt.service';
 import { Role } from '@prisma/client';
+import { VoucherService } from '../voucher/voucher.service';
 
 @Injectable()
 export class CustomerService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly _jwtService: JwtService,
+        private readonly _voucherService: VoucherService,
     ) { }
 
     /**
@@ -54,6 +56,9 @@ export class CustomerService {
                     customer_vehicles: true,
                 },
             });
+
+            // Generate referral voucher directly for the new customer within registration transaction
+            await this._voucherService.generateVoucherAsync(newCustomer.id);
 
             // Generate tokens for the new customer
             const tokens = await this._jwtService.generateTokens({

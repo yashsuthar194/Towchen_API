@@ -19,6 +19,8 @@ import { LocationModule } from './modules/location/location.module';
 import { CustomerAddressModule } from './modules/customer-address/customer-address.module';
 import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { SubServiceConditionModule } from './modules/sub-service-condition/sub-service-condition.module';
+import { WalletModule } from './modules/wallet/wallet.module';
+import { VoucherModule } from './modules/voucher/voucher.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { SubServiceConditionModule } from './modules/sub-service-condition/sub-s
     CustomerAddressModule,
     DispatchModule,
     SubServiceConditionModule,
+    WalletModule,
+    VoucherModule
 ],
   controllers: [AppController],
   providers: [AppService],

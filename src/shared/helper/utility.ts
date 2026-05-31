@@ -9,6 +9,19 @@ export class Utility {
   }
 
   /**
+   * Generates a random alphanumeric string of a specified length.
+   * Mixtures numbers and uppercase alphabets.
+   */
+  static generateAlphanumericCode(length: number): string {
+    let result = '';
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    for (let i = 0; i < length; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  }
+
+  /**
    * Merges address components into a single full address string.
    * @param location - The location object containing address components
    * @returns Formatted full address string

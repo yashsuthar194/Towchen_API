@@ -164,6 +164,8 @@ model customer {
   customer_vehicles  customer_vehicle[]
   orders             order[]
   customer_addresses customer_address[]
+  created_vouchers   voucher[]          @relation("VoucherCreator")
+  redeemed_vouchers  voucher[]          @relation("VoucherRedeemer")
 }
 
 model customer_vehicle {
@@ -260,6 +262,10 @@ model order {
 
   meta_data Json?
 
+  applied_voucher_id Int?
+  discount_amount    Float  @default(0.0)
+  final_amount       Float? // Net billing price after discount
+
   customer         customer          @relation(fields: [customer_id], references: [id])
   customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
   vendor           vendor?           @relation(fields: [vendor_id], references: [id])
@@ -269,12 +275,14 @@ model order {
   service          service           @relation(fields: [service_id], references: [id])
   sub_service      sub_service?      @relation(fields: [sub_service_id], references: [id])
   otps             order_otp[]
+  voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
 
   @@index([customer_id])
   @@index([driver_id])
   @@index([status, created_at])
   @@index([vehicle_id])
   @@index([vendor_id])
+  @@index([applied_voucher_id])
 }
 
 model order_location {
@@ -405,7 +413,53 @@ model wallet {
   updated_at DateTime @default(now()) @updatedAt
 }
 
+model wallet_transaction {
+  id        Int @id @default(autoincrement())
+  user_id   Int
+  wallet_id Int
+
+  amount                    Float           @default(0)
+  transaction_type          TransactionType
+  before_transaction_amount Float           @default(0)
+  after_transaction_amount  Float           @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+}
+
+model voucher {
+  id               Int       @id @default(autoincrement())
+  user_id          Int
+  code             String    @unique
+  has_expired      Boolean   @default(false)
+  discount_percent Float     @default(10.0)
+  used_by_id       Int?
+  used_at          DateTime?
+
+  type VoucherType @default(Basic)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  creator  customer  @relation("VoucherCreator", fields: [user_id], references: [id])
+  redeemer customer? @relation("VoucherRedeemer", fields: [used_by_id], references: [id])
+  orders   order[]
+
+  @@index([user_id])
+  @@index([used_by_id])
+}
+
 //#region enums
+enum VoucherType {
+  Enterprise
+  Basic
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
 enum JourneyType {
   FourWay
   ThreeWay

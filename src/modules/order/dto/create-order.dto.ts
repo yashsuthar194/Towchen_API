@@ -63,4 +63,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsObject()
   sub_service_estimate?: Record<string, any>;
+
+  @ApiPropertyOptional({ description: 'Optional referral/discount voucher code to apply' })
+  @IsOptional()
+  @IsString()
+  voucher_code?: string;
 }
