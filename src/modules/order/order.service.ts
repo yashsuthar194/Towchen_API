@@ -210,33 +210,142 @@ export class OrderService {
    * context-free {@link createForCustomerAsync} method.
    */
   async createAsync(dto: CreateOrderDto): Promise<OrderDetailDto> {
-    const customerId = this._callerService.getUserId();
-    return this.createForCustomerAsync(customerId, dto);
+    try {
+      const customerId = this._callerService.getUserId();
+
+      if (!dto.sub_service_id) {
+        throw new BadRequestException('sub_service_id cannot be empty');
+      }
+
+      // Query sub_service to check journey_type
+      const subService = await this._prisma.sub_service.findUnique({
+        where: { id: dto.sub_service_id },
+      });
+
+      if (!subService) {
+        throw new NotFoundException(`Sub-service with ID ${dto.sub_service_id} not found`);
+      }
+
+      const isFourWay = subService.journey_type === 'FourWay';
+
+      if (isFourWay && !dto.drop_location) {
+        throw new BadRequestException('drop_location is required for FourWay journey sub-services');
+      }
+
+      // Resolve breakdown location
+      const breakdownAddress = await this._mapsService.resolveAddressByPlaceIdAsync(dto.breakdown_location.place_id);
+
+      // Resolve drop location only if FourWay and provided
+      let dropAddress: LocationResponseDto | null = null;
+      if (isFourWay && dto.drop_location) {
+        dropAddress = await this._mapsService.resolveAddressByPlaceIdAsync(dto.drop_location.place_id);
+      }
+
+      return await this._prisma.$transaction(async (tx) => {
+        // 1. Create Order with Voucher and Billing discounts
+        let appliedVoucherId: number | null = null;
+        let discountAmount = 0.0;
+        let finalAmount = dto.sub_service_estimate?.grand_total_int 
+          ? parseFloat(dto.sub_service_estimate.grand_total_int) 
+          : null;
+
+        if (dto.voucher_code) {
+          // Validate voucher (checks existence, expiry, and self-referral)
+          const voucher = await this._voucherService.validateVoucherAsync(dto.voucher_code, customerId);
+          appliedVoucherId = voucher.id;
+
+          // Compute percentage-based discount on base price (total_price -> final_amount_int)
+          const basePrice = dto.sub_service_estimate?.final_amount_int 
+            ? parseFloat(dto.sub_service_estimate.final_amount_int) 
+            : 0.0;
+          discountAmount = parseFloat((basePrice * (voucher.discount_percent / 100)).toFixed(2));
+
+          const grandTotal = dto.sub_service_estimate?.grand_total_int 
+            ? parseFloat(dto.sub_service_estimate.grand_total_int) 
+            : 0.0;
+          finalAmount = Math.max(0, parseFloat((grandTotal - discountAmount).toFixed(2)));
+
+          // Redeem voucher atomically inside order creation transaction context
+          await this._voucherService.redeemVoucherAsync(dto.voucher_code, customerId, tx);
+        }
+
+        const order = await tx.order.create({
+          data: {
+            customer_id: customerId,
+            customer_vehicle_id: dto.customer_vehicle_id,
+            service_id: dto.service_id,
+            sub_service_id: dto.sub_service_id,
+            fleet_type: dto.sub_service_id, // Maps sub_service_id to fleet_type
+            status: OrderStatus.New,
+            formated_id: '', // Handled by DB trigger
+            applied_voucher_id: appliedVoucherId,
+            discount_amount: discountAmount,
+            final_amount: finalAmount,
+            meta_data: dto.sub_service_estimate ? { sub_service: dto.sub_service_estimate } : undefined,
+          },
+        });
+
+        // 2. Create and Link Locations to Order dynamically in order_location table
+        const orderLocationsToCreate: any[] = [
+          {
+            order_id: order.id,
+            place_id: dto.breakdown_location.place_id,
+            type: LocationType.Breakdown,
+            contact_name: dto.breakdown_contact_name,
+            contact_number: dto.breakdown_contact_number,
+            address: breakdownAddress.address,
+            street: breakdownAddress.street,
+            area: breakdownAddress.area,
+            city: breakdownAddress.city,
+            state: breakdownAddress.state,
+            pincode: breakdownAddress.pincode,
+            country: breakdownAddress.country,
+            latitude: breakdownAddress.latitude,
+            longitude: breakdownAddress.longitude,
+            landmark: breakdownAddress.landmark,
+          },
+        ];
+
+        if (isFourWay && dropAddress && dto.drop_location) {
+          orderLocationsToCreate.push({
+            order_id: order.id,
+            place_id: dto.drop_location.place_id,
+            type: LocationType.Drop,
+            contact_name: dto.drop_contact_name,
+            contact_number: dto.drop_contact_number,
+            address: dropAddress.address,
+            street: dropAddress.street,
+            area: dropAddress.area,
+            city: dropAddress.city,
+            state: dropAddress.state,
+            pincode: dropAddress.pincode,
+            country: dropAddress.country,
+            latitude: dropAddress.latitude,
+            longitude: dropAddress.longitude,
+            landmark: dropAddress.landmark,
+          });
+        }
+
+        await tx.order_location.createMany({
+          data: orderLocationsToCreate,
+        });
+
+        return await tx.order.findUnique({
+          where: { id: order.id },
+          include: {
+            locations: true,
+          },
+        }) as unknown as OrderDetailDto;
+      });
+    } catch (error) {
+      console.error('Error creating order:', error);
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to create order. Please try again.');
+    }
   }
 
-  /**
-   * Creates a new order for an explicitly provided customer ID.
-   *
-   * This is the canonical order-creation method. It is intentionally decoupled
-   * from the HTTP request context so it can be safely called from:
-   *  - The REST controller (via {@link createAsync})
-   *  - The scheduled-order processor (headless, no CallerService available)
-   *
-   * @param customerId - ID of the customer who owns the order
-   * @param dto - Full order creation payload
-   * @param scheduledOrderId - Optional FK to the scheduled_order row that triggered this creation
-   */
-  async createForCustomerAsync(
-    customerId: number,
-    dto: CreateOrderDto,
-    scheduledOrderId?: number,
-  ): Promise<OrderDetailDto> {
-    return this._orderCreationService.createForCustomerAsync(
-      customerId,
-      dto,
-      scheduledOrderId,
-    );
-  }
 
   /**
    * Gets a list of orders.
@@ -267,6 +376,7 @@ export class OrderService {
     const order = await this._prisma.order.findUnique({
       where: { id },
       include: {
+        locations: true,
         locations: true,
         customer: true,
         driver: true,
@@ -315,6 +425,8 @@ export class OrderService {
         vehicle: true,
         startLocation: true,
         endLocation: true,
+        startLocation: true,
+        endLocation: true,
       },
     });
 
@@ -340,12 +452,37 @@ export class OrderService {
           },
         });
 
-        // 2. Link Driver Locations (Start and End)
+        // 2. Create/Update Order OTP record
+        await tx.order_otp.upsert({
+          where: {
+            order_id_type: {
+              order_id: id,
+              type: OrderOtpType.START,
+            },
+          },
+          update: {
+            otp: otpCode,
+            expires_at: expiresAt,
+            is_verified: false,
+            verified_at: null,
+            attempts: 0,
+          },
+          create: {
+            order_id: id,
+            type: OrderOtpType.START,
+            otp: otpCode,
+            expires_at: expiresAt,
+          },
+        });
+
+        // 3. Link Driver Locations (Start and End) by copying driver location details directly
         const orderLocations: any[] = [];
 
         if (driver.startLocation) {
+        if (driver.startLocation) {
           orderLocations.push({
             order_id: id,
+            place_id: driver.startLocation.place_id || '',
             type: LocationType.Start,
             address: driver.startLocation.address,
             street: driver.startLocation.street,
@@ -357,13 +494,14 @@ export class OrderService {
             latitude: driver.startLocation.latitude,
             longitude: driver.startLocation.longitude,
             landmark: driver.startLocation.landmark,
-            place_id: driver.startLocation.place_id,
           });
         }
 
         if (driver.endLocation) {
+        if (driver.endLocation) {
           orderLocations.push({
             order_id: id,
+            place_id: driver.endLocation.place_id || '',
             type: LocationType.End,
             address: driver.endLocation.address,
             street: driver.endLocation.street,
@@ -375,7 +513,6 @@ export class OrderService {
             latitude: driver.endLocation.latitude,
             longitude: driver.endLocation.longitude,
             landmark: driver.endLocation.landmark,
-            place_id: driver.endLocation.place_id,
           });
         }
 
@@ -505,6 +642,7 @@ export class OrderService {
         return (await tx.order.findUnique({
           where: { id: updatedOrder.id },
           include: {
+            locations: true,
             locations: true,
             service: true,
             sub_service: true,
