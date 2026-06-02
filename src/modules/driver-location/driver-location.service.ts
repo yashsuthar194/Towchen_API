@@ -5,24 +5,50 @@ import { UpdateDriverLocationDto } from './dto/update-driver-location.dto';
 import { LocationCategory } from '@prisma/client';
 import { Utility } from 'src/shared/helper/utility';
 
+import { LocationService } from '../location/location.service';
+
 /**
  * Service responsible for managing location records.
  * Handles database operations for tracking geographical positions.
  */
 @Injectable()
 export class DriverLocationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly locationService: LocationService,
+  ) { }
 
   //#region Add
   /**
    * Creates a new location record in the database.
+   * If a place_id is provided, it resolves the full address details via Google Maps.
    * 
    * @param dto - Data for the new location
    * @returns The created location record
    */
   async createAsync(dto: CreateDriverLocationDto) {
+    let data: any = { ...dto };
+
+    // If place_id is provided, resolve full details
+    if (dto.place_id) {
+      const resolved = await this.locationService.resolveAddressAsync({ place_id: dto.place_id });
+      data = {
+        ...data,
+        address: resolved.address,
+        street: resolved.street,
+        area: resolved.area,
+        city: resolved.city,
+        state: resolved.state,
+        pincode: resolved.pincode,
+        country: resolved.country,
+        latitude: resolved.latitude,
+        longitude: resolved.longitude,
+        landmark: resolved.landmark,
+      };
+    }
+
     const location = await this.prisma.location.create({
-      data: dto as any,
+      data: data,
     });
     return { ...location, address: Utility.formatAddress(location) };
   }
@@ -83,9 +109,29 @@ export class DriverLocationService {
    * @returns The updated location record
    */
   async updateAsync(id: number, dto: UpdateDriverLocationDto) {
+    let data: any = { ...dto };
+
+    // If a new place_id is provided, re-resolve all details
+    if (dto.place_id) {
+      const resolved = await this.locationService.resolveAddressAsync({ place_id: dto.place_id });
+      data = {
+        ...data,
+        address: resolved.address,
+        street: resolved.street,
+        area: resolved.area,
+        city: resolved.city,
+        state: resolved.state,
+        pincode: resolved.pincode,
+        country: resolved.country,
+        latitude: resolved.latitude,
+        longitude: resolved.longitude,
+        landmark: resolved.landmark,
+      };
+    }
+
     const location = await this.prisma.location.update({
       where: { id },
-      data: dto as any,
+      data: data,
     });
     return { ...location, address: Utility.formatAddress(location) };
   }

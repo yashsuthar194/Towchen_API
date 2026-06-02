@@ -151,18 +151,21 @@ model vehicle {
 }
 
 model customer {
-  id                Int                @id @default(autoincrement())
-  formated_id       String             @unique
-  full_name         String             @db.VarChar(255)
-  is_verified       Boolean            @default(false)
-  number            String             @db.VarChar(20)
-  email             String             @db.VarChar(255)
-  is_deleted        Boolean            @default(false)
-  created_at        DateTime           @default(now())
-  updated_at        DateTime           @default(now()) @updatedAt
-  is_deleted_by     Int?
-  customer_vehicles customer_vehicle[]
-  orders            order[]
+  id                 Int                @id @default(autoincrement())
+  formated_id        String             @unique
+  full_name          String             @db.VarChar(255)
+  is_verified        Boolean            @default(false)
+  number             String             @db.VarChar(20)
+  email              String             @db.VarChar(255)
+  is_deleted         Boolean            @default(false)
+  created_at         DateTime           @default(now())
+  updated_at         DateTime           @default(now()) @updatedAt
+  is_deleted_by      Int?
+  customer_vehicles  customer_vehicle[]
+  orders             order[]
+  customer_addresses customer_address[]
+  created_vouchers   voucher[]          @relation("VoucherCreator")
+  redeemed_vouchers  voucher[]          @relation("VoucherRedeemer")
 }
 
 model customer_vehicle {
@@ -196,15 +199,44 @@ model location {
   longitude       Float
   landmark        String?
   description     String?
+  place_id        String
   category        LocationCategory @default(Driver)
   created_at      DateTime         @default(now())
   startDrivers    driver[]         @relation("DriverStartLocation")
   endDrivers      driver[]         @relation("DriverEndLocation")
-  order_locations order_location[]
 
   @@index([city])
   @@index([state])
   @@index([category])
+  @@index([place_id])
+}
+
+model customer_address {
+  id          Int      @id @default(autoincrement())
+  customer_id Int
+  label       String // e.g., "Home", "Work", "Office"
+  is_default  Boolean  @default(false)
+  address     String?
+  street      String?
+  area        String?
+  city        String?
+  state       String?
+  pincode     String?
+  country     String?
+  latitude    Float
+  longitude   Float
+  landmark    String?
+  description String?
+  place_id    String
+  name        String   @default("")
+  number      String   @default("")
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  customer customer @relation(fields: [customer_id], references: [id], onDelete: Cascade)
+
+  @@index([customer_id])
+  @@index([place_id])
 }
 
 model order {
@@ -227,6 +259,12 @@ model order {
   created_at          DateTime    @default(now())
   updated_at          DateTime    @default(now()) @updatedAt
 
+  meta_data Json?
+
+  applied_voucher_id Int?
+  discount_amount    Float  @default(0.0)
+  final_amount       Float? // Net billing price after discount
+
   customer         customer          @relation(fields: [customer_id], references: [id])
   customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
   vendor           vendor?           @relation(fields: [vendor_id], references: [id])
@@ -236,28 +274,41 @@ model order {
   service          service           @relation(fields: [service_id], references: [id])
   sub_service      sub_service?      @relation(fields: [sub_service_id], references: [id])
   otps             order_otp[]
+  voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
 
   @@index([customer_id])
   @@index([driver_id])
   @@index([status, created_at])
   @@index([vehicle_id])
   @@index([vendor_id])
+  @@index([applied_voucher_id])
 }
 
 model order_location {
   id             Int          @id @default(autoincrement())
   order_id       Int
-  location_id    Int
+  place_id       String
   type           LocationType
   created_at     DateTime     @default(now())
   contact_name   String?      @db.VarChar(255)
   contact_number String?      @db.VarChar(20)
 
+  // Location fields moved here from the location table
+  address        String?
+  street         String?
+  area           String?
+  city           String?
+  state          String?
+  pincode        String?
+  country        String?
+  latitude       Float?
+  longitude      Float?
+  landmark       String?
+
   order    order    @relation(fields: [order_id], references: [id])
-  location location @relation(fields: [location_id], references: [id])
 
   @@unique([order_id, type])
-  @@index([location_id])
+  @@index([place_id])
   @@index([order_id])
 }
 
@@ -334,13 +385,96 @@ model sub_service {
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt
 
+  fix_distance Float @default(0)
+  fix_price    Float @default(0)
+  extra_price  Float @default(0)
+  ton          Float @default(0)
+
+  image_url    String?
+  journey_type JourneyType @default(FourWay)
+
   service service @relation(fields: [service_id], references: [id])
   orders  order[]
+
+  conditions sub_service_condtion[]
 
   @@unique([name, service_id])
 }
 
+model sub_service_condtion {
+  id             Int    @id @default(autoincrement())
+  sub_service_id Int
+  condition      String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  sub_service sub_service @relation(fields: [sub_service_id], references: [id])
+
+  @@index([sub_service_id])
+}
+
+model wallet {
+  id      Int   @id @default(autoincrement())
+  user_id Int
+  balance Float @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+}
+
+model wallet_transaction {
+  id        Int @id @default(autoincrement())
+  user_id   Int
+  wallet_id Int
+
+  amount                    Float           @default(0)
+  transaction_type          TransactionType
+  before_transaction_amount Float           @default(0)
+  after_transaction_amount  Float           @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+}
+
+model voucher {
+  id               Int       @id @default(autoincrement())
+  user_id          Int
+  code             String    @unique
+  has_expired      Boolean   @default(false)
+  discount_percent Float     @default(10.0)
+  used_by_id       Int?
+  used_at          DateTime?
+
+  type VoucherType @default(Basic)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  creator  customer  @relation("VoucherCreator", fields: [user_id], references: [id])
+  redeemer customer? @relation("VoucherRedeemer", fields: [used_by_id], references: [id])
+  orders   order[]
+
+  @@index([user_id])
+  @@index([used_by_id])
+}
+
 //#region enums
+enum VoucherType {
+  Enterprise
+  Basic
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum JourneyType {
+  FourWay
+  ThreeWay
+}
+
 enum HttpMethod {
   GET
   POST

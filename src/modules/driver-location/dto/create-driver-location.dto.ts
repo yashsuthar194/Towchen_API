@@ -1,61 +1,20 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsLatitude, IsLongitude, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LocationCategory } from '@prisma/client';
 
 export class CreateDriverLocationDto {
-  @ApiPropertyOptional({ description: 'Full address' })
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @ApiPropertyOptional({ description: 'Street name' })
-  @IsOptional()
-  @IsString()
-  street?: string;
-
-  @ApiPropertyOptional({ description: 'Area or locality' })
-  @IsOptional()
-  @IsString()
-  area?: string;
-
-  @ApiPropertyOptional({ description: 'City name' })
-  @IsOptional()
-  @IsString()
-  city?: string;
-
-  @ApiPropertyOptional({ description: 'State name' })
-  @IsOptional()
-  @IsString()
-  state?: string;
-
-  @ApiPropertyOptional({ description: 'Pincode/Zipcode' })
-  @IsOptional()
-  @IsString()
-  pincode?: string;
-
-  @ApiPropertyOptional({ description: 'Country name' })
-  @IsOptional()
-  @IsString()
-  country?: string;
-
-  @ApiProperty({ description: 'Latitude coordinate' })
+  @ApiProperty({
+    description: 'Google Maps place_id for the location. This will be used to fetch all geographical and address details.',
+    example: 'ChIJN1t_tDeuEmsRUsoyG83frY4',
+  })
   @IsNotEmpty()
-  @IsNumber()
-  @IsLatitude()
-  latitude: number;
-
-  @ApiProperty({ description: 'Longitude coordinate' })
-  @IsNotEmpty()
-  @IsNumber()
-  @IsLongitude()
-  longitude: number;
-
-  @ApiPropertyOptional({ description: 'Nearby landmark' })
-  @IsOptional()
   @IsString()
-  landmark?: string;
+  place_id: string;
 
-  @ApiPropertyOptional({ description: 'Location description' })
+  @ApiPropertyOptional({ 
+    description: 'Additional description or notes for this location (e.g., "Main Garage", "North Entry")',
+    example: 'Main Garage'
+  })
   @IsOptional()
   @IsString()
   description?: string;

@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiConsumes, ApiResponse } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ServiceService } from './service.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
@@ -70,20 +71,28 @@ export class ServiceController {
 
   @Post('sub-service')
   @ApiOperation({ summary: 'Create a new sub-service' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponseDto(SubServiceDto, false, 201)
-  async createSubService(@Body() dto: CreateSubServiceDto): Promise<ResponseDto<SubServiceDto>> {
-    const subService = await this._serviceService.createSubServiceAsync(dto);
+  @UseInterceptors(FileInterceptor('image'))
+  async createSubService(
+    @Body() dto: CreateSubServiceDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ): Promise<ResponseDto<SubServiceDto>> {
+    const subService = await this._serviceService.createSubServiceAsync(dto, file);
     return ResponseDto.created('Sub-service created successfully', subService);
   }
 
   @Put('sub-service/:id')
   @ApiOperation({ summary: 'Update an existing sub-service' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponseDto(SubServiceDto)
+  @UseInterceptors(FileInterceptor('image'))
   async updateSubService(
     @Param('id') id: number,
     @Body() dto: UpdateSubServiceDto,
+    @UploadedFile() file?: Express.Multer.File,
   ): Promise<ResponseDto<SubServiceDto>> {
-    const subService = await this._serviceService.updateSubServiceAsync(id, dto);
+    const subService = await this._serviceService.updateSubServiceAsync(id, dto, file);
     return ResponseDto.updated('Sub-service updated successfully', subService);
   }
 

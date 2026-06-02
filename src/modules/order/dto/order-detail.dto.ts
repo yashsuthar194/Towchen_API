@@ -7,19 +7,46 @@ class OrderLocationDetailDto {
   id: number;
 
   @ApiProperty()
-  location_id: number;
+  place_id: string;
 
   @ApiProperty({ enum: LocationType })
   type: LocationType;
-
-  @ApiProperty()
-  location: any; // Simplified for now, or use LocationDetailDto if available
 
   @ApiPropertyOptional()
   contact_name?: string;
 
   @ApiPropertyOptional()
   contact_number?: string;
+
+  @ApiPropertyOptional()
+  address?: string;
+
+  @ApiPropertyOptional()
+  street?: string;
+
+  @ApiPropertyOptional()
+  area?: string;
+
+  @ApiPropertyOptional()
+  city?: string;
+
+  @ApiPropertyOptional()
+  state?: string;
+
+  @ApiPropertyOptional()
+  pincode?: string;
+
+  @ApiPropertyOptional()
+  country?: string;
+
+  @ApiPropertyOptional()
+  latitude?: number;
+
+  @ApiPropertyOptional()
+  longitude?: number;
+
+  @ApiPropertyOptional()
+  landmark?: string;
 }
 
 export class OrderDetailDto {
@@ -70,4 +97,7 @@ export class OrderDetailDto {
 
   @ApiProperty({ type: [OrderLocationDetailDto] })
   locations: OrderLocationDetailDto[];
+
+  @ApiPropertyOptional({ description: 'Order metadata (JSON) containing nested sub_service estimate details' })
+  meta_data?: any;
 }

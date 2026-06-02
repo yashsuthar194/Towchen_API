@@ -4,6 +4,7 @@ import { AppConfig } from '../namespaces/app.config';
 import { DatabaseConfig } from '../namespaces/database.config';
 import { JwtConfig } from '../namespaces/jwt.config';
 import { StorageConfig } from '../namespaces/storage.config';
+import { MapsConfig } from '../namespaces/maps.config';
 
 /**
  * Unified environment validation using all config classes.
@@ -19,4 +20,5 @@ export const validateEnv = validateEnvironment([
   DatabaseConfig,
   JwtConfig,
   StorageConfig,
+  MapsConfig,
 ]);

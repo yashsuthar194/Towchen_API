@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   ParseIntPipe,
   UseGuards,
@@ -117,7 +117,7 @@ export class OrderDriverController {
    * - The order status changes from "New" → "OtpPending".
    * - The driver's start/end locations are linked to the order.
    */
-  @Patch(':id/accept')
+  @Put(':id/accept')
   @ApiOperation({
     summary: 'Accept an order (Driver only)',
     description:

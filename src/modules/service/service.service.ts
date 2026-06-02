@@ -6,10 +6,14 @@ import { CreateSubServiceDto } from './dto/create-sub-service.dto';
 import { UpdateSubServiceDto } from './dto/update-sub-service.dto';
 import { ServiceDto, SubServiceDto } from '../vendor/dto/service.dto';
 import { ServiceListDto } from './dto/service-list.dto';
+import { StorageService } from 'src/services/storage/storage.service';
 
 @Injectable()
 export class ServiceService {
-  constructor(private readonly _prisma: PrismaService) { }
+  constructor(
+    private readonly _prisma: PrismaService,
+    private readonly _storageService: StorageService,
+  ) { }
 
   // #region Service CRUD
 
@@ -24,7 +28,7 @@ export class ServiceService {
         name: true,
         description: true,
       },
-      orderBy: { name: 'asc' },
+      orderBy: { id: 'asc' },
     });
 
     return services;
@@ -36,7 +40,13 @@ export class ServiceService {
   async findOneAsync(id: number): Promise<ServiceDto> {
     const service = await this._prisma.service.findUnique({
       where: { id },
-      include: { sub_services: true },
+      include: {
+        sub_services: {
+          include: {
+            conditions: true,
+          },
+        },
+      },
     });
 
     if (!service) {
@@ -110,7 +120,7 @@ export class ServiceService {
   /**
    * Creates a new sub-service for a given service.
    */
-  async createSubServiceAsync(dto: CreateSubServiceDto): Promise<SubServiceDto> {
+  async createSubServiceAsync(dto: CreateSubServiceDto, file?: Express.Multer.File): Promise<SubServiceDto> {
     // Ensure parent service exists
     await this.findOneAsync(dto.service_id);
 
@@ -122,9 +132,42 @@ export class ServiceService {
       throw new BadRequestException(`Sub-service "${dto.name}" already exists for this service`);
     }
 
+    const { image, ...subServiceData } = dto;
+
+    if (file && !file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image files are allowed');
+    }
+
     const subService = await this._prisma.sub_service.create({
-      data: dto,
+      data: {
+        ...subServiceData,
+        image_url: null,
+      },
+      include: {
+        conditions: true,
+      },
     });
+
+    if (file) {
+      const folderPath = `sub-services/${subService.id}/image`;
+      const uploadResult = await this._storageService.uploadFileAsync({
+        buffer: file.buffer,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        folderPath,
+      });
+
+      const updated = await this._prisma.sub_service.update({
+        where: { id: subService.id },
+        data: { image_url: uploadResult.url },
+        include: {
+          conditions: true,
+        },
+      });
+
+      return updated as unknown as SubServiceDto;
+    }
 
     return subService as unknown as SubServiceDto;
   }
@@ -132,7 +175,7 @@ export class ServiceService {
   /**
    * Updates an existing sub-service.
    */
-  async updateSubServiceAsync(id: number, dto: UpdateSubServiceDto): Promise<SubServiceDto> {
+  async updateSubServiceAsync(id: number, dto: UpdateSubServiceDto, file?: Express.Multer.File): Promise<SubServiceDto> {
     const existingSub = await this._prisma.sub_service.findUnique({
       where: { id },
     });
@@ -154,9 +197,34 @@ export class ServiceService {
       }
     }
 
+    const { image, ...subServiceData } = dto;
+
+    if (file && !file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image files are allowed');
+    }
+
+    let imageUrl: string | undefined = undefined;
+    if (file) {
+      const folderPath = `sub-services/${id}/image`;
+      const uploadResult = await this._storageService.uploadFileAsync({
+        buffer: file.buffer,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        folderPath,
+      });
+      imageUrl = uploadResult.url;
+    }
+
     const updated = await this._prisma.sub_service.update({
       where: { id },
-      data: dto,
+      data: {
+        ...subServiceData,
+        ...(imageUrl && { image_url: imageUrl }),
+      },
+      include: {
+        conditions: true,
+      },
     });
 
     return updated as unknown as SubServiceDto;
@@ -180,15 +248,15 @@ export class ServiceService {
     }
   }
 
-  /**
-   * Fetches all active sub-services for a specific service.
-   */
   async findSubServicesByServiceIdAsync(serviceId: number): Promise<SubServiceDto[]> {
     await this.findOneAsync(serviceId); // Verify service exists
 
     const subServices = await this._prisma.sub_service.findMany({
       where: { service_id: serviceId, is_active: true },
-      orderBy: { name: 'asc' },
+      include: {
+        conditions: true,
+      },
+      orderBy: { id: 'asc' },
     });
 
     return subServices as unknown as SubServiceDto[];

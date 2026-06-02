@@ -7,6 +7,7 @@ import { MailConfig } from './namespaces/mail.config';
 import { SmsConfig } from './namespaces/sms.config';
 import { StorageConfig } from './namespaces/storage.config';
 import { VerificationConfig } from './namespaces/verification.config';
+import { MapsConfig } from './namespaces/maps.config';
 
 /**
  * Type-safe configuration service providing access to all config namespaces.
@@ -69,4 +70,12 @@ export class TypedConfigService {
   get verification(): VerificationConfig {
     return this.config.get<VerificationConfig>('verification')!;
   }
+
+  /**
+   * Get Google Maps configuration
+   */
+  get maps(): MapsConfig {
+    return this.config.get<MapsConfig>('maps')!;
+  }
 }
+

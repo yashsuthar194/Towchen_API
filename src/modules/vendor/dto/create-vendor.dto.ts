@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsArray,
+  ArrayNotEmpty,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -68,6 +69,7 @@ export class CreateVendorDto {
 
   /** IDs of the services the vendor provides */
   @IsArray()
+  @ArrayNotEmpty({ message: 'service_ids cannot be empty' })
   @ApiProperty({
     type: [Number],
     isArray: true,
