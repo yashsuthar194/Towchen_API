@@ -9,6 +9,7 @@ import { MapsService } from 'src/services/maps/maps.service';
 import { LocationResponseDto } from '../location/dto/location-response.dto';
 import { VoucherService } from '../voucher/voucher.service';
 import { WalletService } from '../wallet/wallet.service';
+import { StorageService } from 'src/services/storage/storage.service';
 
 @Injectable()
 export class OrderService {
@@ -18,6 +19,7 @@ export class OrderService {
     private readonly _mapsService: MapsService,
     private readonly _voucherService: VoucherService,
     private readonly _walletService: WalletService,
+    private readonly _storageService: StorageService,
   ) { }
 
   /**
@@ -83,7 +85,7 @@ export class OrderService {
   /**
    * Verifies the OTP provided by the driver and updates order status.
    */
-  async verifyOrderOtpAsync(orderId: number, type: OrderOtpType, otp: string): Promise<{ message: string }> {
+  async verifyOrderOtpAsync(orderId: number, type: OrderOtpType, otp: string, images?: Express.Multer.File[]): Promise<{ message: string }> {
     if (!this._callerService.isDriver()) {
       throw new BadRequestException('Only drivers can verify order OTPs');
     }
@@ -136,10 +138,31 @@ export class OrderService {
       status: type === OrderOtpType.START ? OrderStatus.InProgress : OrderStatus.Completed,
     };
 
+    let uploadedUrls: string[] = [];
+    if (images && images.length > 0) {
+      uploadedUrls = await Promise.all(
+        images.map((file, index) =>
+          this._storageService.uploadFileAsync({
+            buffer: file.buffer,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            folderPath: `order/${orderId}/${type.toLowerCase()}-pickup/${index}`,
+          }).then((res) => res.url)
+        )
+      );
+    }
+
     if (type === OrderOtpType.START) {
       updateData.start_time = new Date();
+      if (uploadedUrls.length > 0) {
+        updateData.pre_pickup_images = uploadedUrls;
+      }
     } else {
       updateData.completion_time = new Date();
+      if (uploadedUrls.length > 0) {
+        updateData.post_pickup_images = uploadedUrls;
+      }
     }
 
     await this._prisma.$transaction(async (tx) => {
@@ -213,70 +236,33 @@ export class OrderService {
       }
 
       return await this._prisma.$transaction(async (tx) => {
-        // 1. Create Breakdown Location from resolved address
-        const breakdownLocation = await tx.location.create({
-          data: {
-            address: breakdownAddress.address,
-            street: breakdownAddress.street,
-            area: breakdownAddress.area,
-            city: breakdownAddress.city,
-            state: breakdownAddress.state,
-            pincode: breakdownAddress.pincode,
-            country: breakdownAddress.country,
-            latitude: breakdownAddress.latitude,
-            longitude: breakdownAddress.longitude,
-            landmark: breakdownAddress.landmark,
-            place_id: dto.breakdown_location.place_id,
-            category: LocationCategory.Order,
-          },
-        });
-
-        // 2. Create Drop Location from resolved address if FourWay
-        let dropLocation: { id: number } | null = null;
-        if (isFourWay && dropAddress && dto.drop_location) {
-          dropLocation = await tx.location.create({
-            data: {
-              address: dropAddress.address,
-              street: dropAddress.street,
-              area: dropAddress.area,
-              city: dropAddress.city,
-              state: dropAddress.state,
-              pincode: dropAddress.pincode,
-              country: dropAddress.country,
-              latitude: dropAddress.latitude,
-              longitude: dropAddress.longitude,
-              landmark: dropAddress.landmark,
-              place_id: dto.drop_location.place_id,
-              category: LocationCategory.Order,
-            },
-          });
-        }
-
-        // 3. Create Order with Voucher and Billing discounts
+        // 1. Create Order with Voucher and Billing discounts
         let appliedVoucherId: number | null = null;
         let discountAmount = 0.0;
-        let finalAmount = dto.sub_service_estimate?.grand_total_int 
-          ? parseFloat(dto.sub_service_estimate.grand_total_int) 
+        let finalAmount = dto.sub_service_estimate?.grand_total_int
+          ? parseFloat(dto.sub_service_estimate.grand_total_int)
           : null;
+        const voucherCode = dto.voucher_code?.trim();
+        const hasVoucher = voucherCode && voucherCode !== '' && voucherCode.toLowerCase() !== 'null';
 
-        if (dto.voucher_code) {
+        if (hasVoucher) {
           // Validate voucher (checks existence, expiry, and self-referral)
-          const voucher = await this._voucherService.validateVoucherAsync(dto.voucher_code, customerId);
+          const voucher = await this._voucherService.validateVoucherAsync(voucherCode, customerId);
           appliedVoucherId = voucher.id;
 
           // Compute percentage-based discount on base price (total_price -> final_amount_int)
-          const basePrice = dto.sub_service_estimate?.final_amount_int 
-            ? parseFloat(dto.sub_service_estimate.final_amount_int) 
+          const basePrice = dto.sub_service_estimate?.final_amount_int
+            ? parseFloat(dto.sub_service_estimate.final_amount_int)
             : 0.0;
           discountAmount = parseFloat((basePrice * (voucher.discount_percent / 100)).toFixed(2));
 
-          const grandTotal = dto.sub_service_estimate?.grand_total_int 
-            ? parseFloat(dto.sub_service_estimate.grand_total_int) 
+          const grandTotal = dto.sub_service_estimate?.grand_total_int
+            ? parseFloat(dto.sub_service_estimate.grand_total_int)
             : 0.0;
           finalAmount = Math.max(0, parseFloat((grandTotal - discountAmount).toFixed(2)));
 
           // Redeem voucher atomically inside order creation transaction context
-          await this._voucherService.redeemVoucherAsync(dto.voucher_code, customerId, tx);
+          await this._voucherService.redeemVoucherAsync(voucherCode, customerId, tx);
         }
 
         const order = await tx.order.create({
@@ -295,30 +281,44 @@ export class OrderService {
           },
         });
 
-        // 4. Link Locations to Order dynamically
-        const orderLocationsToCreate: {
-          order_id: number;
-          location_id: number;
-          type: LocationType;
-          contact_name?: string;
-          contact_number?: string;
-        }[] = [
+        // 2. Create and Link Locations to Order dynamically in order_location table
+        const orderLocationsToCreate: any[] = [
           {
             order_id: order.id,
-            location_id: breakdownLocation.id,
+            place_id: dto.breakdown_location.place_id,
             type: LocationType.Breakdown,
             contact_name: dto.breakdown_contact_name,
             contact_number: dto.breakdown_contact_number,
+            address: breakdownAddress.address,
+            street: breakdownAddress.street,
+            area: breakdownAddress.area,
+            city: breakdownAddress.city,
+            state: breakdownAddress.state,
+            pincode: breakdownAddress.pincode,
+            country: breakdownAddress.country,
+            latitude: breakdownAddress.latitude,
+            longitude: breakdownAddress.longitude,
+            landmark: breakdownAddress.landmark,
           },
         ];
 
-        if (isFourWay && dropLocation) {
+        if (isFourWay && dropAddress && dto.drop_location) {
           orderLocationsToCreate.push({
             order_id: order.id,
-            location_id: dropLocation.id,
+            place_id: dto.drop_location.place_id,
             type: LocationType.Drop,
             contact_name: dto.drop_contact_name,
             contact_number: dto.drop_contact_number,
+            address: dropAddress.address,
+            street: dropAddress.street,
+            area: dropAddress.area,
+            city: dropAddress.city,
+            state: dropAddress.state,
+            pincode: dropAddress.pincode,
+            country: dropAddress.country,
+            latitude: dropAddress.latitude,
+            longitude: dropAddress.longitude,
+            landmark: dropAddress.landmark,
           });
         }
 
@@ -329,9 +329,7 @@ export class OrderService {
         return await tx.order.findUnique({
           where: { id: order.id },
           include: {
-            locations: {
-              include: { location: true },
-            },
+            locations: true,
           },
         }) as unknown as OrderDetailDto;
       });
@@ -374,9 +372,7 @@ export class OrderService {
     const order = await this._prisma.order.findUnique({
       where: { id },
       include: {
-        locations: {
-          include: { location: true },
-        },
+        locations: true,
         customer: true,
         driver: true,
         vehicle: true,
@@ -420,6 +416,8 @@ export class OrderService {
       where: { id: driverId },
       include: {
         vehicle: true,
+        startLocation: true,
+        endLocation: true,
       },
     });
 
@@ -468,22 +466,42 @@ export class OrderService {
           },
         });
 
-        // 3. Link Driver Locations (Start and End)
+        // 3. Link Driver Locations (Start and End) by copying driver location details directly
         const orderLocations: any[] = [];
 
-        if (driver.start_location_id) {
+        if (driver.startLocation) {
           orderLocations.push({
             order_id: id,
-            location_id: driver.start_location_id,
+            place_id: driver.startLocation.place_id || '',
             type: LocationType.Start,
+            address: driver.startLocation.address,
+            street: driver.startLocation.street,
+            area: driver.startLocation.area,
+            city: driver.startLocation.city,
+            state: driver.startLocation.state,
+            pincode: driver.startLocation.pincode,
+            country: driver.startLocation.country,
+            latitude: driver.startLocation.latitude,
+            longitude: driver.startLocation.longitude,
+            landmark: driver.startLocation.landmark,
           });
         }
 
-        if (driver.end_location_id) {
+        if (driver.endLocation) {
           orderLocations.push({
             order_id: id,
-            location_id: driver.end_location_id,
+            place_id: driver.endLocation.place_id || '',
             type: LocationType.End,
+            address: driver.endLocation.address,
+            street: driver.endLocation.street,
+            area: driver.endLocation.area,
+            city: driver.endLocation.city,
+            state: driver.endLocation.state,
+            pincode: driver.endLocation.pincode,
+            country: driver.endLocation.country,
+            latitude: driver.endLocation.latitude,
+            longitude: driver.endLocation.longitude,
+            landmark: driver.endLocation.landmark,
           });
         }
 
@@ -507,9 +525,7 @@ export class OrderService {
         return await tx.order.findUnique({
           where: { id: updatedOrder.id },
           include: {
-            locations: {
-              include: { location: true },
-            },
+            locations: true,
             service: true,
             sub_service: true,
           },
@@ -522,5 +538,137 @@ export class OrderService {
       }
       throw new InternalServerErrorException('Failed to accept order. Please try again.');
     }
+  }
+
+  /**
+   * Cancels an order.
+   * @param id Order ID
+   * @param cancelReason Reason for cancellation
+   */
+  async cancelOrderAsync(id: number, cancelReason: string): Promise<OrderDetailDto> {
+    const order = await this._prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (
+      order.status === OrderStatus.Completed ||
+      order.status === OrderStatus.Closed ||
+      order.status === OrderStatus.Cancelled
+    ) {
+      throw new BadRequestException(`Order cannot be cancelled as it is already ${order.status.toLowerCase()}`);
+    }
+
+    const updatedOrder = await this._prisma.order.update({
+      where: { id },
+      data: {
+        status: OrderStatus.Cancelled,
+        cancel_reason: cancelReason,
+      },
+      include: {
+        locations: true,
+        customer: true,
+        driver: true,
+        vehicle: true,
+        vendor: true,
+        service: true,
+        sub_service: true,
+      },
+    });
+
+    return updatedOrder as unknown as OrderDetailDto;
+  }
+
+  /**
+   * Saves pre-pickup images for an order.
+   */
+  async savePrePickupImagesAsync(id: number, files: Express.Multer.File[]): Promise<OrderDetailDto> {
+    const order = await this._prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (order.status !== OrderStatus.OtpPending && order.status !== OrderStatus.InProgress) {
+      throw new BadRequestException('Pre-pickup images can only be uploaded when order is pending start or in progress');
+    }
+
+    const urls = await Promise.all(
+      files.map((file, index) =>
+        this._storageService.uploadFileAsync({
+          buffer: file.buffer,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          folderPath: `order/${id}/pre-pickup/${index}`,
+        }).then((res) => res.url)
+      )
+    );
+
+    const updatedOrder = await this._prisma.order.update({
+      where: { id },
+      data: { pre_pickup_images: urls },
+      include: {
+        locations: true,
+        customer: true,
+        driver: true,
+        vehicle: true,
+        vendor: true,
+        service: true,
+        sub_service: true,
+      },
+    });
+
+    return updatedOrder as unknown as OrderDetailDto;
+  }
+
+  /**
+   * Saves post-pickup images for an order.
+   */
+  async savePostPickupImagesAsync(id: number, files: Express.Multer.File[]): Promise<OrderDetailDto> {
+    const order = await this._prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (order.status !== OrderStatus.InProgress && order.status !== OrderStatus.Completed) {
+      throw new BadRequestException('Post-pickup images can only be uploaded when order is in progress or completed');
+    }
+
+    const urls = await Promise.all(
+      files.map((file, index) =>
+        this._storageService.uploadFileAsync({
+          buffer: file.buffer,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          folderPath: `order/${id}/post-pickup/${index}`,
+        }).then((res) => res.url)
+      )
+    );
+
+    const updatedOrder = await this._prisma.order.update({
+      where: { id },
+      data: { post_pickup_images: urls },
+      include: {
+        locations: true,
+        customer: true,
+        driver: true,
+        vehicle: true,
+        vendor: true,
+        service: true,
+        sub_service: true,
+      },
+    });
+
+    return updatedOrder as unknown as OrderDetailDto;
   }
 }

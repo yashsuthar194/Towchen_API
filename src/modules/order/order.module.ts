@@ -6,9 +6,10 @@ import { PrismaModule } from '../../core/prisma/prisma.module';
 import { MapsModule } from 'src/services/maps/maps.module';
 import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { StorageModule } from 'src/services/storage/storage.module';
 
 @Module({
-  imports: [PrismaModule, MapsModule, VoucherModule, WalletModule],
+  imports: [PrismaModule, MapsModule, VoucherModule, WalletModule, StorageModule],
   controllers: [OrderController, OrderV2Controller, OrderDriverController],
   providers: [OrderService],
   exports: [OrderService],
