@@ -313,6 +313,7 @@ export class OrderService {
       });
     } catch (error) {
       console.error('Error creating order:', error);
+      require('fs').writeFileSync('prisma_error.log', error.stack || error.toString());
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
       }
