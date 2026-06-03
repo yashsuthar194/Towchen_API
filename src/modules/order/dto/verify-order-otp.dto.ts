@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsEnum, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsEnum, IsString, Length, IsOptional, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { OrderOtpType } from '@prisma/client';
 
@@ -13,4 +13,10 @@ export class VerifyOrderOtpDto {
   @IsString()
   @Length(6, 6)
   otp: string;
+
+  @ApiProperty({ type: [String], required: false, description: 'Optional pre-pickup or post-pickup images' })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  images?: string[];
 }

@@ -7,6 +7,8 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -14,10 +16,15 @@ import { OrderListDto } from './dto/order-list.dto';
 import { OrderDetailDto } from './dto/order-detail.dto';
 import { SendOrderOtpDto } from './dto/send-order-otp.dto';
 import { VerifyOrderOtpDto } from './dto/verify-order-otp.dto';
+import { CancelOrderDto } from './dto/cancel-order.dto';
+import { UploadOrderImagesDto } from './dto/upload-order-images.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { FileHelper } from 'src/shared/helper/file-helper';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Order — General APIs (Create & Read)
@@ -94,6 +101,27 @@ export class OrderController {
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<OrderDetailDto>> {
     const order = await this._orderService.getByIdAsync(id);
     return ResponseDto.retrieved('Order details fetched successfully', order);
+  }
+
+  /**
+   * Cancel an order.
+   */
+  @Put(':id/cancel')
+  @ApiOperation({
+    summary: 'Cancel an order',
+    description:
+      'Cancels an active order by transitioning its status to `Cancelled` and recording ' +
+      'the cancellation reason.\n\n' +
+      'Cannot cancel orders that are already `Completed`, `Closed`, or `Cancelled`.',
+  })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the order to cancel', example: 1 })
+  @ApiResponseDto(OrderDetailDto, false, 200)
+  async cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CancelOrderDto,
+  ): Promise<ResponseDto<OrderDetailDto>> {
+    const order = await this._orderService.cancelOrderAsync(id, dto.cancel_reason);
+    return ResponseDto.updated('Order cancelled successfully', order);
   }
 }
 
@@ -199,7 +227,54 @@ export class OrderDriverController {
   async verifyOtp(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: VerifyOrderOtpDto,
+    @UploadedFiles() files?: Express.Multer.File[],
   ): Promise<{ message: string }> {
-    return await this._orderService.verifyOrderOtpAsync(id, dto.type, dto.otp);
+    return await this._orderService.verifyOrderOtpAsync(id, dto.type, dto.otp, files);
+  }
+
+  /**
+   * Upload/save pre-pickup images for an order (Driver only).
+   */
+  @Put(':id/pre-pickup-images')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadOrderImagesDto })
+  @UseInterceptors(FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }))
+  @ApiOperation({
+    summary: 'Upload pre-pickup images (Driver only)',
+    description:
+      'Allows the driver to save pre-pickup/pre-job images. ' +
+      'Can only be done when the order status is `OtpPending` or `InProgress`.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @ApiResponseDto(OrderDetailDto, false, 200)
+  async savePrePickupImages(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<OrderDetailDto>> {
+    const order = await this._orderService.savePrePickupImagesAsync(id, files);
+    return ResponseDto.updated('Pre-pickup images saved successfully', order);
+  }
+
+  /**
+   * Upload/save post-pickup images for an order (Driver only).
+   */
+  @Put(':id/post-pickup-images')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadOrderImagesDto })
+  @UseInterceptors(FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }))
+  @ApiOperation({
+    summary: 'Upload post-pickup images (Driver only)',
+    description:
+      'Allows the driver to save post-pickup/post-job images. ' +
+      'Can only be done when the order status is `InProgress` or `Completed`.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @ApiResponseDto(OrderDetailDto, false, 200)
+  async savePostPickupImages(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<OrderDetailDto>> {
+    const order = await this._orderService.savePostPickupImagesAsync(id, files);
+    return ResponseDto.updated('Post-pickup images saved successfully', order);
   }
 }

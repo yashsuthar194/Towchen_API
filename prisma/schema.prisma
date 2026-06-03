@@ -256,6 +256,8 @@ model order {
   completion_time     DateTime?
   remarks             String?
   cancel_reason       String?
+  pre_pickup_images   String[]    @default([])
+  post_pickup_images  String[]    @default([])
   created_at          DateTime    @default(now())
   updated_at          DateTime    @default(now()) @updatedAt
 
@@ -544,6 +546,7 @@ enum OrderStatus {
   InProgress
   Completed
   Closed
+  Cancelled
 }
 
 enum LocationType {

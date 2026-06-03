@@ -9,6 +9,7 @@ import { MapsService } from 'src/services/maps/maps.service';
 import { LocationResponseDto } from '../location/dto/location-response.dto';
 import { VoucherService } from '../voucher/voucher.service';
 import { WalletService } from '../wallet/wallet.service';
+import { StorageService } from 'src/services/storage/storage.service';
 
 @Injectable()
 export class OrderService {
@@ -18,6 +19,7 @@ export class OrderService {
     private readonly _mapsService: MapsService,
     private readonly _voucherService: VoucherService,
     private readonly _walletService: WalletService,
+    private readonly _storageService: StorageService,
   ) { }
 
   /**
@@ -83,7 +85,7 @@ export class OrderService {
   /**
    * Verifies the OTP provided by the driver and updates order status.
    */
-  async verifyOrderOtpAsync(orderId: number, type: OrderOtpType, otp: string): Promise<{ message: string }> {
+  async verifyOrderOtpAsync(orderId: number, type: OrderOtpType, otp: string, images?: Express.Multer.File[]): Promise<{ message: string }> {
     if (!this._callerService.isDriver()) {
       throw new BadRequestException('Only drivers can verify order OTPs');
     }
@@ -136,10 +138,31 @@ export class OrderService {
       status: type === OrderOtpType.START ? OrderStatus.InProgress : OrderStatus.Completed,
     };
 
+    let uploadedUrls: string[] = [];
+    if (images && images.length > 0) {
+      uploadedUrls = await Promise.all(
+        images.map((file, index) =>
+          this._storageService.uploadFileAsync({
+            buffer: file.buffer,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            folderPath: `order/${orderId}/${type.toLowerCase()}-pickup/${index}`,
+          }).then((res) => res.url)
+        )
+      );
+    }
+
     if (type === OrderOtpType.START) {
       updateData.start_time = new Date();
+      if (uploadedUrls.length > 0) {
+        updateData.pre_pickup_images = uploadedUrls;
+      }
     } else {
       updateData.completion_time = new Date();
+      if (uploadedUrls.length > 0) {
+        updateData.post_pickup_images = uploadedUrls;
+      }
     }
 
     await this._prisma.$transaction(async (tx) => {
@@ -216,28 +239,30 @@ export class OrderService {
         // 1. Create Order with Voucher and Billing discounts
         let appliedVoucherId: number | null = null;
         let discountAmount = 0.0;
-        let finalAmount = dto.sub_service_estimate?.grand_total_int 
-          ? parseFloat(dto.sub_service_estimate.grand_total_int) 
+        let finalAmount = dto.sub_service_estimate?.grand_total_int
+          ? parseFloat(dto.sub_service_estimate.grand_total_int)
           : null;
+        const voucherCode = dto.voucher_code?.trim();
+        const hasVoucher = voucherCode && voucherCode !== '' && voucherCode.toLowerCase() !== 'null';
 
-        if (dto.voucher_code) {
+        if (hasVoucher) {
           // Validate voucher (checks existence, expiry, and self-referral)
-          const voucher = await this._voucherService.validateVoucherAsync(dto.voucher_code, customerId);
+          const voucher = await this._voucherService.validateVoucherAsync(voucherCode, customerId);
           appliedVoucherId = voucher.id;
 
           // Compute percentage-based discount on base price (total_price -> final_amount_int)
-          const basePrice = dto.sub_service_estimate?.final_amount_int 
-            ? parseFloat(dto.sub_service_estimate.final_amount_int) 
+          const basePrice = dto.sub_service_estimate?.final_amount_int
+            ? parseFloat(dto.sub_service_estimate.final_amount_int)
             : 0.0;
           discountAmount = parseFloat((basePrice * (voucher.discount_percent / 100)).toFixed(2));
 
-          const grandTotal = dto.sub_service_estimate?.grand_total_int 
-            ? parseFloat(dto.sub_service_estimate.grand_total_int) 
+          const grandTotal = dto.sub_service_estimate?.grand_total_int
+            ? parseFloat(dto.sub_service_estimate.grand_total_int)
             : 0.0;
           finalAmount = Math.max(0, parseFloat((grandTotal - discountAmount).toFixed(2)));
 
           // Redeem voucher atomically inside order creation transaction context
-          await this._voucherService.redeemVoucherAsync(dto.voucher_code, customerId, tx);
+          await this._voucherService.redeemVoucherAsync(voucherCode, customerId, tx);
         }
 
         const order = await tx.order.create({
@@ -513,5 +538,137 @@ export class OrderService {
       }
       throw new InternalServerErrorException('Failed to accept order. Please try again.');
     }
+  }
+
+  /**
+   * Cancels an order.
+   * @param id Order ID
+   * @param cancelReason Reason for cancellation
+   */
+  async cancelOrderAsync(id: number, cancelReason: string): Promise<OrderDetailDto> {
+    const order = await this._prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (
+      order.status === OrderStatus.Completed ||
+      order.status === OrderStatus.Closed ||
+      order.status === OrderStatus.Cancelled
+    ) {
+      throw new BadRequestException(`Order cannot be cancelled as it is already ${order.status.toLowerCase()}`);
+    }
+
+    const updatedOrder = await this._prisma.order.update({
+      where: { id },
+      data: {
+        status: OrderStatus.Cancelled,
+        cancel_reason: cancelReason,
+      },
+      include: {
+        locations: true,
+        customer: true,
+        driver: true,
+        vehicle: true,
+        vendor: true,
+        service: true,
+        sub_service: true,
+      },
+    });
+
+    return updatedOrder as unknown as OrderDetailDto;
+  }
+
+  /**
+   * Saves pre-pickup images for an order.
+   */
+  async savePrePickupImagesAsync(id: number, files: Express.Multer.File[]): Promise<OrderDetailDto> {
+    const order = await this._prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (order.status !== OrderStatus.OtpPending && order.status !== OrderStatus.InProgress) {
+      throw new BadRequestException('Pre-pickup images can only be uploaded when order is pending start or in progress');
+    }
+
+    const urls = await Promise.all(
+      files.map((file, index) =>
+        this._storageService.uploadFileAsync({
+          buffer: file.buffer,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          folderPath: `order/${id}/pre-pickup/${index}`,
+        }).then((res) => res.url)
+      )
+    );
+
+    const updatedOrder = await this._prisma.order.update({
+      where: { id },
+      data: { pre_pickup_images: urls },
+      include: {
+        locations: true,
+        customer: true,
+        driver: true,
+        vehicle: true,
+        vendor: true,
+        service: true,
+        sub_service: true,
+      },
+    });
+
+    return updatedOrder as unknown as OrderDetailDto;
+  }
+
+  /**
+   * Saves post-pickup images for an order.
+   */
+  async savePostPickupImagesAsync(id: number, files: Express.Multer.File[]): Promise<OrderDetailDto> {
+    const order = await this._prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (order.status !== OrderStatus.InProgress && order.status !== OrderStatus.Completed) {
+      throw new BadRequestException('Post-pickup images can only be uploaded when order is in progress or completed');
+    }
+
+    const urls = await Promise.all(
+      files.map((file, index) =>
+        this._storageService.uploadFileAsync({
+          buffer: file.buffer,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          folderPath: `order/${id}/post-pickup/${index}`,
+        }).then((res) => res.url)
+      )
+    );
+
+    const updatedOrder = await this._prisma.order.update({
+      where: { id },
+      data: { post_pickup_images: urls },
+      include: {
+        locations: true,
+        customer: true,
+        driver: true,
+        vehicle: true,
+        vendor: true,
+        service: true,
+        sub_service: true,
+      },
+    });
+
+    return updatedOrder as unknown as OrderDetailDto;
   }
 }
