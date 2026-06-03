@@ -167,23 +167,37 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return;
     }
 
+    // Capture request data synchronously BEFORE setImmediate
+    // This prevents data loss if middleware (like multer or body-parser) cleans up the request object on response finish.
+    const startTime: number | undefined = (request as any)['_log_start'];
+    const resTime = startTime ? Date.now() - startTime : 0;
+    const { raw_token, decoded_token } = this._extractTokenInfo(request);
+    
+    const reqPath = request.path ?? '/';
+    const reqMethod = request.method as any;
+    const reqBody = this.logService.safeJson((request as any)?.body || null);
+    const reqQuery = request.query ?? null;
+    const reqHeader = this.logService.sanitizeHeaders(request.headers);
+    const reqFiles = this.logService.extractFileMetadata((request as any).files);
+    const reqContentType = request.headers?.['content-type']?.split(';')[0]?.trim();
+    const userAgent = request.headers?.['user-agent'] ?? undefined;
+    const ipAddress = this.logService.extractIp(request as any);
+    const endpointGroup = this.logService.deriveEndpointGroup(reqPath);
+    const metaData = (request as any)['_log_meta'] ?? null;
+
     // Fire-and-forget log — runs AFTER the response is sent so it cannot
     // delay or affect the client.
     setImmediate(() => {
       try {
-        const startTime: number | undefined = (request as any)['_log_start'];
-        const resTime = startTime ? Date.now() - startTime : 0;
-        const { raw_token, decoded_token } = this._extractTokenInfo(request);
-
         this.logService.saveLog({
           // Request
-          url: request.path ?? '/',
-          method: request.method as any,
-          req_body: this.logService.safeJson((request as any)?.body || null),
-          req_query_params: request.query ?? null,
-          req_header: this.logService.sanitizeHeaders(request.headers),
-          req_files: this.logService.extractFileMetadata((request as any).files),
-          req_content_type: request.headers?.['content-type']?.split(';')[0]?.trim(),
+          url: reqPath,
+          method: reqMethod,
+          req_body: reqBody,
+          req_query_params: reqQuery,
+          req_header: reqHeader,
+          req_files: reqFiles,
+          req_content_type: reqContentType,
 
           // Response
           success: false,
@@ -205,12 +219,12 @@ export class HttpExceptionFilter implements ExceptionFilter {
           user_id: decoded_token ? (decoded_token as any)?.id : undefined,
 
           // Client
-          user_agent: request.headers?.['user-agent'] ?? undefined,
-          ip_address: this.logService.extractIp(request as any),
+          user_agent: userAgent,
+          ip_address: ipAddress,
 
           // Grouping / Debug
-          endpoint_group: this.logService.deriveEndpointGroup(request.path),
-          meta_data: (request as any)['_log_meta'] ?? null,
+          endpoint_group: endpointGroup,
+          meta_data: metaData,
         });
       } catch (logErr) {
         // Safety net: logging errors must NEVER surface back to the client
