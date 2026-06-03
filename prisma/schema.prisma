@@ -204,7 +204,6 @@ model location {
   created_at      DateTime         @default(now())
   startDrivers    driver[]         @relation("DriverStartLocation")
   endDrivers      driver[]         @relation("DriverEndLocation")
-  order_locations order_location[]
 
   @@index([city])
   @@index([state])
@@ -288,18 +287,30 @@ model order {
 model order_location {
   id             Int          @id @default(autoincrement())
   order_id       Int
-  location_id    Int
   type           LocationType
-  created_at     DateTime     @default(now())
+
+  address        String?
+  street         String?
+  area           String?
+  city           String?
+  state          String?
+  pincode        String?
+  country        String?
+  latitude       Float
+  longitude      Float
+  landmark       String?
+  place_id       String
+
   contact_name   String?      @db.VarChar(255)
   contact_number String?      @db.VarChar(20)
 
+  created_at     DateTime     @default(now())
+
   order    order    @relation(fields: [order_id], references: [id])
-  location location @relation(fields: [location_id], references: [id])
 
   @@unique([order_id, type])
-  @@index([location_id])
   @@index([order_id])
+  @@index([place_id])
 }
 
 model order_otp {
