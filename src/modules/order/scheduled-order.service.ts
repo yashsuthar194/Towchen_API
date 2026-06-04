@@ -12,7 +12,7 @@ import { ScheduledOrderDetailDto } from './dto/scheduled-order-detail.dto';
 import { OrderNotificationService } from './order-notification.service';
 
 /** Minimum minutes in the future a booking must be scheduled. */
-const MIN_ADVANCE_MINUTES = 30;
+const MIN_ADVANCE_MINUTES = 5;
 
 /** Maximum days in the future a booking can be scheduled. */
 const MAX_ADVANCE_DAYS = 7;

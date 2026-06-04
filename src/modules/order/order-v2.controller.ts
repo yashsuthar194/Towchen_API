@@ -39,7 +39,7 @@ export class OrderV2Controller {
       '**Scheduled order** (Book for Later): include `scheduled_at` as an ISO 8601 string ' +
       '(e.g. `"2026-06-05T10:00:00+05:30"`). The order will be automatically promoted ' +
       `to a live order at that time.\n\n` +
-      '**Booking window:** at least 30 minutes from now, at most 7 days ahead.',
+      '**Booking window:** at least 5 minutes from now, at most 7 days ahead.',
   })
   @ApiResponseDto(OrderDetailDto, false, 201)
   async create(
