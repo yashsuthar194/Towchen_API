@@ -21,7 +21,8 @@ export class WalletController {
   @ApiResponseDto(WalletDetailDto)
   @Get('/me')
   async getUserWallet(): Promise<ResponseDto<WalletDetailDto>> {
-    const wallet = await this._walletService.getUserWallet();
+    const userId = this._callerService.getUserId();
+    const wallet = await this._walletService.getUserWallet(userId);
     return ResponseDto.retrieved('Wallet retrieved successfully', wallet);
   }
 

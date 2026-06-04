@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, IsNumber, IsEnum, ValidateNested, IsArray, ValidateIf } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, IsNumber, IsEnum, ValidateNested, IsArray, ValidateIf, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 import { JourneyType } from '@prisma/client';
 
@@ -178,4 +178,15 @@ export class CreateOrderV2Dto {
   @ValidateNested({ each: true })
   @Type(() => OrderConditionInputDto)
   conditions?: OrderConditionInputDto[];
+
+  /**
+   * ISO 8601 datetime string for scheduled orders.
+   * When present, the order is saved as a booking and promoted to an active
+   * order at the specified time instead of being created immediately.
+   *
+   * @example "2026-06-05T10:00:00+05:30"
+   */
+  @IsOptional()
+  @IsDateString({}, { message: 'scheduled_at must be a valid ISO 8601 datetime string' })
+  scheduled_at?: string;
 }

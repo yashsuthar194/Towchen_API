@@ -1,19 +1,16 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, TransactionType, wallet } from '@prisma/client';
 import { PrismaService } from 'src/core/prisma/prisma.service';
-import { CallerService } from 'src/services/jwt/caller.service';
-
 @Injectable()
 export class WalletService {
-    constructor(private readonly _prismaService: PrismaService, private readonly _callerService: CallerService) { }
+    constructor(private readonly _prismaService: PrismaService) { }
 
     //#region GET
     /**
-     * @description get user wallet (for the currently logged in user context)
+     * @description get user wallet
      * @returns 
      */
-    async getUserWallet(): Promise<wallet> {
-        const userId = this._callerService.getUserId();
+    async getUserWallet(userId: number): Promise<wallet> {
         return this.getOrCreateWalletByUserId(userId);
     }
 

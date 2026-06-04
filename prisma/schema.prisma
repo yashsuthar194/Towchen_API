@@ -166,6 +166,7 @@ model customer {
   customer_addresses customer_address[]
   created_vouchers   voucher[]          @relation("VoucherCreator")
   redeemed_vouchers  voucher[]          @relation("VoucherRedeemer")
+  scheduled_orders   scheduled_order[]
 }
 
 model customer_vehicle {
@@ -261,9 +262,10 @@ model order {
 
   meta_data Json?
 
-  applied_voucher_id Int?
-  discount_amount    Float  @default(0.0)
-  final_amount       Float? // Net billing price after discount
+  applied_voucher_id    Int?
+  discount_amount       Float  @default(0.0)
+  final_amount          Float? // Net billing price after discount
+  scheduled_order_id    Int?   // Populated when promoted from a scheduled booking
 
   customer         customer          @relation(fields: [customer_id], references: [id])
   customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
@@ -275,6 +277,7 @@ model order {
   sub_service      sub_service?      @relation(fields: [sub_service_id], references: [id])
   otps             order_otp[]
   voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
+  scheduled_order  scheduled_order?  @relation(fields: [scheduled_order_id], references: [id])
 
   @@index([customer_id])
   @@index([driver_id])
@@ -282,6 +285,7 @@ model order {
   @@index([vehicle_id])
   @@index([vendor_id])
   @@index([applied_voucher_id])
+  @@index([scheduled_order_id])
 }
 
 model order_location {
@@ -460,7 +464,47 @@ model voucher {
   @@index([used_by_id])
 }
 
+model scheduled_order {
+  id                Int                  @id @default(autoincrement())
+  idempotency_key   String               @unique // UUID set at creation — prevents duplicate promotions
+  customer_id       Int
+  status            ScheduledOrderStatus @default(Pending)
+
+  // Snapshot of the full CreateOrderDto payload stored at booking time
+  payload           Json
+
+  scheduled_at      DateTime
+  timezone          String               @default("Asia/Kolkata")
+
+  // Execution tracking
+  attempt_count     Int                  @default(0)
+  max_attempts      Int                  @default(3)
+  last_attempted_at DateTime?
+  last_error        String?              @db.Text
+  promoted_order_id Int?                 @unique // FK to order.id on successful promotion
+  cancelled_at      DateTime?
+  cancel_reason     String?
+
+  created_at        DateTime             @default(now())
+  updated_at        DateTime             @updatedAt
+
+  customer customer  @relation(fields: [customer_id], references: [id])
+  orders   order[]
+
+  @@index([status, scheduled_at])
+  @@index([customer_id])
+}
+
 //#region enums
+enum ScheduledOrderStatus {
+  Pending
+  Processing
+  Promoted
+  Failed
+  Cancelled
+  Expired
+}
+
 enum VoucherType {
   Enterprise
   Basic

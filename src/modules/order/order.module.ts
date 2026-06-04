@@ -2,15 +2,32 @@ import { Module } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { OrderController, OrderDriverController } from './order.controller';
 import { OrderV2Controller } from './order-v2.controller';
+import { ScheduledOrderService } from './scheduled-order.service';
+import { ScheduledOrderProcessorService } from './scheduled-order-processor.service';
+import { OrderNotificationService } from './order-notification.service';
+import { OrderCreationService } from './order-creation.service';
 import { PrismaModule } from '../../core/prisma/prisma.module';
 import { MapsModule } from 'src/services/maps/maps.module';
 import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { SmsModule } from 'src/services/sms/sms.module';
 
 @Module({
-  imports: [PrismaModule, MapsModule, VoucherModule, WalletModule],
+  imports: [
+    PrismaModule,
+    MapsModule,
+    VoucherModule,
+    WalletModule,
+    SmsModule,
+  ],
   controllers: [OrderController, OrderV2Controller, OrderDriverController],
-  providers: [OrderService],
-  exports: [OrderService],
+  providers: [
+    OrderService,
+    ScheduledOrderService,
+    ScheduledOrderProcessorService,
+    OrderNotificationService,
+    OrderCreationService,
+  ],
+  exports: [OrderService, OrderCreationService],
 })
-export class OrderModule { }
+export class OrderModule {}

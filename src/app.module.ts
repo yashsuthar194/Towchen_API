@@ -21,9 +21,11 @@ import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { SubServiceConditionModule } from './modules/sub-service-condition/sub-service-condition.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { VoucherModule } from './modules/voucher/voucher.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(), // Global scheduler — must be here, not in feature modules
     ResponseModule,
     TypedConfigModule,
     JwtModule,
