@@ -187,6 +187,6 @@ export class CreateOrderV2Dto {
    * @example "2026-06-05T10:00:00+05:30"
    */
   @IsOptional()
-  @IsDateString({}, { message: 'scheduled_at must be a valid ISO 8601 datetime string' })
+  @IsString({ message: 'scheduled_at must be a string' })
   scheduled_at?: string;
 }

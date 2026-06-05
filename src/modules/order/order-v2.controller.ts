@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Get, Param, ParseIntPipe, Delete, Query } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Param, ParseIntPipe, Delete, Query, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
@@ -49,9 +49,10 @@ export class OrderV2Controller {
 
     if (dto.scheduled_at) {
       const customerId = this._callerService.getUserId();
+      const parsedScheduledAt = this.parseScheduledAt(dto.scheduled_at);
       const scheduled = await this._scheduledOrderService.scheduleAsync(
         customerId,
-        dto.scheduled_at,
+        parsedScheduledAt,
         undefined, // default timezone (Asia/Kolkata)
         createOrderDto,
       );
@@ -153,5 +154,42 @@ export class OrderV2Controller {
           }
         : undefined,
     };
+  }
+
+  private parseScheduledAt(scheduledAt: string): string {
+    const regex = /^(?:[A-Za-z]+,?\s+)?(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})\s*(am|pm|AM|PM)$/i;
+    const match = scheduledAt.trim().match(regex);
+    if (!match) {
+      // Fallback: see if standard Date constructor can parse it
+      const fallbackDate = new Date(scheduledAt);
+      if (isNaN(fallbackDate.getTime())) {
+        throw new BadRequestException('Invalid scheduled_at date format. Expected format: "Friday 05/06/2026 11:24 pm" or ISO 8601.');
+      }
+      return fallbackDate.toISOString();
+    }
+
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1; // JS months are 0-indexed
+    const year = parseInt(match[3], 10);
+    let hour = parseInt(match[4], 10);
+    const minute = parseInt(match[5], 10);
+    const ampm = match[6].toLowerCase();
+
+    if (ampm === 'pm' && hour < 12) {
+      hour += 12;
+    } else if (ampm === 'am' && hour === 12) {
+      hour = 0;
+    }
+
+    // India Standard Time (IST, UTC+05:30)
+    const pad = (num: number) => String(num).padStart(2, '0');
+    const isoString = `${year}-${pad(month + 1)}-${pad(day)}T${pad(hour)}:${pad(minute)}:00+05:30`;
+    const date = new Date(isoString);
+
+    if (isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid scheduled_at date calculations.');
+    }
+
+    return date.toISOString();
   }
 }
