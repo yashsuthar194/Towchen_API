@@ -157,39 +157,61 @@ export class OrderV2Controller {
   }
 
   private parseScheduledAt(scheduledAt: string): string {
-    const regex = /^(?:[A-Za-z]+,?\s+)?(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})\s*(am|pm|AM|PM)$/i;
-    const match = scheduledAt.trim().match(regex);
-    if (!match) {
-      // Fallback: see if standard Date constructor can parse it
-      const fallbackDate = new Date(scheduledAt);
-      if (isNaN(fallbackDate.getTime())) {
-        throw new BadRequestException('Invalid scheduled_at date format. Expected format: "Friday 05/06/2026 11:24 pm" or ISO 8601.');
+    const trimmed = scheduledAt.trim();
+
+    // Format: "06 Jun, 11:48 AM" or "6 Jun 11:48 AM"
+    const regex = /^(\d{1,2})\s+([A-Za-z]{3}),?\s+(\d{1,2}):(\d{2})\s*(am|pm|AM|PM)$/i;
+    const match = trimmed.match(regex);
+
+    if (match) {
+      const day = parseInt(match[1], 10);
+      const monthName = match[2].toLowerCase();
+      const MONTH_MAP: Record<string, number> = {
+        jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+        jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+      };
+      const month = MONTH_MAP[monthName];
+      if (month === undefined) {
+        throw new BadRequestException(`Invalid month name: "${match[2]}"`);
       }
-      return fallbackDate.toISOString();
+
+      // Resolve year: default to current year. If target month is earlier than current month, assume next year.
+      const kolkataTimeStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+      const nowInKolkata = new Date(kolkataTimeStr);
+      const currentYear = nowInKolkata.getFullYear();
+      const currentMonth = nowInKolkata.getMonth();
+
+      let year = currentYear;
+      if (month < currentMonth) {
+        year = currentYear + 1;
+      }
+
+      let hour = parseInt(match[3], 10);
+      const minute = parseInt(match[4], 10);
+      const ampm = match[5].toLowerCase();
+
+      if (ampm === 'pm' && hour < 12) {
+        hour += 12;
+      } else if (ampm === 'am' && hour === 12) {
+        hour = 0;
+      }
+
+      // India Standard Time (IST, UTC+05:30)
+      const pad = (num: number) => String(num).padStart(2, '0');
+      const isoString = `${year}-${pad(month + 1)}-${pad(day)}T${pad(hour)}:${pad(minute)}:00+05:30`;
+      const date = new Date(isoString);
+
+      if (isNaN(date.getTime())) {
+        throw new BadRequestException('Invalid scheduled_at date calculations.');
+      }
+      return date.toISOString();
     }
 
-    const day = parseInt(match[1], 10);
-    const month = parseInt(match[2], 10) - 1; // JS months are 0-indexed
-    const year = parseInt(match[3], 10);
-    let hour = parseInt(match[4], 10);
-    const minute = parseInt(match[5], 10);
-    const ampm = match[6].toLowerCase();
-
-    if (ampm === 'pm' && hour < 12) {
-      hour += 12;
-    } else if (ampm === 'am' && hour === 12) {
-      hour = 0;
+    // Fallback: see if standard Date constructor can parse it (e.g. ISO 8601)
+    const fallbackDate = new Date(trimmed);
+    if (isNaN(fallbackDate.getTime())) {
+      throw new BadRequestException('Invalid scheduled_at date format. Expected format: "06 Jun, 11:48 AM" or ISO 8601.');
     }
-
-    // India Standard Time (IST, UTC+05:30)
-    const pad = (num: number) => String(num).padStart(2, '0');
-    const isoString = `${year}-${pad(month + 1)}-${pad(day)}T${pad(hour)}:${pad(minute)}:00+05:30`;
-    const date = new Date(isoString);
-
-    if (isNaN(date.getTime())) {
-      throw new BadRequestException('Invalid scheduled_at date calculations.');
-    }
-
-    return date.toISOString();
+    return fallbackDate.toISOString();
   }
 }
