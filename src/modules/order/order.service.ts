@@ -455,4 +455,31 @@ export class OrderService {
       throw new InternalServerErrorException('Failed to cancel order. Please try again.');
     }
   }
+
+  /**
+   * Fetches all pending orders (status: 'New') in the system for drivers.
+   */
+  async getPendingOrdersForDriverAsync(): Promise<OrderDetailDto[]> {
+    if (!this._callerService.isDriver()) {
+      throw new BadRequestException('Only drivers can access pending orders');
+    }
+
+    const orders = await this._prisma.order.findMany({
+      where: {
+        status: OrderStatus.New,
+      },
+      include: {
+        locations: true,
+        customer: true,
+        customer_vehicle: true,
+        service: true,
+        sub_service: true,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+
+    return orders as unknown as OrderDetailDto[];
+  }
 }

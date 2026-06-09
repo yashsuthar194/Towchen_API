@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderStatus, LocationType } from '@prisma/client';
 import { ServiceDto, SubServiceDto } from '../../vendor/dto/service.dto';
+import { CustomerDetailDto, CustomerVehicleDetailDto } from '../../customer/dto/customer-detail.dto';
 
 class OrderLocationDetailDto {
   @ApiProperty()
@@ -32,23 +33,23 @@ export class OrderDetailDto {
   @ApiProperty()
   customer_id: number;
 
-  @ApiPropertyOptional()
-  customer_vehicle_id?: number;
+  @ApiPropertyOptional({ nullable: true })
+  customer_vehicle_id?: number | null;
 
-  @ApiPropertyOptional()
-  vendor_id?: number;
+  @ApiPropertyOptional({ nullable: true })
+  vendor_id?: number | null;
 
-  @ApiPropertyOptional()
-  driver_id?: number;
+  @ApiPropertyOptional({ nullable: true })
+  driver_id?: number | null;
 
-  @ApiPropertyOptional()
-  vehicle_id?: number;
+  @ApiPropertyOptional({ nullable: true })
+  vehicle_id?: number | null;
 
   @ApiProperty()
   service_id: number;
 
-  @ApiPropertyOptional()
-  sub_service_id?: number;
+  @ApiPropertyOptional({ nullable: true })
+  sub_service_id?: number | null;
 
   @ApiProperty({ type: ServiceDto })
   service: ServiceDto;
@@ -62,8 +63,8 @@ export class OrderDetailDto {
   @ApiProperty({ enum: OrderStatus })
   status: OrderStatus;
 
-  @ApiPropertyOptional()
-  remarks?: string;
+  @ApiPropertyOptional({ nullable: true })
+  remarks?: string | null;
 
   @ApiProperty()
   created_at: Date;
@@ -73,4 +74,10 @@ export class OrderDetailDto {
 
   @ApiPropertyOptional({ description: 'Order metadata (JSON) containing nested sub_service estimate details' })
   meta_data?: any;
+
+  @ApiPropertyOptional({ type: () => CustomerDetailDto })
+  customer?: CustomerDetailDto;
+
+  @ApiPropertyOptional({ type: () => CustomerVehicleDetailDto })
+  customer_vehicle?: CustomerVehicleDetailDto;
 }

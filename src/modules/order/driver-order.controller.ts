@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Put,
@@ -23,6 +24,22 @@ import { ResponseDto } from 'src/core/response/dto/response.dto';
 @ApiBearerAuth('JWT-auth')
 export class DriverOrderController {
   constructor(private readonly _orderService: OrderService) {}
+
+  /**
+   * List all pending (New/unassigned) orders in the system.
+   */
+  @Get('pending')
+  @ApiOperation({
+    summary: 'List all pending orders (Driver only)',
+    description:
+      'Returns a list of all orders with status `New` (unassigned) available in the system.\n\n' +
+      '⚠️ Only authenticated drivers can call this endpoint.',
+  })
+  @ApiResponseDto(OrderDetailDto, true, 200)
+  async getPending(): Promise<ResponseDto<OrderDetailDto[]>> {
+    const orders = await this._orderService.getPendingOrdersForDriverAsync();
+    return ResponseDto.retrieved('Pending orders fetched successfully', orders);
+  }
 
   /**
    * Step 2: Driver accepts a "New" order.
