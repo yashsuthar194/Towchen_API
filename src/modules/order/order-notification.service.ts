@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { SmsService } from 'src/services/sms/sms.service';
+import { OrderOtpType } from '@prisma/client';
 
 /**
  * Handles all SMS notifications related to the order lifecycle.
@@ -96,6 +97,27 @@ export class OrderNotificationService {
       `after multiple attempts. Please create a new order at your convenience.`;
 
     await this.sendSafely(customer.number, message, `scheduled-expired:${scheduledOrderId}`);
+  }
+
+  /**
+   * Notifies the customer of their OTP code for starting or completing the order.
+   */
+  async notifyOrderOtp(
+    orderId: number,
+    customerNumber: string,
+    otpCode: string,
+    type: OrderOtpType,
+  ): Promise<void> {
+    const order = await this._prisma.order.findUnique({
+      where: { id: orderId },
+      select: { formated_id: true },
+    });
+
+    const action = type === OrderOtpType.START ? 'start' : 'complete';
+    const message =
+      `Your OTP to ${action} order ${order?.formated_id ?? `#${orderId}`} is ${otpCode}.`;
+
+    await this.sendSafely(customerNumber, message, `order-otp:${orderId}:${type}`);
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────

@@ -43,7 +43,7 @@ export class OrderService {
 
     // Generate 6-digit OTP
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+    const expiresAt = new Date('9999-12-31'); // No expiration (far future date)
 
     await this._prisma.order_otp.upsert({
       where: {
@@ -73,8 +73,8 @@ export class OrderService {
       data: { status: OrderStatus.OtpPending },
     });
 
-    // TODO: Integrate with SMS service to send OTP to order.customer.number
-    console.log(`Sending OTP ${otpCode} to customer ${order.customer.number} for order ${orderId} (${type})`);
+    // Integrate with SMS service to send OTP to order.customer.number
+    await this._notificationService.notifyOrderOtp(orderId, order.customer.number, otpCode, type);
 
     return { message: `OTP sent successfully to ${order.customer.number}` };
   }
@@ -171,7 +171,7 @@ export class OrderService {
       }
     });
 
-    return { message: `OTP verified successfully. Order is now ${updateData.status.toLowerCase()}.` };
+    return { message: 'OTP verified successfully.' };
   }
 
   /**
@@ -293,13 +293,9 @@ export class OrderService {
     }
 
     try {
-      // Generate 6-digit OTP for START
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
-
-      return await this._prisma.$transaction(async (tx) => {
+      await this._prisma.$transaction(async (tx) => {
         // 1. Update Order Status and Driver/Vehicle Assignment
-        const updatedOrder = await tx.order.update({
+        await tx.order.update({
           where: { id },
           data: {
             driver_id: driver.id,
@@ -310,30 +306,7 @@ export class OrderService {
           },
         });
 
-        // 2. Create/Update Order OTP record
-        await tx.order_otp.upsert({
-          where: {
-            order_id_type: {
-              order_id: id,
-              type: OrderOtpType.START,
-            },
-          },
-          update: {
-            otp: otpCode,
-            expires_at: expiresAt,
-            is_verified: false,
-            verified_at: null,
-            attempts: 0,
-          },
-          create: {
-            order_id: id,
-            type: OrderOtpType.START,
-            otp: otpCode,
-            expires_at: expiresAt,
-          },
-        });
-
-        // 3. Link Driver Locations (Start and End)
+        // 2. Link Driver Locations (Start and End)
         const orderLocations: any[] = [];
 
         if (driver.startLocation) {
@@ -385,19 +358,21 @@ export class OrderService {
             data: orderLocations,
           });
         }
-
-        // TODO: Integrate with SMS service to send OTP to order.customer.number
-        console.log(`Sending automated START OTP ${otpCode} to customer ${order.customer.number} for order ${id}`);
-
-        return await tx.order.findUnique({
-          where: { id: updatedOrder.id },
-          include: {
-            locations: true,
-            service: true,
-            sub_service: true,
-          },
-        }) as unknown as OrderDetailDto;
       });
+
+      // 3. Directly call the OTP sending logic with type START
+      await this.sendOrderOtpAsync(id, OrderOtpType.START);
+
+      // 4. Return the updated order details
+      return await this._prisma.order.findUnique({
+        where: { id },
+        include: {
+          locations: true,
+          service: true,
+          sub_service: true,
+        },
+      }) as unknown as OrderDetailDto;
+
     } catch (error) {
       console.error('Error accepting order:', error);
       if (error instanceof BadRequestException || error instanceof NotFoundException) {

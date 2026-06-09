@@ -30,7 +30,7 @@ The Order module manages the full lifecycle of a towing/service request — from
      │────────────────────────────────>│                               │
      │                                 │  Status: New                  │
      │                                 │                               │
-     │                                 │    2. PATCH /order/:id/accept │
+     │                                 │    2. PUT /driver/order/:id/accept │
      │                                 │<──────────────────────────────│
      │                                 │  - Assign driver/vehicle      │
      │                                 │  - Auto-generate START OTP    │
@@ -39,7 +39,7 @@ The Order module manages the full lifecycle of a towing/service request — from
      │   (Customer receives OTP)       │                               │
      │<────────────────────────────────│                               │
      │                                 │                               │
-     │   (Customer tells OTP           │  3. POST /order/:id/verify-otp│
+     │   (Customer tells OTP           │  3. POST /driver/order/:id/verify-otp│
      │    to driver in person)         │  { type: "START", otp: "..." }│
      │                                 │<──────────────────────────────│
      │                                 │  Status: InProgress           │
@@ -47,7 +47,7 @@ The Order module manages the full lifecycle of a towing/service request — from
      │                                 │                               │
      │                                 │  ─── Service Being Done ───   │
      │                                 │                               │
-     │                                 │  4. POST /order/:id/send-otp  │
+     │                                 │  4. POST /driver/order/:id/send-otp  │
      │                                 │  { type: "COMPLETE" }         │
      │                                 │<──────────────────────────────│
      │                                 │  Status: OtpPending           │
@@ -56,7 +56,7 @@ The Order module manages the full lifecycle of a towing/service request — from
      │   (Customer receives OTP)       │                               │
      │<────────────────────────────────│                               │
      │                                 │                               │
-     │   (Customer tells OTP           │  5. POST /order/:id/verify-otp│
+     │   (Customer tells OTP           │  5. POST /driver/order/:id/verify-otp│
      │    to driver in person)         │  { type: "COMPLETE", otp: "…"}│
      │                                 │<──────────────────────────────│
      │                                 │  Status: Completed            │
@@ -90,9 +90,9 @@ The Order module manages the full lifecycle of a towing/service request — from
 
 | Field              | Value                                                                  |
 | ------------------ | ---------------------------------------------------------------------- |
-| **Endpoint**       | `PATCH /order/:id/accept`                                              |
+| **Endpoint**       | `PUT /driver/order/:id/accept`                                         |
 | **Auth**           | JWT (Driver role only)                                                 |
-| **Swagger Tag**    | `Order - Driver Actions`                                               |
+| **Swagger Tag**    | `Driver - Order`                                                       |
 | **Response**       | `OrderDetailDto` with driver, vehicle, vendor & locations              |
 
 **What happens internally:**
@@ -111,9 +111,9 @@ The Order module manages the full lifecycle of a towing/service request — from
 
 | Field              | Value                                                                  |
 | ------------------ | ---------------------------------------------------------------------- |
-| **Endpoint**       | `POST /order/:id/send-otp`                                            |
+| **Endpoint**       | `POST /driver/order/:id/send-otp`                                      |
 | **Auth**           | JWT (Driver role only)                                                 |
-| **Swagger Tag**    | `Order - Driver Actions`                                               |
+| **Swagger Tag**    | `Driver - Order`                                                       |
 | **Request Body**   | `SendOrderOtpDto` — `{ type: "START" | "COMPLETE" }`                  |
 | **Response**       | `{ message: "OTP sent successfully to <number>" }`                     |
 
@@ -130,9 +130,9 @@ The Order module manages the full lifecycle of a towing/service request — from
 
 | Field              | Value                                                                  |
 | ------------------ | ---------------------------------------------------------------------- |
-| **Endpoint**       | `POST /order/:id/verify-otp`                                          |
+| **Endpoint**       | `POST /driver/order/:id/verify-otp`                                    |
 | **Auth**           | JWT (Driver role only)                                                 |
-| **Swagger Tag**    | `Order - Driver Actions`                                               |
+| **Swagger Tag**    | `Driver - Order`                                                       |
 | **Request Body**   | `VerifyOrderOtpDto` — `{ type: "START" | "COMPLETE", otp: "123456" }` |
 | **Response**       | `{ message: "OTP verified successfully. Order is now ..." }`           |
 

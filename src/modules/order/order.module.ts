@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OrderService } from './order.service';
-import { OrderController, OrderDriverController } from './order.controller';
+import { OrderController } from './order.controller';
+import { DriverOrderController } from './driver-order.controller';
 import { OrderV2Controller } from './order-v2.controller';
 import { ScheduledOrderService } from './scheduled-order.service';
 import { ScheduledOrderProcessorService } from './scheduled-order-processor.service';
@@ -20,7 +21,7 @@ import { SmsModule } from 'src/services/sms/sms.module';
     WalletModule,
     SmsModule,
   ],
-  controllers: [OrderController, OrderV2Controller, OrderDriverController],
+  controllers: [OrderController, OrderV2Controller, DriverOrderController],
   providers: [
     OrderService,
     ScheduledOrderService,
