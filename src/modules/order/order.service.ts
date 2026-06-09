@@ -381,4 +381,78 @@ export class OrderService {
       throw new InternalServerErrorException('Failed to accept order. Please try again.');
     }
   }
+
+  /**
+   * Allows a driver to cancel an active order.
+   * Resets status back to 'New' and clears the assigned driver/vehicle/vendor and locations.
+   * @param id Order ID
+   * @param reason Optional reason for cancellation
+   */
+  async cancelOrderAsync(id: number, reason?: string): Promise<OrderDetailDto> {
+    if (!this._callerService.isDriver()) {
+      throw new BadRequestException('Only drivers can cancel orders');
+    }
+
+    const driverId = this._callerService.getUserId();
+    const order = await this._prisma.order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    if (order.driver_id !== driverId) {
+      throw new BadRequestException('You are not the assigned driver for this order');
+    }
+
+    if (order.status !== OrderStatus.OtpPending && order.status !== OrderStatus.InProgress) {
+      throw new BadRequestException(`Cannot cancel an order in ${order.status.toLowerCase()} status`);
+    }
+
+    try {
+      return await this._prisma.$transaction(async (tx) => {
+        // 1. Reset Order details
+        const updatedOrder = await tx.order.update({
+          where: { id },
+          data: {
+            driver_id: null,
+            vehicle_id: null,
+            vendor_id: null,
+            status: OrderStatus.New,
+            assign_time: null,
+            cancel_reason: reason ?? null,
+          },
+        });
+
+        // 2. Remove Driver Start and End locations
+        await tx.order_location.deleteMany({
+          where: {
+            order_id: id,
+            type: { in: [LocationType.Start, LocationType.End] },
+          },
+        });
+
+        // 3. Remove order OTPs
+        await tx.order_otp.deleteMany({
+          where: { order_id: id },
+        });
+
+        return await tx.order.findUnique({
+          where: { id: updatedOrder.id },
+          include: {
+            locations: true,
+            service: true,
+            sub_service: true,
+          },
+        }) as unknown as OrderDetailDto;
+      });
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Failed to cancel order. Please try again.');
+    }
+  }
 }

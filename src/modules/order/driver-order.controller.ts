@@ -10,6 +10,7 @@ import {
 import { OrderService } from './order.service';
 import { SendOrderOtpDto } from './dto/send-order-otp.dto';
 import { VerifyOrderOtpDto } from './dto/verify-order-otp.dto';
+import { CancelOrderDto } from './dto/cancel-order.dto';
 import { OrderDetailDto } from './dto/order-detail.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
@@ -116,5 +117,27 @@ export class DriverOrderController {
     @Body() dto: VerifyOrderOtpDto,
   ): Promise<{ message: string }> {
     return await this._orderService.verifyOrderOtpAsync(id, dto.type, dto.otp);
+  }
+
+  /**
+   * Cancel an order (Driver only).
+   * Resets status back to 'New' and unassigns the driver.
+   */
+  @Put(':id/cancel')
+  @ApiOperation({
+    summary: 'Cancel an assigned/active order (Driver only)',
+    description:
+      'Resets the order status back to `New` and unassigns the driver, vehicle, ' +
+      'vendor, and driver start/end locations from the order so another driver can accept it.\n\n' +
+      '⚠️ Only the assigned driver for this order can call this endpoint.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order to cancel', example: 1 })
+  @ApiResponseDto(OrderDetailDto, false, 200)
+  async cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CancelOrderDto,
+  ): Promise<ResponseDto<OrderDetailDto>> {
+    const order = await this._orderService.cancelOrderAsync(id, dto.reason);
+    return ResponseDto.updated('Order cancelled successfully', order);
   }
 }
