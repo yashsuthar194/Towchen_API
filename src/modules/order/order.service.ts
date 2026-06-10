@@ -540,4 +540,62 @@ export class OrderService {
 
     return { urls };
   }
+
+  /**
+   * Uploads a physical job card image for an order when e-job card is not used.
+   * Only the assigned driver can upload these images.
+   */
+  async uploadPhysicalJobCardImageAsync(
+    orderId: number,
+    type: 'pickup' | 'dropoff',
+    file: Express.Multer.File,
+  ): Promise<{ url: string }> {
+    if (!this._callerService.isDriver()) {
+      throw new BadRequestException('Only drivers can upload physical job card images');
+    }
+
+    const driverId = this._callerService.getUserId();
+    const order = await this._prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    if (order.driver_id !== driverId) {
+      throw new BadRequestException('You are not the assigned driver for this order');
+    }
+
+    if (type === 'pickup' && order.is_e_job_card_for_pickup) {
+      throw new BadRequestException('This order requires an e-job card for pickup, physical upload is disabled');
+    }
+
+    if (type === 'dropoff' && order.is_e_job_card_for_dropoff) {
+      throw new BadRequestException('This order requires an e-job card for dropoff, physical upload is disabled');
+    }
+
+    if (!file) {
+      throw new BadRequestException('No file was provided for upload');
+    }
+
+    const res = await this._storageService.uploadFileAsync({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      folderPath: `order/${orderId}/physical-job-card/${type}`,
+    });
+
+    const fieldName = type === 'pickup' ? 'physical_pickup_job_card_image' : 'physical_dropoff_job_card_image';
+
+    await this._prisma.order.update({
+      where: { id: orderId },
+      data: {
+        [fieldName]: res.url,
+      },
+    });
+
+    return { url: res.url };
+  }
 }

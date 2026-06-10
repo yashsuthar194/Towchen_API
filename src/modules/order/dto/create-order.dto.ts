@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, ValidateNested, IsString, IsObject } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, ValidateNested, IsString, IsObject, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderLocationInputDto } from './order-location-input.dto';
@@ -68,4 +68,14 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   voucher_code?: string;
+
+  @ApiPropertyOptional({ description: 'Require e-job card at pickup', default: false })
+  @IsOptional()
+  @IsBoolean()
+  isEjobCardForPickup?: boolean;
+
+  @ApiPropertyOptional({ description: 'Require e-job card at dropoff', default: false })
+  @IsOptional()
+  @IsBoolean()
+  isEjobCardForDropoff?: boolean;
 }

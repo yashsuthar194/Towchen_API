@@ -265,6 +265,11 @@ model order {
   pre_pickup_images  String[] @default([])
   post_pickup_images String[] @default([])
 
+  is_e_job_card_for_pickup        Boolean @default(false)
+  is_e_job_card_for_dropoff       Boolean @default(false)
+  physical_pickup_job_card_image  String?
+  physical_dropoff_job_card_image String?
+
   applied_voucher_id    Int?
   discount_amount       Float  @default(0.0)
   final_amount          Float? // Net billing price after discount

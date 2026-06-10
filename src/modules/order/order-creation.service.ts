@@ -143,6 +143,8 @@ export class OrderCreationService {
             final_amount: finalAmount,
             scheduled_order_id: scheduledOrderId ?? null,
             meta_data: dto.sub_service_estimate ? { sub_service: dto.sub_service_estimate } : undefined,
+            is_e_job_card_for_pickup: dto.isEjobCardForPickup ?? false,
+            is_e_job_card_for_dropoff: dto.isEjobCardForDropoff ?? false,
           },
         });
 

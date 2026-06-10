@@ -9,6 +9,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { SendOrderOtpDto } from './dto/send-order-otp.dto';
@@ -19,8 +20,9 @@ import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiConsumes, ApiBody } 
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { UploadOrderImagesDto } from './dto/upload-order-images.dto';
+import { UploadPhysicalJobCardDto } from './dto/upload-physical-job-card.dto';
 import { FileHelper } from 'src/shared/helper/file-helper';
 
 @ApiTags('Driver - Order')
@@ -201,5 +203,45 @@ export class DriverOrderController {
   ): Promise<ResponseDto<{ urls: string[] }>> {
     const result = await this._orderService.uploadOrderImagesAsync(id, 'post_pickup', files);
     return ResponseDto.updated('Post-pickup images uploaded successfully', result);
+  }
+
+  /**
+   * Upload physical pickup job card image for an order (when e-job card is false).
+   */
+  @Put(':id/physical-pickup-job-card')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadPhysicalJobCardDto })
+  @ApiOperation({
+    summary: 'Upload physical pickup job card image for an order (Driver only)',
+    description: 'Allows the assigned driver to upload a physical job card image via formdata when e-job card is false.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.imageFilter }))
+  async uploadPhysicalPickupJobCard(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ResponseDto<{ url: string }>> {
+    const result = await this._orderService.uploadPhysicalJobCardImageAsync(id, 'pickup', file);
+    return ResponseDto.updated('Physical pickup job card image uploaded successfully', result);
+  }
+
+  /**
+   * Upload physical dropoff job card image for an order (when e-job card is false).
+   */
+  @Put(':id/physical-dropoff-job-card')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadPhysicalJobCardDto })
+  @ApiOperation({
+    summary: 'Upload physical dropoff job card image for an order (Driver only)',
+    description: 'Allows the assigned driver to upload a physical job card image via formdata when e-job card is false.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.imageFilter }))
+  async uploadPhysicalDropoffJobCard(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<ResponseDto<{ url: string }>> {
+    const result = await this._orderService.uploadPhysicalJobCardImageAsync(id, 'dropoff', file);
+    return ResponseDto.updated('Physical dropoff job card image uploaded successfully', result);
   }
 }
