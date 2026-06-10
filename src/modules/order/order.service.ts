@@ -1,9 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderListDto } from './dto/order-list.dto';
 import { OrderDetailDto } from './dto/order-detail.dto';
-import { OrderStatus, LocationCategory, LocationType, OrderOtpType, TransactionType } from '@prisma/client';
+import {
+  OrderStatus,
+  LocationCategory,
+  LocationType,
+  OrderOtpType,
+  TransactionType,
+} from '@prisma/client';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { WalletService } from '../wallet/wallet.service';
 import { OrderNotificationService } from './order-notification.service';
@@ -19,12 +30,15 @@ export class OrderService {
     private readonly _notificationService: OrderNotificationService,
     private readonly _orderCreationService: OrderCreationService,
     private readonly _storageService: StorageService,
-  ) { }
+  ) {}
 
   /**
    * Sends a 6-digit OTP to the customer for order start or completion.
    */
-  async sendOrderOtpAsync(orderId: number, type: OrderOtpType): Promise<{ message: string }> {
+  async sendOrderOtpAsync(
+    orderId: number,
+    type: OrderOtpType,
+  ): Promise<{ message: string }> {
     if (!this._callerService.isDriver()) {
       throw new BadRequestException('Only drivers can send order OTPs');
     }
@@ -40,7 +54,9 @@ export class OrderService {
     }
 
     if (order.driver_id !== driverId) {
-      throw new BadRequestException('You are not the assigned driver for this order');
+      throw new BadRequestException(
+        'You are not the assigned driver for this order',
+      );
     }
 
     // Generate 6-digit OTP
@@ -76,7 +92,12 @@ export class OrderService {
     });
 
     // Integrate with SMS service to send OTP to order.customer.number
-    await this._notificationService.notifyOrderOtp(orderId, order.customer.number, otpCode, type);
+    await this._notificationService.notifyOrderOtp(
+      orderId,
+      order.customer.number,
+      otpCode,
+      type,
+    );
 
     return { message: `OTP sent successfully to ${order.customer.number}` };
   }
@@ -84,7 +105,11 @@ export class OrderService {
   /**
    * Verifies the OTP provided by the driver and updates order status.
    */
-  async verifyOrderOtpAsync(orderId: number, type: OrderOtpType, otp: string): Promise<{ message: string }> {
+  async verifyOrderOtpAsync(
+    orderId: number,
+    type: OrderOtpType,
+    otp: string,
+  ): Promise<{ message: string }> {
     if (!this._callerService.isDriver()) {
       throw new BadRequestException('Only drivers can verify order OTPs');
     }
@@ -99,7 +124,9 @@ export class OrderService {
     }
 
     if (order.driver_id !== driverId) {
-      throw new BadRequestException('You are not the assigned driver for this order');
+      throw new BadRequestException(
+        'You are not the assigned driver for this order',
+      );
     }
 
     const otpRecord = await this._prisma.order_otp.findUnique({
@@ -134,7 +161,10 @@ export class OrderService {
 
     // Perform verification and status update within a database transaction context
     const updateData: any = {
-      status: type === OrderOtpType.START ? OrderStatus.InProgress : OrderStatus.Completed,
+      status:
+        type === OrderOtpType.START
+          ? OrderStatus.InProgress
+          : OrderStatus.Completed,
     };
 
     if (type === OrderOtpType.START) {
@@ -158,8 +188,8 @@ export class OrderService {
         where: { id: orderId },
         data: updateData,
         include: {
-          voucher: true
-        }
+          voucher: true,
+        },
       });
 
       // If completing order and a voucher was applied, credit the creator's wallet with ₹75
@@ -168,7 +198,7 @@ export class OrderService {
           updatedOrder.voucher.user_id,
           75.0,
           TransactionType.CREDIT,
-          tx
+          tx,
         );
       }
     });
@@ -208,9 +238,12 @@ export class OrderService {
     dto: CreateOrderDto,
     scheduledOrderId?: number,
   ): Promise<OrderDetailDto> {
-    return this._orderCreationService.createForCustomerAsync(customerId, dto, scheduledOrderId);
+    return this._orderCreationService.createForCustomerAsync(
+      customerId,
+      dto,
+      scheduledOrderId,
+    );
   }
-
 
   /**
    * Gets a list of orders.
@@ -278,7 +311,9 @@ export class OrderService {
     }
 
     if (order.status !== OrderStatus.New) {
-      throw new BadRequestException(`Order is already ${order.status.toLowerCase()}`);
+      throw new BadRequestException(
+        `Order is already ${order.status.toLowerCase()}`,
+      );
     }
 
     const driver = await this._prisma.driver.findUnique({
@@ -366,21 +401,25 @@ export class OrderService {
       await this.sendOrderOtpAsync(id, OrderOtpType.START);
 
       // 4. Return the updated order details
-      return await this._prisma.order.findUnique({
+      return (await this._prisma.order.findUnique({
         where: { id },
         include: {
           locations: true,
           service: true,
           sub_service: true,
         },
-      }) as unknown as OrderDetailDto;
-
+      })) as unknown as OrderDetailDto;
     } catch (error) {
       console.error('Error accepting order:', error);
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      throw new InternalServerErrorException('Failed to accept order. Please try again.');
+      throw new InternalServerErrorException(
+        'Failed to accept order. Please try again.',
+      );
     }
   }
 
@@ -405,11 +444,18 @@ export class OrderService {
     }
 
     if (order.driver_id !== driverId) {
-      throw new BadRequestException('You are not the assigned driver for this order');
+      throw new BadRequestException(
+        'You are not the assigned driver for this order',
+      );
     }
 
-    if (order.status !== OrderStatus.OtpPending && order.status !== OrderStatus.InProgress) {
-      throw new BadRequestException(`Cannot cancel an order in ${order.status.toLowerCase()} status`);
+    if (
+      order.status !== OrderStatus.OtpPending &&
+      order.status !== OrderStatus.InProgress
+    ) {
+      throw new BadRequestException(
+        `Cannot cancel an order in ${order.status.toLowerCase()} status`,
+      );
     }
 
     try {
@@ -440,21 +486,26 @@ export class OrderService {
           where: { order_id: id },
         });
 
-        return await tx.order.findUnique({
+        return (await tx.order.findUnique({
           where: { id: updatedOrder.id },
           include: {
             locations: true,
             service: true,
             sub_service: true,
           },
-        }) as unknown as OrderDetailDto;
+        })) as unknown as OrderDetailDto;
       });
     } catch (error) {
       console.error('Error cancelling order:', error);
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      throw new InternalServerErrorException('Failed to cancel order. Please try again.');
+      throw new InternalServerErrorException(
+        'Failed to cancel order. Please try again.',
+      );
     }
   }
 
@@ -486,6 +537,45 @@ export class OrderService {
   }
 
   /**
+   * Gets details of a specific order for a driver by its ID.
+   * A driver can view the order if its status is 'New' (pending) or if they are the assigned driver.
+   * @param id Order ID
+   */
+  async getOrderByIdForDriverAsync(id: number): Promise<OrderDetailDto> {
+    if (!this._callerService.isDriver()) {
+      throw new BadRequestException('Only drivers can access order details');
+    }
+
+    const driverId = this._callerService.getUserId();
+    const order = await this._prisma.order.findUnique({
+      where: { id },
+      include: {
+        locations: true,
+        customer: true,
+        customer_vehicle: true,
+        driver: true,
+        vehicle: true,
+        vendor: true,
+        service: true,
+        sub_service: true,
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${id} not found`);
+    }
+
+    // A driver can access an order if it is pending (New) or assigned to them
+    if (order.status !== OrderStatus.New && order.driver_id !== driverId) {
+      throw new BadRequestException(
+        'You do not have permission to view this order',
+      );
+    }
+
+    return order as unknown as OrderDetailDto;
+  }
+
+  /**
    * Uploads multiple pre-pickup or post-pickup images for an order.
    * Only the assigned driver can upload these images.
    */
@@ -508,7 +598,9 @@ export class OrderService {
     }
 
     if (order.driver_id !== driverId) {
-      throw new BadRequestException('You are not the assigned driver for this order');
+      throw new BadRequestException(
+        'You are not the assigned driver for this order',
+      );
     }
 
     if (!files || files.length === 0) {
@@ -519,17 +611,20 @@ export class OrderService {
 
     const urls = await Promise.all(
       files.map((file, index) =>
-        this._storageService.uploadFileAsync({
-          buffer: file.buffer,
-          originalName: file.originalname,
-          mimeType: file.mimetype,
-          size: file.size,
-          folderPath: `order/${orderId}/${folderType}/${index}`,
-        }).then((res) => res.url),
+        this._storageService
+          .uploadFileAsync({
+            buffer: file.buffer,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            folderPath: `order/${orderId}/${folderType}/${index}`,
+          })
+          .then((res) => res.url),
       ),
     );
 
-    const fieldName = type === 'pre_pickup' ? 'pre_pickup_images' : 'post_pickup_images';
+    const fieldName =
+      type === 'pre_pickup' ? 'pre_pickup_images' : 'post_pickup_images';
 
     await this._prisma.order.update({
       where: { id: orderId },
@@ -551,7 +646,9 @@ export class OrderService {
     file: Express.Multer.File,
   ): Promise<{ url: string }> {
     if (!this._callerService.isDriver()) {
-      throw new BadRequestException('Only drivers can upload physical job card images');
+      throw new BadRequestException(
+        'Only drivers can upload physical job card images',
+      );
     }
 
     const driverId = this._callerService.getUserId();
@@ -564,15 +661,21 @@ export class OrderService {
     }
 
     if (order.driver_id !== driverId) {
-      throw new BadRequestException('You are not the assigned driver for this order');
+      throw new BadRequestException(
+        'You are not the assigned driver for this order',
+      );
     }
 
     if (type === 'pickup' && order.is_e_job_card_for_pickup) {
-      throw new BadRequestException('This order requires an e-job card for pickup, physical upload is disabled');
+      throw new BadRequestException(
+        'This order requires an e-job card for pickup, physical upload is disabled',
+      );
     }
 
     if (type === 'dropoff' && order.is_e_job_card_for_dropoff) {
-      throw new BadRequestException('This order requires an e-job card for dropoff, physical upload is disabled');
+      throw new BadRequestException(
+        'This order requires an e-job card for dropoff, physical upload is disabled',
+      );
     }
 
     if (!file) {
@@ -587,7 +690,10 @@ export class OrderService {
       folderPath: `order/${orderId}/physical-job-card/${type}`,
     });
 
-    const fieldName = type === 'pickup' ? 'physical_pickup_job_card_image' : 'physical_dropoff_job_card_image';
+    const fieldName =
+      type === 'pickup'
+        ? 'physical_pickup_job_card_image'
+        : 'physical_dropoff_job_card_image';
 
     await this._prisma.order.update({
       where: { id: orderId },

@@ -16,7 +16,14 @@ import { SendOrderOtpDto } from './dto/send-order-otp.dto';
 import { VerifyOrderOtpDto } from './dto/verify-order-otp.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
 import { OrderDetailDto } from './dto/order-detail.dto';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiParam,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
@@ -49,6 +56,25 @@ export class DriverOrderController {
   }
 
   /**
+   * Get full details of a specific order by its ID (Driver only).
+   */
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get order details by ID (Driver only)',
+    description:
+      'Returns the complete details of a single order by its ID, if it is pending or assigned to this driver.\n\n' +
+      '⚠️ Only authenticated drivers can call this endpoint.',
+  })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the order', example: 1 })
+  @ApiResponseDto(OrderDetailDto, false, 200)
+  async getById(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ResponseDto<OrderDetailDto>> {
+    const order = await this._orderService.getOrderByIdForDriverAsync(id);
+    return ResponseDto.retrieved('Order details fetched successfully', order);
+  }
+
+  /**
    * Step 2: Driver accepts a "New" order.
    *
    * When a driver accepts an order:
@@ -65,16 +91,22 @@ export class DriverOrderController {
       'This endpoint:\n' +
       '1. Assigns the driver, their vehicle, and vendor to the order\n' +
       '2. Auto-generates a 6-digit **START OTP**\n' +
-      '3. Links the driver\'s start and end locations to the order\n' +
+      "3. Links the driver's start and end locations to the order\n" +
       '4. Changes status from `New` → `OtpPending`\n' +
       '5. Records `assign_time`\n\n' +
       '⚠️ Only authenticated drivers can call this endpoint.\n\n' +
       '**Next step:** The driver collects the START OTP from the customer and ' +
       'verifies it via `POST /driver/order/:id/verify-otp`.',
   })
-  @ApiParam({ name: 'id', description: 'ID of the order to accept', example: 1 })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the order to accept',
+    example: 1,
+  })
   @ApiResponseDto(OrderDetailDto, false, 200)
-  async accept(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<OrderDetailDto>> {
+  async accept(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ResponseDto<OrderDetailDto>> {
     const order = await this._orderService.acceptOrderAsync(id);
     return ResponseDto.updated('Order accepted successfully', order);
   }
@@ -92,7 +124,7 @@ export class DriverOrderController {
     summary: 'Request an OTP for order start or completion (Driver only)',
     description:
       '**Step 3 (for COMPLETE) or Re-send (for START)**\n\n' +
-      'Generates a new 6-digit OTP and sends it to the customer\'s phone number.\n\n' +
+      "Generates a new 6-digit OTP and sends it to the customer's phone number.\n\n" +
       '**Type `START`:** Use this to re-send the start OTP if the one auto-generated ' +
       'during acceptance has expired.\n\n' +
       '**Type `COMPLETE`:** Use this after the service is done. The driver requests a ' +
@@ -155,7 +187,11 @@ export class DriverOrderController {
       'vendor, and driver start/end locations from the order so another driver can accept it.\n\n' +
       '⚠️ Only the assigned driver for this order can call this endpoint.',
   })
-  @ApiParam({ name: 'id', description: 'ID of the order to cancel', example: 1 })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the order to cancel',
+    example: 1,
+  })
   @ApiResponseDto(OrderDetailDto, false, 200)
   async cancel(
     @Param('id', ParseIntPipe) id: number,
@@ -173,16 +209,26 @@ export class DriverOrderController {
   @ApiBody({ type: UploadOrderImagesDto })
   @ApiOperation({
     summary: 'Upload pre-pickup images for an order (Driver only)',
-    description: 'Allows the assigned driver to upload multiple pre-pickup images via formdata.',
+    description:
+      'Allows the assigned driver to upload multiple pre-pickup images via formdata.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
-  @UseInterceptors(FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }))
+  @UseInterceptors(
+    FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }),
+  )
   async uploadPrePickupImages(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFiles() files: Express.Multer.File[],
   ): Promise<ResponseDto<{ urls: string[] }>> {
-    const result = await this._orderService.uploadOrderImagesAsync(id, 'pre_pickup', files);
-    return ResponseDto.updated('Pre-pickup images uploaded successfully', result);
+    const result = await this._orderService.uploadOrderImagesAsync(
+      id,
+      'pre_pickup',
+      files,
+    );
+    return ResponseDto.updated(
+      'Pre-pickup images uploaded successfully',
+      result,
+    );
   }
 
   /**
@@ -193,16 +239,26 @@ export class DriverOrderController {
   @ApiBody({ type: UploadOrderImagesDto })
   @ApiOperation({
     summary: 'Upload post-pickup images for an order (Driver only)',
-    description: 'Allows the assigned driver to upload multiple post-pickup images via formdata.',
+    description:
+      'Allows the assigned driver to upload multiple post-pickup images via formdata.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
-  @UseInterceptors(FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }))
+  @UseInterceptors(
+    FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }),
+  )
   async uploadPostPickupImages(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFiles() files: Express.Multer.File[],
   ): Promise<ResponseDto<{ urls: string[] }>> {
-    const result = await this._orderService.uploadOrderImagesAsync(id, 'post_pickup', files);
-    return ResponseDto.updated('Post-pickup images uploaded successfully', result);
+    const result = await this._orderService.uploadOrderImagesAsync(
+      id,
+      'post_pickup',
+      files,
+    );
+    return ResponseDto.updated(
+      'Post-pickup images uploaded successfully',
+      result,
+    );
   }
 
   /**
@@ -213,16 +269,26 @@ export class DriverOrderController {
   @ApiBody({ type: UploadPhysicalJobCardDto })
   @ApiOperation({
     summary: 'Upload physical pickup job card image for an order (Driver only)',
-    description: 'Allows the assigned driver to upload a physical job card image via formdata when e-job card is false.',
+    description:
+      'Allows the assigned driver to upload a physical job card image via formdata when e-job card is false.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
-  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.imageFilter }))
+  @UseInterceptors(
+    FileInterceptor('file', { fileFilter: FileHelper.imageFilter }),
+  )
   async uploadPhysicalPickupJobCard(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<ResponseDto<{ url: string }>> {
-    const result = await this._orderService.uploadPhysicalJobCardImageAsync(id, 'pickup', file);
-    return ResponseDto.updated('Physical pickup job card image uploaded successfully', result);
+    const result = await this._orderService.uploadPhysicalJobCardImageAsync(
+      id,
+      'pickup',
+      file,
+    );
+    return ResponseDto.updated(
+      'Physical pickup job card image uploaded successfully',
+      result,
+    );
   }
 
   /**
@@ -232,16 +298,27 @@ export class DriverOrderController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadPhysicalJobCardDto })
   @ApiOperation({
-    summary: 'Upload physical dropoff job card image for an order (Driver only)',
-    description: 'Allows the assigned driver to upload a physical job card image via formdata when e-job card is false.',
+    summary:
+      'Upload physical dropoff job card image for an order (Driver only)',
+    description:
+      'Allows the assigned driver to upload a physical job card image via formdata when e-job card is false.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
-  @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.imageFilter }))
+  @UseInterceptors(
+    FileInterceptor('file', { fileFilter: FileHelper.imageFilter }),
+  )
   async uploadPhysicalDropoffJobCard(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<ResponseDto<{ url: string }>> {
-    const result = await this._orderService.uploadPhysicalJobCardImageAsync(id, 'dropoff', file);
-    return ResponseDto.updated('Physical dropoff job card image uploaded successfully', result);
+    const result = await this._orderService.uploadPhysicalJobCardImageAsync(
+      id,
+      'dropoff',
+      file,
+    );
+    return ResponseDto.updated(
+      'Physical dropoff job card image uploaded successfully',
+      result,
+    );
   }
 }
