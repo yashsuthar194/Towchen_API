@@ -7,16 +7,21 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { SendOrderOtpDto } from './dto/send-order-otp.dto';
 import { VerifyOrderOtpDto } from './dto/verify-order-otp.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
 import { OrderDetailDto } from './dto/order-detail.dto';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { UploadOrderImagesDto } from './dto/upload-order-images.dto';
+import { FileHelper } from 'src/shared/helper/file-helper';
 
 @ApiTags('Driver - Order')
 @Controller('driver/order')
@@ -156,5 +161,45 @@ export class DriverOrderController {
   ): Promise<ResponseDto<OrderDetailDto>> {
     const order = await this._orderService.cancelOrderAsync(id, dto.reason);
     return ResponseDto.updated('Order cancelled successfully', order);
+  }
+
+  /**
+   * Upload multiple pre-pickup images for an order.
+   */
+  @Put(':id/pre-pickup-images')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadOrderImagesDto })
+  @ApiOperation({
+    summary: 'Upload pre-pickup images for an order (Driver only)',
+    description: 'Allows the assigned driver to upload multiple pre-pickup images via formdata.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @UseInterceptors(FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }))
+  async uploadPrePickupImages(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._orderService.uploadOrderImagesAsync(id, 'pre_pickup', files);
+    return ResponseDto.updated('Pre-pickup images uploaded successfully', result);
+  }
+
+  /**
+   * Upload multiple post-pickup/delivery images for an order.
+   */
+  @Put(':id/post-pickup-images')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadOrderImagesDto })
+  @ApiOperation({
+    summary: 'Upload post-pickup images for an order (Driver only)',
+    description: 'Allows the assigned driver to upload multiple post-pickup images via formdata.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @UseInterceptors(FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }))
+  async uploadPostPickupImages(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._orderService.uploadOrderImagesAsync(id, 'post_pickup', files);
+    return ResponseDto.updated('Post-pickup images uploaded successfully', result);
   }
 }

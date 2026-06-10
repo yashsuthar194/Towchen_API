@@ -262,6 +262,9 @@ model order {
 
   meta_data Json?
 
+  pre_pickup_images  String[] @default([])
+  post_pickup_images String[] @default([])
+
   applied_voucher_id    Int?
   discount_amount       Float  @default(0.0)
   final_amount          Float? // Net billing price after discount

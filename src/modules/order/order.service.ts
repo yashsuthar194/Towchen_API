@@ -8,6 +8,7 @@ import { CallerService } from 'src/services/jwt/caller.service';
 import { WalletService } from '../wallet/wallet.service';
 import { OrderNotificationService } from './order-notification.service';
 import { OrderCreationService } from './order-creation.service';
+import { StorageService } from 'src/services/storage/storage.service';
 
 @Injectable()
 export class OrderService {
@@ -17,6 +18,7 @@ export class OrderService {
     private readonly _walletService: WalletService,
     private readonly _notificationService: OrderNotificationService,
     private readonly _orderCreationService: OrderCreationService,
+    private readonly _storageService: StorageService,
   ) { }
 
   /**
@@ -481,5 +483,61 @@ export class OrderService {
     });
 
     return orders as unknown as OrderDetailDto[];
+  }
+
+  /**
+   * Uploads multiple pre-pickup or post-pickup images for an order.
+   * Only the assigned driver can upload these images.
+   */
+  async uploadOrderImagesAsync(
+    orderId: number,
+    type: 'pre_pickup' | 'post_pickup',
+    files: Express.Multer.File[],
+  ): Promise<{ urls: string[] }> {
+    if (!this._callerService.isDriver()) {
+      throw new BadRequestException('Only drivers can upload order images');
+    }
+
+    const driverId = this._callerService.getUserId();
+    const order = await this._prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    if (order.driver_id !== driverId) {
+      throw new BadRequestException('You are not the assigned driver for this order');
+    }
+
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files were provided for upload');
+    }
+
+    const folderType = type === 'pre_pickup' ? 'pre-pickup' : 'post-pickup';
+
+    const urls = await Promise.all(
+      files.map((file, index) =>
+        this._storageService.uploadFileAsync({
+          buffer: file.buffer,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+          folderPath: `order/${orderId}/${folderType}/${index}`,
+        }).then((res) => res.url),
+      ),
+    );
+
+    const fieldName = type === 'pre_pickup' ? 'pre_pickup_images' : 'post_pickup_images';
+
+    await this._prisma.order.update({
+      where: { id: orderId },
+      data: {
+        [fieldName]: urls,
+      },
+    });
+
+    return { urls };
   }
 }

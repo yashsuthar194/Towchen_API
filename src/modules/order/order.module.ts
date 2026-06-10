@@ -12,6 +12,7 @@ import { MapsModule } from 'src/services/maps/maps.module';
 import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { SmsModule } from 'src/services/sms/sms.module';
+import { StorageModule } from 'src/services/storage/storage.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SmsModule } from 'src/services/sms/sms.module';
     VoucherModule,
     WalletModule,
     SmsModule,
+    StorageModule,
   ],
   controllers: [OrderController, OrderV2Controller, DriverOrderController],
   providers: [
