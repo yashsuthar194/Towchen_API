@@ -1,5 +1,6 @@
 import { IsInt, IsNotEmpty, IsOptional, IsString, IsNumber, IsEnum, ValidateNested, IsArray, ValidateIf, IsDateString, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 import { JourneyType } from '@prisma/client';
 
 export class OrderConditionInputDto {
@@ -16,16 +17,19 @@ export class OrderConditionInputDto {
 export class CreateOrderV2Dto {
   /** Customer Vehicle ID */
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   customer_vehicle_id?: number;
 
   /** Service ID */
   @IsNotEmpty()
+  @Type(() => Number)
   @IsInt()
   service_id: number;
 
   /** Sub-Service ID (Fleet Type) */
   @IsNotEmpty()
+  @Type(() => Number)
   @IsInt()
   sub_service_id: number;
 
@@ -74,6 +78,7 @@ export class CreateOrderV2Dto {
   name?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   ton?: number;
 
@@ -82,6 +87,7 @@ export class CreateOrderV2Dto {
   journey_type?: JourneyType;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   base_distance_int?: number;
 
@@ -90,6 +96,7 @@ export class CreateOrderV2Dto {
   base_rate_string?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   base_rate_int?: number;
 
@@ -98,6 +105,7 @@ export class CreateOrderV2Dto {
   extra_distance_string?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   extra_distance_int?: number;
 
@@ -106,6 +114,7 @@ export class CreateOrderV2Dto {
   calculated_distance_string?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   calculated_distance_int?: number;
 
@@ -114,6 +123,7 @@ export class CreateOrderV2Dto {
   extra_distance_rate_string?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   extra_distance_rate_int?: number;
 
@@ -122,6 +132,7 @@ export class CreateOrderV2Dto {
   final_amount_string?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   final_amount_int?: number;
 
@@ -130,30 +141,37 @@ export class CreateOrderV2Dto {
   image_url?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   cgst_rate_int?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   sgst_rate_int?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   other_tax_rate_int?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   cgst_int?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   sgst_int?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   other_tax_int?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   grand_total_int?: number;
 
@@ -191,9 +209,7 @@ export class CreateOrderV2Dto {
   scheduled_at?: string;
 
   /** Exactly 4 pre-booked images required from customer */
-  @IsArray()
-  @ArrayMinSize(4, { message: 'Exactly 4 images are required' })
-  @ArrayMaxSize(4, { message: 'Exactly 4 images are required' })
-  @IsString({ each: true })
-  pre_booked_images: string[];
+  @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' }, description: 'Exactly 4 pre-booked images' })
+  @IsOptional()
+  pre_booked_images?: Express.Multer.File[];
 }

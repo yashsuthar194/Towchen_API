@@ -1,5 +1,8 @@
-import { Controller, Post, Body, UseGuards, Get, Param, ParseIntPipe, Delete, Query, BadRequestException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { Controller, Post, Body, UseGuards, Get, Param, ParseIntPipe, Delete, Query, BadRequestException, UseInterceptors, UploadedFiles } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { StorageService } from 'src/services/storage/storage.service';
+import { v4 as uuidv4 } from 'uuid';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
@@ -20,6 +23,7 @@ export class OrderV2Controller {
     private readonly _orderService: OrderService,
     private readonly _scheduledOrderService: ScheduledOrderService,
     private readonly _callerService: CallerService,
+    private readonly _storageService: StorageService,
   ) {}
 
   // ─── Create / Schedule ─────────────────────────────────────────────────────
@@ -32,6 +36,8 @@ export class OrderV2Controller {
    *   order at the specified time by the background processor.
    */
   @Post()
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FilesInterceptor('pre_booked_images', 4))
   @ApiOperation({
     summary: 'Create an immediate order or schedule one for later (V2 Flat Input)',
     description:
@@ -44,8 +50,29 @@ export class OrderV2Controller {
   @ApiResponseDto(OrderDetailDto, false, 201)
   async create(
     @Body() dto: CreateOrderV2Dto,
+    @UploadedFiles() files: Express.Multer.File[],
   ): Promise<ResponseDto<OrderDetailDto | ScheduledOrderDetailDto>> {
+    if (!files || files.length !== 4) {
+      throw new BadRequestException('Exactly 4 pre-booked images are required.');
+    }
+
+    // Upload files to storage
+    const uploadedUrls = await Promise.all(
+      files.map((file, index) =>
+        this._storageService
+          .uploadFileAsync({
+            buffer: file.buffer,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            folderPath: `order/pre_booked/${uuidv4()}/${index}`,
+          })
+          .then((res) => res.url),
+      ),
+    );
+
     const createOrderDto = this.mapToCreateOrderDto(dto);
+    createOrderDto.pre_booked_images = uploadedUrls;
 
     if (dto.scheduled_at) {
       const customerId = this._callerService.getUserId();
@@ -121,7 +148,7 @@ export class OrderV2Controller {
       drop_contact_name: dto.drop_contact_name,
       drop_contact_number: dto.drop_contact_number,
       voucher_code: dto.voucher_code,
-      pre_booked_images: dto.pre_booked_images,
+      pre_booked_images: [],
       sub_service_estimate: dto.name
         ? {
             id: dto.sub_service_id,
