@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, IsNumber, IsEnum, ValidateNested, IsArray, ValidateIf, IsDateString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, IsNumber, IsEnum, ValidateNested, IsArray, ValidateIf, IsDateString, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 import { Type } from 'class-transformer';
 import { JourneyType } from '@prisma/client';
 
@@ -189,4 +189,11 @@ export class CreateOrderV2Dto {
   @IsOptional()
   @IsString({ message: 'scheduled_at must be a string' })
   scheduled_at?: string;
+
+  /** Exactly 4 pre-booked images required from customer */
+  @IsArray()
+  @ArrayMinSize(4, { message: 'Exactly 4 images are required' })
+  @ArrayMaxSize(4, { message: 'Exactly 4 images are required' })
+  @IsString({ each: true })
+  pre_booked_images: string[];
 }

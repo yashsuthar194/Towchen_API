@@ -188,23 +188,23 @@ model customer_vehicle {
 }
 
 model location {
-  id              Int              @id @default(autoincrement())
-  address         String?
-  street          String?
-  area            String?
-  city            String?
-  state           String?
-  pincode         String?
-  country         String?
-  latitude        Float
-  longitude       Float
-  landmark        String?
-  description     String?
-  place_id        String
-  category        LocationCategory @default(Driver)
-  created_at      DateTime         @default(now())
-  startDrivers    driver[]         @relation("DriverStartLocation")
-  endDrivers      driver[]         @relation("DriverEndLocation")
+  id           Int              @id @default(autoincrement())
+  address      String?
+  street       String?
+  area         String?
+  city         String?
+  state        String?
+  pincode      String?
+  country      String?
+  latitude     Float
+  longitude    Float
+  landmark     String?
+  description  String?
+  place_id     String
+  category     LocationCategory @default(Driver)
+  created_at   DateTime         @default(now())
+  startDrivers driver[]         @relation("DriverStartLocation")
+  endDrivers   driver[]         @relation("DriverEndLocation")
 
   @@index([city])
   @@index([state])
@@ -262,6 +262,8 @@ model order {
 
   meta_data Json?
 
+  pre_booked_images String[] @default([])
+
   pre_pickup_images  String[] @default([])
   post_pickup_images String[] @default([])
 
@@ -270,10 +272,10 @@ model order {
   physical_pickup_job_card_image  String?
   physical_dropoff_job_card_image String?
 
-  applied_voucher_id    Int?
-  discount_amount       Float  @default(0.0)
-  final_amount          Float? // Net billing price after discount
-  scheduled_order_id    Int?   // Populated when promoted from a scheduled booking
+  applied_voucher_id Int?
+  discount_amount    Float  @default(0.0)
+  final_amount       Float? // Net billing price after discount
+  scheduled_order_id Int? // Populated when promoted from a scheduled booking
 
   customer         customer          @relation(fields: [customer_id], references: [id])
   customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
@@ -297,28 +299,28 @@ model order {
 }
 
 model order_location {
-  id             Int          @id @default(autoincrement())
-  order_id       Int
-  type           LocationType
+  id       Int          @id @default(autoincrement())
+  order_id Int
+  type     LocationType
 
-  address        String?
-  street         String?
-  area           String?
-  city           String?
-  state          String?
-  pincode        String?
-  country        String?
-  latitude       Float
-  longitude      Float
-  landmark       String?
-  place_id       String
+  address   String?
+  street    String?
+  area      String?
+  city      String?
+  state     String?
+  pincode   String?
+  country   String?
+  latitude  Float
+  longitude Float
+  landmark  String?
+  place_id  String
 
-  contact_name   String?      @db.VarChar(255)
-  contact_number String?      @db.VarChar(20)
+  contact_name   String? @db.VarChar(255)
+  contact_number String? @db.VarChar(20)
 
-  created_at     DateTime     @default(now())
+  created_at DateTime @default(now())
 
-  order    order    @relation(fields: [order_id], references: [id])
+  order order @relation(fields: [order_id], references: [id])
 
   @@unique([order_id, type])
   @@index([order_id])
@@ -473,30 +475,30 @@ model voucher {
 }
 
 model scheduled_order {
-  id                Int                  @id @default(autoincrement())
-  idempotency_key   String               @unique // UUID set at creation — prevents duplicate promotions
-  customer_id       Int
-  status            ScheduledOrderStatus @default(Pending)
+  id              Int                  @id @default(autoincrement())
+  idempotency_key String               @unique // UUID set at creation — prevents duplicate promotions
+  customer_id     Int
+  status          ScheduledOrderStatus @default(Pending)
 
   // Snapshot of the full CreateOrderDto payload stored at booking time
-  payload           Json
+  payload Json
 
-  scheduled_at      DateTime
-  timezone          String               @default("Asia/Kolkata")
+  scheduled_at DateTime
+  timezone     String   @default("Asia/Kolkata")
 
   // Execution tracking
-  attempt_count     Int                  @default(0)
-  max_attempts      Int                  @default(3)
+  attempt_count     Int       @default(0)
+  max_attempts      Int       @default(3)
   last_attempted_at DateTime?
-  last_error        String?              @db.Text
-  promoted_order_id Int?                 @unique // FK to order.id on successful promotion
+  last_error        String?   @db.Text
+  promoted_order_id Int?      @unique // FK to order.id on successful promotion
   cancelled_at      DateTime?
   cancel_reason     String?
 
-  created_at        DateTime             @default(now())
-  updated_at        DateTime             @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  customer customer  @relation(fields: [customer_id], references: [id])
+  customer customer @relation(fields: [customer_id], references: [id])
   orders   order[]
 
   @@index([status, scheduled_at])

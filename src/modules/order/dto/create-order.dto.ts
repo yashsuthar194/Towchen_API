@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsOptional, ValidateNested, IsString, IsObject, IsBoolean } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, ValidateNested, IsString, IsObject, IsBoolean, IsArray, ArrayMinSize, ArrayMaxSize } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderLocationInputDto } from './order-location-input.dto';
@@ -78,4 +78,16 @@ export class CreateOrderDto {
   @IsOptional()
   @IsBoolean()
   isEjobCardForDropoff?: boolean;
+
+  @ApiProperty({
+    description: 'Exactly 4 pre-booked images are required from customer during order creation',
+    type: [String],
+    minItems: 4,
+    maxItems: 4,
+  })
+  @IsArray()
+  @ArrayMinSize(4, { message: 'Exactly 4 images are required' })
+  @ArrayMaxSize(4, { message: 'Exactly 4 images are required' })
+  @IsString({ each: true })
+  pre_booked_images: string[];
 }

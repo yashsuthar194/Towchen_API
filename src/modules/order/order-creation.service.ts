@@ -145,6 +145,7 @@ export class OrderCreationService {
             meta_data: dto.sub_service_estimate ? { sub_service: dto.sub_service_estimate } : undefined,
             is_e_job_card_for_pickup: dto.isEjobCardForPickup ?? false,
             is_e_job_card_for_dropoff: dto.isEjobCardForDropoff ?? false,
+            pre_booked_images: dto.pre_booked_images,
           },
         });
 

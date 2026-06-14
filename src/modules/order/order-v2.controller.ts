@@ -121,6 +121,7 @@ export class OrderV2Controller {
       drop_contact_name: dto.drop_contact_name,
       drop_contact_number: dto.drop_contact_number,
       voucher_code: dto.voucher_code,
+      pre_booked_images: dto.pre_booked_images,
       sub_service_estimate: dto.name
         ? {
             id: dto.sub_service_id,
