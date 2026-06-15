@@ -27,13 +27,14 @@ import {
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
-import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
 import { UploadOrderImagesDto } from './dto/upload-order-images.dto';
 import { UploadPhysicalJobCardDto } from './dto/upload-physical-job-card.dto';
 import { FileHelper } from 'src/shared/helper/file-helper';
 import { EJobCardService } from '../e-job-card/e-job-card.service';
 import { SubmitPickupJobCardDto } from '../e-job-card/dto/submit-pickup-job-card.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
+import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 
 @ApiTags('Driver - Order')
 @Controller('driver/order')
@@ -44,6 +45,7 @@ export class DriverOrderController {
     private readonly _orderService: OrderService,
     private readonly _eJobCardService: EJobCardService,
     private readonly _callerService: CallerService,
+    private readonly _vehicleClassMappingService: VehicleClassMappingService,
   ) {}
 
   /**
@@ -333,16 +335,31 @@ export class DriverOrderController {
    * Submit E-Job Card for order pickup.
    */
   @Post(':id/e-job-card/pickup')
+  @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Submit E-Job Card for pickup (Driver only)',
     description: 'Allows the assigned driver to submit E-Job Card details during pickup.',
   })
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'odometer_image', maxCount: 1 },
+      { name: 'driver_image', maxCount: 1 },
+      { name: 'driver_sign', maxCount: 1 },
+      { name: 'damage_images', maxCount: 30 },
+    ], { fileFilter: FileHelper.imageFilter })
+  )
   async submitPickupJobCard(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SubmitPickupJobCardDto,
+    @UploadedFiles() files: { 
+      odometer_image?: Express.Multer.File[]; 
+      driver_image?: Express.Multer.File[]; 
+      driver_sign?: Express.Multer.File[]; 
+      damage_images?: Express.Multer.File[] 
+    },
   ) {
     const driverId = this._callerService.getUserId();
-    const result = await this._eJobCardService.submitPickupJobCardAsync(id, driverId, dto);
+    const result = await this._eJobCardService.submitPickupJobCardAsync(id, driverId, dto, files);
     return ResponseDto.created('Pickup E-Job Card submitted successfully', result);
   }
 
@@ -370,5 +387,18 @@ export class DriverOrderController {
   async getJobCardConfiguration(@Param('id', ParseIntPipe) id: number) {
     const result = await this._eJobCardService.getJobCardConfigurationAsync(id);
     return ResponseDto.retrieved('E-Job Card configuration retrieved successfully', result);
+  }
+
+  /**
+   * Get E-Job Card configuration (diagram image, mapped class, points) based on sub_class.
+   */
+  @Get('vehicle-class-config/:subClass')
+  @ApiOperation({
+    summary: 'Get E-Job Card configuration by sub-class (Driver only)',
+    description: 'Retrieves the diagram details and total damage points based on the provided sub-class string (e.g. LMV, SUV).',
+  })
+  async getVehicleClassConfigBySubClass(@Param('subClass') subClass: string) {
+    const result = await this._vehicleClassMappingService.getConfigBySubClassAsync(subClass);
+    return ResponseDto.retrieved('Vehicle class configuration retrieved successfully', result);
   }
 }

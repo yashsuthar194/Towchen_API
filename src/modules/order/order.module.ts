@@ -14,6 +14,7 @@ import { WalletModule } from '../wallet/wallet.module';
 import { SmsModule } from 'src/services/sms/sms.module';
 import { StorageModule } from 'src/services/storage/storage.module';
 import { EJobCardModule } from '../e-job-card/e-job-card.module';
+import { VehicleClassMappingModule } from '../vehicle-class-mapping/vehicle-class-mapping.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { EJobCardModule } from '../e-job-card/e-job-card.module';
     SmsModule,
     StorageModule,
     EJobCardModule,
+    VehicleClassMappingModule,
   ],
   controllers: [OrderController, OrderV2Controller, DriverOrderController],
   providers: [

@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class EJobCardDamageDto {
@@ -25,36 +25,60 @@ export class SubmitPickupJobCardDto {
   @IsString()
   odometer_reading_text: string;
 
-  @ApiProperty({ description: 'Odometer image URL', example: 'https://example.com/odometer.jpg' })
-  @IsNotEmpty()
-  @IsString()
-  odometer_image: string;
-
-  @ApiProperty({ description: 'Driver image URL', example: 'https://example.com/driver.jpg' })
-  @IsNotEmpty()
-  @IsString()
-  driver_image: string;
-
-  @ApiProperty({ description: 'Driver signature image URL', example: 'https://example.com/signature.jpg' })
-  @IsNotEmpty()
-  @IsString()
-  driver_sign: string;
-
   @ApiProperty({ description: 'Remarks/comments', example: 'Front bumper scratches noted.' })
   @IsOptional()
   @IsString()
   remarks?: string;
 
-  @ApiProperty({ description: 'General vehicle images', type: [String], example: ['https://example.com/car-front.jpg'] })
+  @ApiProperty({ 
+    type: 'string',
+    description: 'A JSON string representing the selected accessories (e.g. {"Hub Caps": true, "Arial": false})', 
+    example: '{"Hub Caps": true, "Arial": false}'
+  })
   @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  vehicle_images?: string[];
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (e) {
+        return value;
+      }
+    }
+    return value;
+  })
+  selected_accessories?: Record<string, boolean>;
 
-  @ApiProperty({ description: 'Damage details by points', type: [EJobCardDamageDto] })
+  @ApiProperty({ description: 'Vehicle Class Configuration ID', example: 1 })
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsNotEmpty()
+  @IsInt()
+  vehicle_class_configuration_id: number;
+
+  @ApiProperty({ 
+    type: 'string',
+    description: 'Comma separated string of damage point numbers corresponding to the uploaded damage images. (e.g. "1,5")', 
+    example: '1,5' 
+  })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.split(',').map((v) => parseInt(v.trim(), 10)).filter((v) => !isNaN(v));
+    }
+    return value;
+  })
   @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => EJobCardDamageDto)
-  damages?: EJobCardDamageDto[];
+  @IsInt({ each: true })
+  damage_numbers?: number[];
+
+  @ApiProperty({ type: 'string', format: 'binary', description: 'Odometer Image (File)' })
+  odometer_image: any;
+
+  @ApiProperty({ type: 'string', format: 'binary', description: 'Driver Image (File)' })
+  driver_image: any;
+
+  @ApiProperty({ type: 'string', format: 'binary', description: 'Driver Signature (File)' })
+  driver_sign: any;
+
+  @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' }, description: 'Damage Images (Files)' })
+  damage_images: any[];
 }
