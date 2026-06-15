@@ -13,6 +13,7 @@ import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { SmsModule } from 'src/services/sms/sms.module';
 import { StorageModule } from 'src/services/storage/storage.module';
+import { EJobCardModule } from '../e-job-card/e-job-card.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { StorageModule } from 'src/services/storage/storage.module';
     WalletModule,
     SmsModule,
     StorageModule,
+    EJobCardModule,
   ],
   controllers: [OrderController, OrderV2Controller, DriverOrderController],
   providers: [

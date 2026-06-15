@@ -288,6 +288,7 @@ model order {
   otps             order_otp[]
   voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
   scheduled_order  scheduled_order?  @relation(fields: [scheduled_order_id], references: [id])
+  e_job_cards      e_job_card[]
 
   @@index([customer_id])
   @@index([driver_id])
@@ -623,4 +624,60 @@ enum VehicleStatus {
   Available
   UnderApproval
   Banned
+}
+
+enum JobCardType {
+  pickup
+  dropoff
+}
+
+model e_job_card {
+  id                    Int                 @id @default(autoincrement())
+  order_id              Int
+  type                  JobCardType         @default(pickup)
+  fuel_amount           String?             @db.VarChar(50)
+  odometer_reading_text String?             @db.VarChar(100)
+  odometer_image        String?             @db.Text
+  vehicle_class         String?             @db.VarChar(255)
+  driver_image          String?             @db.Text
+  driver_sign           String?             @db.Text
+  remarks               String?             @db.Text
+  vehicle_images        String[]            @default([])
+  created_at            DateTime            @default(now())
+  updated_at            DateTime            @default(now()) @updatedAt
+
+  order                 order               @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  damages               e_job_card_damage[]
+
+  @@unique([order_id, type])
+  @@index([order_id])
+}
+
+model e_job_card_damage {
+  id            Int        @id @default(autoincrement())
+  e_job_card_id Int
+  damage_number Int
+  image_url     String     @db.Text
+  created_at    DateTime   @default(now())
+
+  e_job_card    e_job_card @relation(fields: [e_job_card_id], references: [id], onDelete: Cascade)
+
+  @@index([e_job_card_id])
+}
+
+model vehicle_class_mapping {
+  id           Int      @id @default(autoincrement())
+  source_class String   @unique @db.VarChar(255)
+  mapped_class String   @db.VarChar(255)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @default(now()) @updatedAt
+}
+
+model vehicle_class_configuration {
+  id                  Int      @id @default(autoincrement())
+  mapped_class        String   @unique @db.VarChar(255)
+  diagram_image_url   String   @db.Text
+  total_damage_points Int
+  created_at          DateTime @default(now())
+  updated_at          DateTime @default(now()) @updatedAt
 }

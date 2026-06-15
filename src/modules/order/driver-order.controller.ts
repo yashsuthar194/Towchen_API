@@ -31,13 +31,20 @@ import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { UploadOrderImagesDto } from './dto/upload-order-images.dto';
 import { UploadPhysicalJobCardDto } from './dto/upload-physical-job-card.dto';
 import { FileHelper } from 'src/shared/helper/file-helper';
+import { EJobCardService } from '../e-job-card/e-job-card.service';
+import { SubmitPickupJobCardDto } from '../e-job-card/dto/submit-pickup-job-card.dto';
+import { CallerService } from 'src/services/jwt/caller.service';
 
 @ApiTags('Driver - Order')
 @Controller('driver/order')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class DriverOrderController {
-  constructor(private readonly _orderService: OrderService) {}
+  constructor(
+    private readonly _orderService: OrderService,
+    private readonly _eJobCardService: EJobCardService,
+    private readonly _callerService: CallerService,
+  ) {}
 
   /**
    * List all pending (New/unassigned) orders in the system.
@@ -320,5 +327,48 @@ export class DriverOrderController {
       'Physical dropoff job card image uploaded successfully',
       result,
     );
+  }
+
+  /**
+   * Submit E-Job Card for order pickup.
+   */
+  @Post(':id/e-job-card/pickup')
+  @ApiOperation({
+    summary: 'Submit E-Job Card for pickup (Driver only)',
+    description: 'Allows the assigned driver to submit E-Job Card details during pickup.',
+  })
+  async submitPickupJobCard(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SubmitPickupJobCardDto,
+  ) {
+    const driverId = this._callerService.getUserId();
+    const result = await this._eJobCardService.submitPickupJobCardAsync(id, driverId, dto);
+    return ResponseDto.created('Pickup E-Job Card submitted successfully', result);
+  }
+
+  /**
+   * Get E-Job Card for order pickup.
+   */
+  @Get(':id/e-job-card/pickup')
+  @ApiOperation({
+    summary: 'Get E-Job Card for pickup (Driver only)',
+    description: 'Allows retrieving the submitted pickup E-Job Card details.',
+  })
+  async getPickupJobCard(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._eJobCardService.getPickupJobCardAsync(id);
+    return ResponseDto.retrieved('Pickup E-Job Card details retrieved successfully', result);
+  }
+
+  /**
+   * Get E-Job Card configuration (diagram image, mapped class, points) for an order.
+   */
+  @Get(':id/e-job-card/config')
+  @ApiOperation({
+    summary: 'Get E-Job Card configuration for order (Driver only)',
+    description: 'Resolves the vehicle class and retrieves the diagram details and total damage points.',
+  })
+  async getJobCardConfiguration(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._eJobCardService.getJobCardConfigurationAsync(id);
+    return ResponseDto.retrieved('E-Job Card configuration retrieved successfully', result);
   }
 }
