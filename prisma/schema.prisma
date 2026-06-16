@@ -642,6 +642,7 @@ model e_job_card {
   driver_sign                    String?     @db.Text
   remarks                        String?     @db.Text
   selected_accessories           Json?
+  meta                           Json?
   vehicle_class_configuration_id Int?
   created_at                     DateTime    @default(now())
   updated_at                     DateTime    @default(now()) @updatedAt

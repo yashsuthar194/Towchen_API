@@ -124,6 +124,26 @@ export class EJobCardService {
         });
       }
 
+      const metaPayload = {
+        'Date & Time': dto.date_and_time,
+        'Order ID': dto.order_id,
+        'Service Type': dto.service_type,
+        'Vehicle Brand': dto.vehicle_brand,
+        'Vehicle Model': dto.vehicle_model,
+        'Vehicle No.': dto.vehicle_no,
+        'Customer Ph. No.': dto.customer_ph_no,
+        'Driver Name': dto.driver_name,
+        'Driver Ph. No.': dto.driver_ph_no,
+        'Reaching Date & Time': dto.reaching_date_and_time,
+        'Event Type': dto.event_type,
+        'Event Location': dto.event_location,
+      };
+
+      // Remove undefined values so the JSON is clean
+      const cleanMetaPayload = Object.fromEntries(
+        Object.entries(metaPayload).filter(([_, v]) => v != null)
+      );
+
       // Create new E-Job Card
       const jobCard = await tx.e_job_card.create({
         data: {
@@ -137,6 +157,7 @@ export class EJobCardService {
           driver_sign: signUpload.url,
           remarks: dto.remarks,
           selected_accessories: dto.selected_accessories || undefined,
+          meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
         },
       });
 

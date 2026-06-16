@@ -54,6 +54,66 @@ export class SubmitPickupJobCardDto {
   @IsInt()
   vehicle_class_configuration_id: number;
 
+  @ApiProperty({ description: 'Date & Time', required: false })
+  @IsOptional()
+  @IsString()
+  date_and_time?: string;
+
+  @ApiProperty({ description: 'Order ID', required: false })
+  @IsOptional()
+  @IsString()
+  order_id?: string;
+
+  @ApiProperty({ description: 'Service Type', required: false })
+  @IsOptional()
+  @IsString()
+  service_type?: string;
+
+  @ApiProperty({ description: 'Vehicle Brand', required: false })
+  @IsOptional()
+  @IsString()
+  vehicle_brand?: string;
+
+  @ApiProperty({ description: 'Vehicle Model', required: false })
+  @IsOptional()
+  @IsString()
+  vehicle_model?: string;
+
+  @ApiProperty({ description: 'Vehicle No.', required: false })
+  @IsOptional()
+  @IsString()
+  vehicle_no?: string;
+
+  @ApiProperty({ description: 'Customer Ph. No.', required: false })
+  @IsOptional()
+  @IsString()
+  customer_ph_no?: string;
+
+  @ApiProperty({ description: 'Driver Name', required: false })
+  @IsOptional()
+  @IsString()
+  driver_name?: string;
+
+  @ApiProperty({ description: 'Driver Ph. No.', required: false })
+  @IsOptional()
+  @IsString()
+  driver_ph_no?: string;
+
+  @ApiProperty({ description: 'Reaching Date & Time', required: false })
+  @IsOptional()
+  @IsString()
+  reaching_date_and_time?: string;
+
+  @ApiProperty({ description: 'Event Type', required: false })
+  @IsOptional()
+  @IsString()
+  event_type?: string;
+
+  @ApiProperty({ description: 'Event Location', required: false })
+  @IsOptional()
+  @IsString()
+  event_location?: string;
+
   @ApiProperty({ 
     type: 'string',
     description: 'Comma separated string of damage point numbers corresponding to the uploaded damage images. (e.g. "1,5")', 
