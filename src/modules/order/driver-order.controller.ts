@@ -33,6 +33,7 @@ import { UploadPhysicalJobCardDto } from './dto/upload-physical-job-card.dto';
 import { FileHelper } from 'src/shared/helper/file-helper';
 import { EJobCardService } from '../e-job-card/e-job-card.service';
 import { SubmitPickupJobCardDto } from '../e-job-card/dto/submit-pickup-job-card.dto';
+import { SubmitDropoffJobCardDto } from '../e-job-card/dto/submit-dropoff-job-card.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 
@@ -374,6 +375,47 @@ export class DriverOrderController {
   async getPickupJobCard(@Param('id', ParseIntPipe) id: number) {
     const result = await this._eJobCardService.getPickupJobCardAsync(id);
     return ResponseDto.retrieved('Pickup E-Job Card details retrieved successfully', result);
+  }
+
+  /**
+   * Submit E-Job Card for order dropoff.
+   */
+  @Post(':id/e-job-card/dropoff')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Submit E-Job Card for dropoff (Driver only)',
+    description: 'Allows the assigned driver to submit E-Job Card details during dropoff.',
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'handover_image', maxCount: 1 },
+      { name: 'handover_signature', maxCount: 1 },
+    ], { fileFilter: FileHelper.imageFilter })
+  )
+  async submitDropoffJobCard(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SubmitDropoffJobCardDto,
+    @UploadedFiles() files: { 
+      handover_image?: Express.Multer.File[]; 
+      handover_signature?: Express.Multer.File[]; 
+    },
+  ) {
+    const driverId = this._callerService.getUserId();
+    const result = await this._eJobCardService.submitDropoffJobCardAsync(id, driverId, dto, files);
+    return ResponseDto.created('Dropoff E-Job Card submitted successfully', result);
+  }
+
+  /**
+   * Get E-Job Card for order dropoff.
+   */
+  @Get(':id/e-job-card/dropoff')
+  @ApiOperation({
+    summary: 'Get E-Job Card for dropoff (Driver only)',
+    description: 'Allows retrieving the submitted dropoff E-Job Card details.',
+  })
+  async getDropoffJobCard(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._eJobCardService.getDropoffJobCardAsync(id);
+    return ResponseDto.retrieved('Dropoff E-Job Card details retrieved successfully', result);
   }
 
   /**

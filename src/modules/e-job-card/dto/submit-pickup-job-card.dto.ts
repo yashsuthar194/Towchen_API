@@ -114,6 +114,21 @@ export class SubmitPickupJobCardDto {
   @IsString()
   event_location?: string;
 
+  @ApiProperty({ description: 'Time of day (e.g. Day, Night)', required: false, example: 'Day' })
+  @IsOptional()
+  @IsString()
+  time_of_day?: string;
+
+  @ApiProperty({ description: 'Weather condition (e.g. Wet, Dry)', required: false, example: 'Wet' })
+  @IsOptional()
+  @IsString()
+  weather_condition?: string;
+
+  @ApiProperty({ description: 'Vehicle condition (e.g. Clean, Soiled)', required: false, example: 'Clean' })
+  @IsOptional()
+  @IsString()
+  vehicle_condition?: string;
+
   @ApiProperty({ 
     type: 'string',
     description: 'Comma separated string of damage point numbers corresponding to the uploaded damage images. (e.g. "1,5")', 
