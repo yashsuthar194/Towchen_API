@@ -267,8 +267,8 @@ model order {
   pre_pickup_images  String[] @default([])
   post_pickup_images String[] @default([])
 
-  is_e_job_card_for_pickup        Boolean @default(false)
-  is_e_job_card_for_dropoff       Boolean @default(false)
+  is_physical_job_card_for_pickup        Boolean @default(true)
+  is_physical_job_card_for_dropoff       Boolean @default(true)
   physical_pickup_job_card_image  String?
   physical_dropoff_job_card_image String?
 
@@ -288,6 +288,8 @@ model order {
   otps             order_otp[]
   voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
   scheduled_order  scheduled_order?  @relation(fields: [scheduled_order_id], references: [id])
+  pickup_e_job_card   pickup_e_job_card?
+  dropoff_e_job_card  dropoff_e_job_card?
 
   @@index([customer_id])
   @@index([driver_id])
@@ -623,4 +625,88 @@ enum VehicleStatus {
   Available
   UnderApproval
   Banned
+}
+
+model pickup_e_job_card {
+  id                             Int         @id @default(autoincrement())
+  order_id                       Int         @unique
+  fuel_amount                    String?     @db.VarChar(50)
+  odometer_reading_text          String?     @db.VarChar(100)
+  odometer_image                 String?     @db.Text
+  driver_image                   String?     @db.Text
+  driver_sign                    String?     @db.Text
+  remarks                        String?     @db.Text
+  selected_accessories           Json?
+
+  date_and_time                  String?     @db.VarChar(255)
+  service_type                   String?     @db.VarChar(255)
+  vehicle_brand                  String?     @db.VarChar(255)
+  vehicle_model                  String?     @db.VarChar(255)
+  vehicle_no                     String?     @db.VarChar(255)
+  customer_ph_no                 String?     @db.VarChar(50)
+  driver_name                    String?     @db.VarChar(255)
+  driver_ph_no                   String?     @db.VarChar(50)
+  reaching_date_and_time         String?     @db.VarChar(255)
+  event_type                     String?     @db.VarChar(255)
+  event_location                 String?     @db.VarChar(255)
+  time_of_day                    String?     @db.VarChar(50)
+  weather_condition              String?     @db.VarChar(50)
+  vehicle_condition              String?     @db.VarChar(50)
+
+  meta                           Json?
+  vehicle_class_configuration_id Int?
+  created_at                     DateTime    @default(now())
+  updated_at                     DateTime    @default(now()) @updatedAt
+
+  order                       order                        @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  vehicle_class_configuration vehicle_class_configuration? @relation(fields: [vehicle_class_configuration_id], references: [id])
+  damages                     pickup_e_job_card_damage[]
+
+  @@index([order_id])
+  @@index([vehicle_class_configuration_id])
+}
+
+model pickup_e_job_card_damage {
+  id                     Int      @id @default(autoincrement())
+  pickup_e_job_card_id   Int
+  damage_number          Int
+  image_url              String   @db.Text
+  created_at             DateTime @default(now())
+
+  pickup_e_job_card pickup_e_job_card @relation(fields: [pickup_e_job_card_id], references: [id], onDelete: Cascade)
+
+  @@index([pickup_e_job_card_id])
+}
+
+model dropoff_e_job_card {
+  id                             Int         @id @default(autoincrement())
+  order_id                       Int         @unique
+  remarks                        String?     @db.Text
+
+  handover_name                  String?     @db.VarChar(255)
+  drop_location                  String?     @db.VarChar(255)
+  droping_type                   String?     @db.VarChar(255)
+  dropping_date_and_time         String?     @db.VarChar(255)
+  handover_image                 String?     @db.Text
+  handover_signature             String?     @db.Text
+
+  meta                           Json?
+  created_at                     DateTime    @default(now())
+  updated_at                     DateTime    @default(now()) @updatedAt
+
+  order                       order                        @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+}
+
+model vehicle_class_configuration {
+  id                  Int          @id @default(autoincrement())
+  mapped_class        String       @unique @db.VarChar(255)
+  sub_classes         String[]     @default([])
+  accessories         String[]     @default([])
+  diagram_image_url   String       @db.Text
+  total_damage_points Int
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @default(now()) @updatedAt
+  pickup_e_job_cards  pickup_e_job_card[]
 }

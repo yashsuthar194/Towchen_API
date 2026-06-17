@@ -69,15 +69,15 @@ export class CreateOrderDto {
   @IsString()
   voucher_code?: string;
 
-  @ApiPropertyOptional({ description: 'Require e-job card at pickup', default: false })
+  @ApiPropertyOptional({ description: 'Require physical job card at pickup', default: true })
   @IsOptional()
   @IsBoolean()
-  isEjobCardForPickup?: boolean;
+  isPhysicalJobCardForPickup?: boolean;
 
-  @ApiPropertyOptional({ description: 'Require e-job card at dropoff', default: false })
+  @ApiPropertyOptional({ description: 'Require physical job card at dropoff', default: true })
   @IsOptional()
   @IsBoolean()
-  isEjobCardForDropoff?: boolean;
+  isPhysicalJobCardForDropoff?: boolean;
 
   @ApiProperty({
     description: 'Exactly 4 pre-booked images are required from customer during order creation',
