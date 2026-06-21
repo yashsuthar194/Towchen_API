@@ -675,15 +675,15 @@ export class OrderService {
       );
     }
 
-    if (type === 'pickup' && order.is_e_job_card_for_pickup) {
+    if (type === 'pickup' && !order.is_physical_job_card_for_pickup) {
       throw new BadRequestException(
-        'This order requires an e-job card for pickup, physical upload is disabled',
+        'An e-job card has already been filled for pickup',
       );
     }
 
-    if (type === 'dropoff' && order.is_e_job_card_for_dropoff) {
+    if (type === 'dropoff' && !order.is_physical_job_card_for_dropoff) {
       throw new BadRequestException(
-        'This order requires an e-job card for dropoff, physical upload is disabled',
+        'An e-job card has already been filled for dropoff',
       );
     }
 

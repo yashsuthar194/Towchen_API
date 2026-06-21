@@ -22,6 +22,8 @@ import { SubServiceConditionModule } from './modules/sub-service-condition/sub-s
 import { WalletModule } from './modules/wallet/wallet.module';
 import { VoucherModule } from './modules/voucher/voucher.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { VehicleClassMappingModule } from './modules/vehicle-class-mapping/vehicle-class-mapping.module';
+import { EJobCardModule } from './modules/e-job-card/e-job-card.module';
 
 @Module({
   imports: [
@@ -45,7 +47,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     DispatchModule,
     SubServiceConditionModule,
     WalletModule,
-    VoucherModule
+    VoucherModule,
+    VehicleClassMappingModule,
+    EJobCardModule
 ],
   controllers: [AppController],
   providers: [AppService],

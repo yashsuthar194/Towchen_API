@@ -27,17 +27,27 @@ import {
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
-import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
 import { UploadOrderImagesDto } from './dto/upload-order-images.dto';
 import { UploadPhysicalJobCardDto } from './dto/upload-physical-job-card.dto';
 import { FileHelper } from 'src/shared/helper/file-helper';
+import { EJobCardService } from '../e-job-card/e-job-card.service';
+import { SubmitPickupJobCardDto } from '../e-job-card/dto/submit-pickup-job-card.dto';
+import { SubmitDropoffJobCardDto } from '../e-job-card/dto/submit-dropoff-job-card.dto';
+import { CallerService } from 'src/services/jwt/caller.service';
+import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 
 @ApiTags('Driver - Order')
 @Controller('driver/order')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class DriverOrderController {
-  constructor(private readonly _orderService: OrderService) {}
+  constructor(
+    private readonly _orderService: OrderService,
+    private readonly _eJobCardService: EJobCardService,
+    private readonly _callerService: CallerService,
+    private readonly _vehicleClassMappingService: VehicleClassMappingService,
+  ) {}
 
   /**
    * List all pending (New/unassigned) orders in the system.
@@ -320,5 +330,117 @@ export class DriverOrderController {
       'Physical dropoff job card image uploaded successfully',
       result,
     );
+  }
+
+  /**
+   * Submit E-Job Card for order pickup.
+   */
+  @Post(':id/e-job-card/pickup')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Submit E-Job Card for pickup (Driver only)',
+    description: 'Allows the assigned driver to submit E-Job Card details during pickup.',
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'odometer_image', maxCount: 1 },
+      { name: 'driver_image', maxCount: 1 },
+      { name: 'driver_sign', maxCount: 1 },
+      { name: 'damage_images', maxCount: 30 },
+    ], { fileFilter: FileHelper.imageFilter })
+  )
+  async submitPickupJobCard(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SubmitPickupJobCardDto,
+    @UploadedFiles() files: { 
+      odometer_image?: Express.Multer.File[]; 
+      driver_image?: Express.Multer.File[]; 
+      driver_sign?: Express.Multer.File[]; 
+      damage_images?: Express.Multer.File[] 
+    },
+  ) {
+    const driverId = this._callerService.getUserId();
+    const result = await this._eJobCardService.submitPickupJobCardAsync(id, driverId, dto, files);
+    return ResponseDto.created('Pickup E-Job Card submitted successfully', result);
+  }
+
+  /**
+   * Get E-Job Card for order pickup.
+   */
+  @Get(':id/e-job-card/pickup')
+  @ApiOperation({
+    summary: 'Get E-Job Card for pickup (Driver only)',
+    description: 'Allows retrieving the submitted pickup E-Job Card details.',
+  })
+  async getPickupJobCard(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._eJobCardService.getPickupJobCardAsync(id);
+    return ResponseDto.retrieved('Pickup E-Job Card details retrieved successfully', result);
+  }
+
+  /**
+   * Submit E-Job Card for order dropoff.
+   */
+  @Post(':id/e-job-card/dropoff')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Submit E-Job Card for dropoff (Driver only)',
+    description: 'Allows the assigned driver to submit E-Job Card details during dropoff.',
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'handover_image', maxCount: 1 },
+      { name: 'handover_signature', maxCount: 1 },
+    ], { fileFilter: FileHelper.imageFilter })
+  )
+  async submitDropoffJobCard(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: SubmitDropoffJobCardDto,
+    @UploadedFiles() files: { 
+      handover_image?: Express.Multer.File[]; 
+      handover_signature?: Express.Multer.File[]; 
+    },
+  ) {
+    const driverId = this._callerService.getUserId();
+    const result = await this._eJobCardService.submitDropoffJobCardAsync(id, driverId, dto, files);
+    return ResponseDto.created('Dropoff E-Job Card submitted successfully', result);
+  }
+
+  /**
+   * Get E-Job Card for order dropoff.
+   */
+  @Get(':id/e-job-card/dropoff')
+  @ApiOperation({
+    summary: 'Get E-Job Card for dropoff (Driver only)',
+    description: 'Allows retrieving the submitted dropoff E-Job Card details.',
+  })
+  async getDropoffJobCard(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._eJobCardService.getDropoffJobCardAsync(id);
+    return ResponseDto.retrieved('Dropoff E-Job Card details retrieved successfully', result);
+  }
+
+  /**
+   * Get E-Job Card configuration (diagram image, mapped class, points) for an order.
+   */
+  @Get(':id/e-job-card/config')
+  @ApiOperation({
+    summary: 'Get E-Job Card configuration for order (Driver only)',
+    description: 'Resolves the vehicle class and retrieves the diagram details and total damage points.',
+  })
+  async getJobCardConfiguration(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._eJobCardService.getJobCardConfigurationAsync(id);
+    return ResponseDto.retrieved('E-Job Card configuration retrieved successfully', result);
+  }
+
+  /**
+   * Get E-Job Card configuration (diagram image, mapped class, points) based on sub_class.
+   */
+  @Get('vehicle-class-config/:subClass')
+  @ApiOperation({
+    summary: 'Get E-Job Card configuration by sub-class (Driver only)',
+    description: 'Retrieves the diagram details and total damage points based on the provided sub-class string (e.g. LMV, SUV).',
+  })
+  async getVehicleClassConfigBySubClass(@Param('subClass') subClass: string) {
+    const result = await this._vehicleClassMappingService.getConfigBySubClassAsync(subClass);
+    return ResponseDto.retrieved('Vehicle class configuration retrieved successfully', result);
   }
 }
