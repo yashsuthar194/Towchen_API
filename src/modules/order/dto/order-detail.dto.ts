@@ -80,4 +80,10 @@ export class OrderDetailDto {
 
   @ApiPropertyOptional({ type: () => CustomerVehicleDetailDto })
   customer_vehicle?: CustomerVehicleDetailDto;
+
+  @ApiPropertyOptional({ type: () => OrderLocationDetailDto })
+  breakdown_location?: OrderLocationDetailDto;
+
+  @ApiPropertyOptional({ type: () => OrderLocationDetailDto })
+  dropoff_location?: OrderLocationDetailDto;
 }
