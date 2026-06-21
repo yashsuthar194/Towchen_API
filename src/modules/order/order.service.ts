@@ -533,6 +533,16 @@ export class OrderService {
       },
     });
 
+    orders.forEach((order) => {
+      order['breakdown_location'] = order.locations.find(
+        (loc) => loc.type === LocationType.Breakdown,
+      );
+      order['dropoff_location'] = order.locations.find(
+        (loc) => loc.type === LocationType.Drop,
+      );
+      order.locations = [];
+    });
+
     return orders as unknown as OrderDetailDto[];
   }
 
