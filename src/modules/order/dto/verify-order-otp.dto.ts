@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { OrderOtpType } from '@prisma/client';
 
 export class VerifyOrderOtpDto {
-  @ApiProperty({ enum: OrderOtpType, example: 'START' })
+  @ApiProperty({ enum: OrderOtpType, example: 'BREAKDOWN' })
   @IsNotEmpty()
   @IsEnum(OrderOtpType)
   type: OrderOtpType;

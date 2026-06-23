@@ -267,6 +267,8 @@ model order {
   pre_pickup_images  String[] @default([])
   post_pickup_images String[] @default([])
 
+  dropoff_images     String[] @default([])
+
   is_physical_job_card_for_pickup        Boolean @default(true)
   is_physical_job_card_for_dropoff       Boolean @default(true)
   physical_pickup_job_card_image  String?
@@ -332,7 +334,7 @@ model order_location {
 model order_otp {
   id          Int          @id @default(autoincrement())
   order_id    Int
-  type        OrderOtpType @default(START)
+  type        OrderOtpType @default(BREAKDOWN)
   otp         String       @db.VarChar(6)
   expires_at  DateTime
   verified_at DateTime?
@@ -611,8 +613,8 @@ enum LocationType {
 }
 
 enum OrderOtpType {
-  START
-  COMPLETE
+  BREAKDOWN
+  DROP
 }
 
 enum AvailabilityStatus {

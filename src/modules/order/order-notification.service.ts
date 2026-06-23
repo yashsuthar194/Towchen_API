@@ -113,7 +113,7 @@ export class OrderNotificationService {
       select: { formated_id: true },
     });
 
-    const action = type === OrderOtpType.START ? 'start' : 'complete';
+    const action = type === OrderOtpType.BREAKDOWN ? 'start' : 'complete';
     const message =
       `Your OTP to ${action} order ${order?.formated_id ?? `#${orderId}`} is ${otpCode}.`;
 

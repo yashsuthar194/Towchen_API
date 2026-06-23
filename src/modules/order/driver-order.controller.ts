@@ -272,6 +272,36 @@ export class DriverOrderController {
   }
 
   /**
+   * Upload multiple dropoff images for an order.
+   */
+  @Put(':id/dropoff-images')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadOrderImagesDto })
+  @ApiOperation({
+    summary: 'Upload dropoff images for an order (Driver only)',
+    description:
+      'Allows the assigned driver to upload multiple dropoff images via formdata.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @UseInterceptors(
+    FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }),
+  )
+  async uploadDropoffImages(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._orderService.uploadOrderImagesAsync(
+      id,
+      'dropoff',
+      files,
+    );
+    return ResponseDto.updated(
+      'Dropoff images uploaded successfully',
+      result,
+    );
+  }
+
+  /**
    * Upload physical pickup job card image for an order (when e-job card is false).
    */
   @Put(':id/physical-pickup-job-card')
