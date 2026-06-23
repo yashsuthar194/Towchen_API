@@ -124,8 +124,8 @@ export class DriverOrderController {
   /**
    * Step 3 (optional) / Step 4: Request an OTP for starting or completing an order.
    *
-   * - Type "START": Re-sends the start OTP (in case the auto-generated one expired).
-   * - Type "COMPLETE": Generates a new OTP for order completion.
+   * - Type "BREAKDOWN": Re-sends the breakdown OTP (in case the auto-generated one expired).
+   * - Type "DROP": Generates a new OTP for order dropoff.
    *
    * The OTP is sent to the customer's registered phone number.
    */
@@ -133,12 +133,12 @@ export class DriverOrderController {
   @ApiOperation({
     summary: 'Request an OTP for order start or completion (Driver only)',
     description:
-      '**Step 3 (for COMPLETE) or Re-send (for START)**\n\n' +
+      '**Step 3 (for DROP) or Re-send (for BREAKDOWN)**\n\n' +
       "Generates a new 6-digit OTP and sends it to the customer's phone number.\n\n" +
-      '**Type `START`:** Use this to re-send the start OTP if the one auto-generated ' +
+      '**Type `BREAKDOWN`:** Use this to re-send the breakdown OTP if the one auto-generated ' +
       'during acceptance has expired.\n\n' +
-      '**Type `COMPLETE`:** Use this after the service is done. The driver requests a ' +
-      'completion OTP which the customer will provide to confirm delivery.\n\n' +
+      '**Type `DROP`:** Use this after the service is done. The driver requests a ' +
+      'dropoff OTP which the customer will provide to confirm delivery.\n\n' +
       'OTP details:\n' +
       '- 6 digits\n' +
       '- Replaces any existing OTP of the same type for this order\n' +
@@ -154,21 +154,21 @@ export class DriverOrderController {
   }
 
   /**
-   * Step 3 (START) / Step 5 (COMPLETE): Verify OTP and advance order status.
+   * Step 3 (BREAKDOWN) / Step 5 (DROP): Verify OTP and advance order status.
    *
-   * - Verifying a START OTP: status changes to "InProgress", start_time is recorded.
-   * - Verifying a COMPLETE OTP: status changes to "Completed", completion_time is recorded.
+   * - Verifying a BREAKDOWN OTP: status changes to "InProgress", start_time is recorded.
+   * - Verifying a DROP OTP: status changes to "Completed", completion_time is recorded.
    */
   @Post(':id/verify-otp')
   @ApiOperation({
     summary: 'Verify an order OTP and update status (Driver only)',
     description:
-      '**Step 3 (START verification) / Step 5 (COMPLETE verification)**\n\n' +
+      '**Step 3 (BREAKDOWN verification) / Step 5 (DROP verification)**\n\n' +
       'The driver enters the 6-digit OTP collected from the customer in-person.\n\n' +
-      '**For `START` OTP:**\n' +
+      '**For `BREAKDOWN` OTP:**\n' +
       '- Status changes: `OtpPending` → `InProgress`\n' +
       '- `start_time` is recorded on the order\n\n' +
-      '**For `COMPLETE` OTP:**\n' +
+      '**For `DROP` OTP:**\n' +
       '- Status changes: `OtpPending` → `Completed`\n' +
       '- `completion_time` is recorded on the order\n\n' +
       'Validation rules:\n' +
@@ -267,6 +267,36 @@ export class DriverOrderController {
     );
     return ResponseDto.updated(
       'Post-pickup images uploaded successfully',
+      result,
+    );
+  }
+
+  /**
+   * Upload multiple dropoff images for an order.
+   */
+  @Put(':id/dropoff-images')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UploadOrderImagesDto })
+  @ApiOperation({
+    summary: 'Upload dropoff images for an order (Driver only)',
+    description:
+      'Allows the assigned driver to upload multiple dropoff images via formdata.',
+  })
+  @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @UseInterceptors(
+    FilesInterceptor('files', 10, { fileFilter: FileHelper.imageFilter }),
+  )
+  async uploadDropoffImages(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFiles() files: Express.Multer.File[],
+  ): Promise<ResponseDto<{ urls: string[] }>> {
+    const result = await this._orderService.uploadOrderImagesAsync(
+      id,
+      'dropoff',
+      files,
+    );
+    return ResponseDto.updated(
+      'Dropoff images uploaded successfully',
       result,
     );
   }

@@ -162,12 +162,12 @@ export class OrderService {
     // Perform verification and status update within a database transaction context
     const updateData: any = {
       status:
-        type === OrderOtpType.START
+        type === OrderOtpType.BREAKDOWN
           ? OrderStatus.InProgress
           : OrderStatus.Completed,
     };
 
-    if (type === OrderOtpType.START) {
+    if (type === OrderOtpType.BREAKDOWN) {
       updateData.start_time = new Date();
     } else {
       updateData.completion_time = new Date();
@@ -193,7 +193,7 @@ export class OrderService {
       });
 
       // If completing order and a voucher was applied, credit the creator's wallet with ₹75
-      if (type !== OrderOtpType.START && updatedOrder.voucher) {
+      if (type !== OrderOtpType.BREAKDOWN && updatedOrder.voucher) {
         await this._walletService.updateWallet(
           updatedOrder.voucher.user_id,
           75.0,
@@ -398,7 +398,7 @@ export class OrderService {
       });
 
       // 3. Directly call the OTP sending logic with type START
-      await this.sendOrderOtpAsync(id, OrderOtpType.START);
+      await this.sendOrderOtpAsync(id, OrderOtpType.BREAKDOWN);
 
       // 4. Return the updated order details
       return (await this._prisma.order.findUnique({
@@ -600,7 +600,7 @@ export class OrderService {
    */
   async uploadOrderImagesAsync(
     orderId: number,
-    type: 'pre_pickup' | 'post_pickup',
+    type: 'pre_pickup' | 'post_pickup' | 'dropoff',
     files: Express.Multer.File[],
   ): Promise<{ urls: string[] }> {
     if (!this._callerService.isDriver()) {
@@ -626,7 +626,7 @@ export class OrderService {
       throw new BadRequestException('No files were provided for upload');
     }
 
-    const folderType = type === 'pre_pickup' ? 'pre-pickup' : 'post-pickup';
+    const folderType = type === 'pre_pickup' ? 'pre-pickup' : type === 'post_pickup' ? 'post-pickup' : 'dropoff';
 
     const urls = await Promise.all(
       files.map((file, index) =>
@@ -643,7 +643,7 @@ export class OrderService {
     );
 
     const fieldName =
-      type === 'pre_pickup' ? 'pre_pickup_images' : 'post_pickup_images';
+      type === 'pre_pickup' ? 'pre_pickup_images' : type === 'post_pickup' ? 'post_pickup_images' : 'dropoff_images';
 
     await this._prisma.order.update({
       where: { id: orderId },
