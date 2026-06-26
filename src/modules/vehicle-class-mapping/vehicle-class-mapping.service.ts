@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateVehicleClassConfigDto } from './dto/create-config.dto';
-
+import { UpdateVehicleClassConfigDto } from './dto/update-config.dto';
 @Injectable()
 export class VehicleClassMappingService {
   constructor(private readonly _prisma: PrismaService) {}
@@ -117,6 +117,47 @@ export class VehicleClassMappingService {
   async getConfigsAsync() {
     return await this._prisma.vehicle_class_configuration.findMany({
       orderBy: { mapped_class: 'asc' },
+    });
+  }
+
+  async getConfigByIdAsync(id: number) {
+    const config = await this._prisma.vehicle_class_configuration.findUnique({
+      where: { id },
+    });
+    if (!config) {
+      throw new BadRequestException('Configuration not found');
+    }
+    return config;
+  }
+
+  async updateConfigByIdAsync(id: number, dto: UpdateVehicleClassConfigDto, diagramImageUrl?: string) {
+    const existing = await this.getConfigByIdAsync(id);
+
+    if (dto.mapped_class && dto.mapped_class !== existing.mapped_class) {
+      const classExists = await this._prisma.vehicle_class_configuration.findUnique({
+        where: { mapped_class: dto.mapped_class },
+      });
+      if (classExists) {
+        throw new BadRequestException('Mapped class already exists');
+      }
+    }
+
+    return await this._prisma.vehicle_class_configuration.update({
+      where: { id },
+      data: {
+        mapped_class: dto.mapped_class ?? existing.mapped_class,
+        sub_classes: dto.sub_classes ?? existing.sub_classes,
+        accessories: dto.accessories ?? existing.accessories,
+        diagram_image_url: diagramImageUrl ?? existing.diagram_image_url,
+        total_damage_points: dto.total_damage_points ?? existing.total_damage_points,
+      },
+    });
+  }
+
+  async deleteConfigByIdAsync(id: number) {
+    await this.getConfigByIdAsync(id);
+    return await this._prisma.vehicle_class_configuration.delete({
+      where: { id },
     });
   }
 }
