@@ -19,6 +19,7 @@ export class VehicleClassMappingService {
           hasSome: [subClass, subClass.toUpperCase(), subClass.toLowerCase()],
         },
       },
+      include: { accessories: true },
     });
 
     if (config) {
@@ -34,6 +35,7 @@ export class VehicleClassMappingService {
 
     const fallbackConfig = await this._prisma.vehicle_class_configuration.findUnique({
       where: { mapped_class: mappedClass },
+      include: { accessories: true },
     });
 
     if (!fallbackConfig) {
@@ -88,41 +90,68 @@ export class VehicleClassMappingService {
     });
 
     if (existing) {
-      return await this._prisma.vehicle_class_configuration.update({
+      await this._prisma.vehicle_class_configuration.update({
         where: { mapped_class: dto.mapped_class },
         data: {
           sub_classes: dto.sub_classes,
-          accessories: dto.accessories || [],
           diagram_image_url: diagramImageUrl ?? existing.diagram_image_url,
           total_damage_points: dto.total_damage_points,
         },
       });
+
+      if (dto.accessories) {
+        await this._prisma.vehicle_class_accessory.deleteMany({
+          where: { vehicle_class_configuration_id: existing.id },
+        });
+        if (dto.accessories.length > 0) {
+          await this._prisma.vehicle_class_accessory.createMany({
+            data: dto.accessories.map((a) => ({
+              vehicle_class_configuration_id: existing.id,
+              name: a,
+            })),
+          });
+        }
+      }
+
+      return await this.getConfigByIdAsync(existing.id);
     }
 
     if (!diagramImageUrl) {
       throw new BadRequestException('A diagram image file is required for new configurations');
     }
 
-    return await this._prisma.vehicle_class_configuration.create({
+    const created = await this._prisma.vehicle_class_configuration.create({
       data: {
         mapped_class: dto.mapped_class,
         sub_classes: dto.sub_classes,
-        accessories: dto.accessories || [],
         diagram_image_url: diagramImageUrl,
         total_damage_points: dto.total_damage_points,
       },
     });
+
+    if (dto.accessories && dto.accessories.length > 0) {
+      await this._prisma.vehicle_class_accessory.createMany({
+        data: dto.accessories.map((a) => ({
+          vehicle_class_configuration_id: created.id,
+          name: a,
+        })),
+      });
+    }
+
+    return await this.getConfigByIdAsync(created.id);
   }
 
   async getConfigsAsync() {
     return await this._prisma.vehicle_class_configuration.findMany({
       orderBy: { mapped_class: 'asc' },
+      include: { accessories: true },
     });
   }
 
   async getConfigByIdAsync(id: number) {
     const config = await this._prisma.vehicle_class_configuration.findUnique({
       where: { id },
+      include: { accessories: true },
     });
     if (!config) {
       throw new BadRequestException('Configuration not found');
@@ -142,20 +171,41 @@ export class VehicleClassMappingService {
       }
     }
 
-    return await this._prisma.vehicle_class_configuration.update({
+    await this._prisma.vehicle_class_configuration.update({
       where: { id },
       data: {
         mapped_class: dto.mapped_class ?? existing.mapped_class,
         sub_classes: dto.sub_classes ?? existing.sub_classes,
-        accessories: dto.accessories ?? existing.accessories,
         diagram_image_url: diagramImageUrl ?? existing.diagram_image_url,
         total_damage_points: dto.total_damage_points ?? existing.total_damage_points,
       },
     });
+
+    if (dto.accessories) {
+      await this._prisma.vehicle_class_accessory.deleteMany({
+        where: { vehicle_class_configuration_id: id },
+      });
+      if (dto.accessories.length > 0) {
+        await this._prisma.vehicle_class_accessory.createMany({
+          data: dto.accessories.map((a) => ({
+            vehicle_class_configuration_id: id,
+            name: a,
+          })),
+        });
+      }
+    }
+
+    return await this.getConfigByIdAsync(id);
   }
 
   async deleteConfigByIdAsync(id: number) {
     await this.getConfigByIdAsync(id);
+    
+    // Explicitly delete related accessories first to avoid foreign key constraint errors
+    await this._prisma.vehicle_class_accessory.deleteMany({
+      where: { vehicle_class_configuration_id: id }
+    });
+
     return await this._prisma.vehicle_class_configuration.delete({
       where: { id },
     });

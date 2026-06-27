@@ -1,6 +1,20 @@
-import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt, IsBoolean } from 'class-validator';
+import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+
+export class EJobCardAccessoryInputDto {
+  @ApiProperty({ example: 1 })
+  @IsInt()
+  id: number;
+
+  @ApiProperty({ example: 'Tool kit' })
+  @IsString()
+  name: string;
+
+  @ApiProperty({ example: true })
+  @IsBoolean()
+  value: boolean;
+}
 
 export class EJobCardDamageDto {
   @ApiProperty({ description: 'The point number of the damage from the vehicle diagram', example: 1 })
@@ -31,22 +45,26 @@ export class SubmitPickupJobCardDto {
   remarks?: string;
 
   @ApiProperty({ 
-    type: 'string',
-    description: 'A JSON string representing the selected accessories (e.g. {"Hub Caps": true, "Arial": false})', 
-    example: '{"Hub Caps": true, "Arial": false}'
+    type: () => [EJobCardAccessoryInputDto],
+    description: 'A JSON string representing the selected accessories (e.g. [{"id":1,"name":"Tool kit","value":true}])', 
+    example: '[{"id":1,"name":"Tool kit","value":true}]'
   })
   @IsOptional()
   @Transform(({ value }) => {
     if (typeof value === 'string') {
       try {
-        return JSON.parse(value);
+        const parsed = JSON.parse(value);
+        return plainToInstance(EJobCardAccessoryInputDto, parsed);
       } catch (e) {
         return value;
       }
     }
     return value;
   })
-  selected_accessories?: Record<string, boolean>;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EJobCardAccessoryInputDto)
+  selected_accessories?: EJobCardAccessoryInputDto[];
 
   @ApiProperty({ description: 'Vehicle Class Configuration ID', example: 1 })
   @Transform(({ value }) => parseInt(value, 10))

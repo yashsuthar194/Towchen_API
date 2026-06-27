@@ -55,6 +55,13 @@ export class VehicleClassMappingController {
     return ResponseDto.retrieved('Configuration retrieved successfully', result);
   }
 
+  @Get(':id/accessories')
+  @ApiOperation({ summary: 'Get accessories for a vehicle class configuration by ID' })
+  async getAccessoriesByConfigId(@Param('id') id: string) {
+    const config = await this._service.getConfigByIdAsync(+id);
+    return ResponseDto.retrieved('Accessories retrieved successfully', config.accessories);
+  }
+
   @Put(':id')
   @ApiOperation({ summary: 'Update a vehicle class configuration by ID' })
   @ApiConsumes('multipart/form-data')

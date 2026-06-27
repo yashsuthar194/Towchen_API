@@ -143,7 +143,7 @@ export class EJobCardService {
           driver_image: driverUpload.url,
           driver_sign: signUpload.url,
           remarks: dto.remarks,
-          selected_accessories: dto.selected_accessories || undefined,
+          selected_accessories: dto.selected_accessories ? (dto.selected_accessories as any) : undefined,
           date_and_time: dto.date_and_time,
           service_type: dto.service_type,
           vehicle_brand: dto.vehicle_brand,
@@ -325,6 +325,7 @@ export class EJobCardService {
 
     const config = await this._prisma.vehicle_class_configuration.findUnique({
       where: { mapped_class: resolvedClass },
+      include: { accessories: true },
     });
 
     if (!config) {
