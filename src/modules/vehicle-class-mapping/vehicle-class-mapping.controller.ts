@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { VehicleClassMappingService } from './vehicle-class-mapping.service';
 import { CreateVehicleClassConfigDto } from './dto/create-config.dto';
 import { UpdateVehicleClassConfigDto } from './dto/update-config.dto';
+import { CreateAccessoryDto } from './dto/create-accessory.dto';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { StorageService } from 'src/services/storage/storage.service';
@@ -60,6 +61,13 @@ export class VehicleClassMappingController {
   async getAccessoriesByConfigId(@Param('id') id: string) {
     const config = await this._service.getConfigByIdAsync(+id);
     return ResponseDto.retrieved('Accessories retrieved successfully', config.accessories);
+  }
+
+  @Post('accessories')
+  @ApiOperation({ summary: 'Add a new accessory to a vehicle class configuration' })
+  async addAccessory(@Body() dto: CreateAccessoryDto) {
+    const result = await this._service.addAccessoryAsync(dto);
+    return ResponseDto.created('Accessory added successfully', result);
   }
 
   @Put(':id')

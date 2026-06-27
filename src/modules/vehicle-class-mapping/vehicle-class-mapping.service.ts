@@ -2,6 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateVehicleClassConfigDto } from './dto/create-config.dto';
 import { UpdateVehicleClassConfigDto } from './dto/update-config.dto';
+import { CreateAccessoryDto } from './dto/create-accessory.dto';
 @Injectable()
 export class VehicleClassMappingService {
   constructor(private readonly _prisma: PrismaService) {}
@@ -208,6 +209,16 @@ export class VehicleClassMappingService {
 
     return await this._prisma.vehicle_class_configuration.delete({
       where: { id },
+    });
+  }
+
+  async addAccessoryAsync(dto: CreateAccessoryDto) {
+    const config = await this.getConfigByIdAsync(dto.vehicle_class_configuration_id);
+    return await this._prisma.vehicle_class_accessory.create({
+      data: {
+        vehicle_class_configuration_id: config.id,
+        name: dto.name,
+      },
     });
   }
 }
