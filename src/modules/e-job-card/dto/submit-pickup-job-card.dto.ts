@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt, IsBoolean } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt, IsBoolean, IsNumber } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -14,6 +14,20 @@ export class EJobCardAccessoryInputDto {
   @ApiProperty({ example: true })
   @IsBoolean()
   value: boolean;
+}
+
+export class EJobCardConditionInputDto {
+  @IsNumber()
+  group_id: number;
+
+  @IsString()
+  group_name: string;
+
+  @IsNumber()
+  selected_option_id: number;
+
+  @IsString()
+  selected_option_name: string;
 }
 
 export class EJobCardDamageDto {
@@ -146,6 +160,26 @@ export class SubmitPickupJobCardDto {
   @IsOptional()
   @IsString()
   vehicle_condition?: string;
+
+  @ApiProperty({
+    description: 'JSON array of selected dynamic conditions',
+    type: 'string',
+    example: '[{"group_id": 1, "group_name": "Weather", "selected_option_id": 2, "selected_option_name": "Wet"}]'
+  })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return value;
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EJobCardConditionInputDto)
+  selected_conditions?: EJobCardConditionInputDto[];
 
   @ApiProperty({ 
     type: 'string',

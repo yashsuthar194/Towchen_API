@@ -1,8 +1,9 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { CreateVehicleClassConfigDto } from './dto/create-config.dto';
+import { CreateVehicleClassConfigDto, ConditionGroupInputDto } from './dto/create-config.dto';
 import { UpdateVehicleClassConfigDto } from './dto/update-config.dto';
 import { CreateAccessoryDto } from './dto/create-accessory.dto';
+import { CreateConditionGroupDto, UpdateConditionGroupDto } from './dto/condition-group.dto';
 @Injectable()
 export class VehicleClassMappingService {
   constructor(private readonly _prisma: PrismaService) {}
@@ -85,6 +86,38 @@ export class VehicleClassMappingService {
     return sourceClass; // return as-is if no match
   }
 
+  private async _updateConditionGroupsAsync(configId: number, conditionGroups: ConditionGroupInputDto[]) {
+    const existingGroups = await this._prisma.vehicle_class_condition_group.findMany({
+      where: { vehicle_class_configuration_id: configId }
+    });
+    
+    const existingGroupIds = existingGroups.map(g => g.id);
+
+    if (existingGroupIds.length > 0) {
+      await this._prisma.vehicle_class_condition_option.deleteMany({
+        where: { condition_group_id: { in: existingGroupIds } }
+      });
+    }
+
+    await this._prisma.vehicle_class_condition_group.deleteMany({
+      where: { vehicle_class_configuration_id: configId }
+    });
+
+    await Promise.all(
+      conditionGroups.map((groupDto) =>
+        this._prisma.vehicle_class_condition_group.create({
+          data: {
+            vehicle_class_configuration_id: configId,
+            name: groupDto.name,
+            options: {
+              create: groupDto.options?.map((opt) => ({ name: opt })) || [],
+            },
+          },
+        })
+      )
+    );
+  }
+
   async createOrUpdateConfigAsync(dto: CreateVehicleClassConfigDto, diagramImageUrl?: string) {
     const existing = await this._prisma.vehicle_class_configuration.findUnique({
       where: { mapped_class: dto.mapped_class },
@@ -114,6 +147,10 @@ export class VehicleClassMappingService {
         }
       }
 
+      if (dto.condition_groups) {
+        await this._updateConditionGroupsAsync(existing.id, dto.condition_groups);
+      }
+
       return await this.getConfigByIdAsync(existing.id);
     }
 
@@ -139,20 +176,30 @@ export class VehicleClassMappingService {
       });
     }
 
+    if (dto.condition_groups) {
+      await this._updateConditionGroupsAsync(created.id, dto.condition_groups);
+    }
+
     return await this.getConfigByIdAsync(created.id);
   }
 
   async getConfigsAsync() {
     return await this._prisma.vehicle_class_configuration.findMany({
       orderBy: { mapped_class: 'asc' },
-      include: { accessories: true },
+      include: { 
+        accessories: true,
+        condition_groups: { include: { options: true } }
+      },
     });
   }
 
   async getConfigByIdAsync(id: number) {
     const config = await this._prisma.vehicle_class_configuration.findUnique({
       where: { id },
-      include: { accessories: true },
+      include: { 
+        accessories: true,
+        condition_groups: { include: { options: true } }
+      },
     });
     if (!config) {
       throw new BadRequestException('Configuration not found');
@@ -196,6 +243,10 @@ export class VehicleClassMappingService {
       }
     }
 
+    if (dto.condition_groups) {
+      await this._updateConditionGroupsAsync(id, dto.condition_groups);
+    }
+
     return await this.getConfigByIdAsync(id);
   }
 
@@ -204,6 +255,21 @@ export class VehicleClassMappingService {
     
     // Explicitly delete related accessories first to avoid foreign key constraint errors
     await this._prisma.vehicle_class_accessory.deleteMany({
+      where: { vehicle_class_configuration_id: id }
+    });
+
+    // Explicitly delete condition options and groups
+    const existingGroups = await this._prisma.vehicle_class_condition_group.findMany({
+      where: { vehicle_class_configuration_id: id }
+    });
+    
+    if (existingGroups.length > 0) {
+      await this._prisma.vehicle_class_condition_option.deleteMany({
+        where: { condition_group_id: { in: existingGroups.map(g => g.id) } }
+      });
+    }
+
+    await this._prisma.vehicle_class_condition_group.deleteMany({
       where: { vehicle_class_configuration_id: id }
     });
 
@@ -219,6 +285,59 @@ export class VehicleClassMappingService {
         vehicle_class_configuration_id: config.id,
         name: dto.name,
       },
+    });
+  }
+
+  async addConditionGroupAsync(dto: CreateConditionGroupDto) {
+    await this.getConfigByIdAsync(dto.vehicle_class_configuration_id); // Verify config exists
+
+    return await this._prisma.vehicle_class_condition_group.create({
+      data: {
+        vehicle_class_configuration_id: dto.vehicle_class_configuration_id,
+        name: dto.name,
+        options: {
+          create: dto.options.map(opt => ({ name: opt }))
+        }
+      },
+      include: { options: true }
+    });
+  }
+
+  async updateConditionGroupAsync(id: number, dto: UpdateConditionGroupDto) {
+    const existing = await this._prisma.vehicle_class_condition_group.findUnique({ where: { id } });
+    if (!existing) throw new BadRequestException('Condition group not found');
+
+    if (dto.options) {
+      // Replace options if provided
+      await this._prisma.vehicle_class_condition_option.deleteMany({
+        where: { condition_group_id: id }
+      });
+      if (dto.options.length > 0) {
+        await this._prisma.vehicle_class_condition_option.createMany({
+          data: dto.options.map(opt => ({ condition_group_id: id, name: opt }))
+        });
+      }
+    }
+
+    return await this._prisma.vehicle_class_condition_group.update({
+      where: { id },
+      data: {
+        ...(dto.name && { name: dto.name })
+      },
+      include: { options: true }
+    });
+  }
+
+  async deleteConditionGroupAsync(id: number) {
+    const existing = await this._prisma.vehicle_class_condition_group.findUnique({ where: { id } });
+    if (!existing) throw new BadRequestException('Condition group not found');
+
+    await this._prisma.vehicle_class_condition_option.deleteMany({
+      where: { condition_group_id: id }
+    });
+
+    return await this._prisma.vehicle_class_condition_group.delete({
+      where: { id }
     });
   }
 }

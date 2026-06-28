@@ -158,6 +158,7 @@ export class EJobCardService {
           time_of_day: dto.time_of_day,
           weather_condition: dto.weather_condition,
           vehicle_condition: dto.vehicle_condition,
+          selected_conditions: dto.selected_conditions ? (dto.selected_conditions as any) : undefined,
           meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
         },
       });
@@ -325,7 +326,10 @@ export class EJobCardService {
 
     const config = await this._prisma.vehicle_class_configuration.findUnique({
       where: { mapped_class: resolvedClass },
-      include: { accessories: true },
+      include: { 
+        accessories: true,
+        condition_groups: { include: { options: true } }
+      },
     });
 
     if (!config) {
@@ -334,6 +338,7 @@ export class EJobCardService {
         diagram_image_url: '',
         total_damage_points: 0,
         accessories: [],
+        condition_groups: [],
       };
     }
 

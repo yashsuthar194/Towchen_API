@@ -654,6 +654,7 @@ model pickup_e_job_card {
   time_of_day            String? @db.VarChar(50)
   weather_condition      String? @db.VarChar(50)
   vehicle_condition      String? @db.VarChar(50)
+  selected_conditions    Json?
 
   meta                           Json?
   vehicle_class_configuration_id Int?
@@ -711,6 +712,7 @@ model vehicle_class_configuration {
   created_at          DateTime                  @default(now())
   updated_at          DateTime                  @default(now()) @updatedAt
   pickup_e_job_cards  pickup_e_job_card[]
+  condition_groups    vehicle_class_condition_group[]
 }
 
 model vehicle_class_accessory {
@@ -723,4 +725,29 @@ model vehicle_class_accessory {
   vehicle_class_configuration vehicle_class_configuration @relation(fields: [vehicle_class_configuration_id], references: [id])
 
   @@index([vehicle_class_configuration_id])
+}
+
+model vehicle_class_condition_group {
+  id                             Int      @id @default(autoincrement())
+  vehicle_class_configuration_id Int
+  name                           String   @db.VarChar(255)
+  created_at                     DateTime @default(now())
+  updated_at                     DateTime @default(now()) @updatedAt
+
+  vehicle_class_configuration vehicle_class_configuration      @relation(fields: [vehicle_class_configuration_id], references: [id])
+  options                     vehicle_class_condition_option[]
+
+  @@index([vehicle_class_configuration_id])
+}
+
+model vehicle_class_condition_option {
+  id                 Int      @id @default(autoincrement())
+  condition_group_id Int
+  name               String   @db.VarChar(255)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @default(now()) @updatedAt
+
+  condition_group vehicle_class_condition_group @relation(fields: [condition_group_id], references: [id])
+
+  @@index([condition_group_id])
 }

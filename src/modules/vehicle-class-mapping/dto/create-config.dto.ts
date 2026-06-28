@@ -1,6 +1,18 @@
-import { IsNotEmpty, IsString, IsInt, Min, IsArray, ArrayMinSize, IsOptional } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsString, IsInt, Min, IsArray, ArrayMinSize, IsOptional, ValidateNested } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+
+export class ConditionGroupInputDto {
+  @ApiProperty({ description: 'Name of the condition group', example: 'Time of Day' })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty({ description: 'List of options for this group', example: ['Day', 'Night'] })
+  @IsArray()
+  @IsString({ each: true })
+  options: string[];
+}
 
 export class CreateVehicleClassConfigDto {
   @ApiProperty({
@@ -48,6 +60,27 @@ export class CreateVehicleClassConfigDto {
   @IsArray()
   @IsString({ each: true })
   accessories?: string[];
+
+  @ApiProperty({
+    description: 'An array of condition groups associated with this class',
+    type: [ConditionGroupInputDto],
+    required: false,
+  })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return value;
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ConditionGroupInputDto)
+  condition_groups?: ConditionGroupInputDto[];
+
 
   @ApiProperty({
     type: 'string',

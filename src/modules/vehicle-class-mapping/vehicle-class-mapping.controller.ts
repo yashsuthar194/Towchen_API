@@ -4,6 +4,7 @@ import { VehicleClassMappingService } from './vehicle-class-mapping.service';
 import { CreateVehicleClassConfigDto } from './dto/create-config.dto';
 import { UpdateVehicleClassConfigDto } from './dto/update-config.dto';
 import { CreateAccessoryDto } from './dto/create-accessory.dto';
+import { CreateConditionGroupDto, UpdateConditionGroupDto } from './dto/condition-group.dto';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { StorageService } from 'src/services/storage/storage.service';
@@ -68,6 +69,30 @@ export class VehicleClassMappingController {
   async addAccessory(@Body() dto: CreateAccessoryDto) {
     const result = await this._service.addAccessoryAsync(dto);
     return ResponseDto.created('Accessory added successfully', result);
+  }
+
+  @Post('condition-groups')
+  @ApiOperation({ summary: 'Add a new condition group (e.g. Time of Day) to a vehicle class configuration' })
+  async addConditionGroup(@Body() dto: CreateConditionGroupDto) {
+    const result = await this._service.addConditionGroupAsync(dto);
+    return ResponseDto.created('Condition group added successfully', result);
+  }
+
+  @Put('condition-groups/:id')
+  @ApiOperation({ summary: 'Update an existing condition group and its options' })
+  async updateConditionGroup(
+    @Param('id') id: string,
+    @Body() dto: UpdateConditionGroupDto
+  ) {
+    const result = await this._service.updateConditionGroupAsync(+id, dto);
+    return ResponseDto.updated('Condition group updated successfully', result);
+  }
+
+  @Delete('condition-groups/:id')
+  @ApiOperation({ summary: 'Delete a condition group and all its options' })
+  async deleteConditionGroup(@Param('id') id: string) {
+    await this._service.deleteConditionGroupAsync(+id);
+    return ResponseDto.deleted('Condition group deleted successfully');
   }
 
   @Put(':id')
