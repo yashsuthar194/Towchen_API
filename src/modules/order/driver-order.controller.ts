@@ -34,6 +34,8 @@ import { FileHelper } from 'src/shared/helper/file-helper';
 import { EJobCardService } from '../e-job-card/e-job-card.service';
 import { SubmitPickupJobCardDto } from '../e-job-card/dto/submit-pickup-job-card.dto';
 import { SubmitDropoffJobCardDto } from '../e-job-card/dto/submit-dropoff-job-card.dto';
+import { JobCardConfigResponseDto } from '../e-job-card/dto/job-card-config-response.dto';
+import { JobCardPrefillResponseDto } from '../e-job-card/dto/job-card-prefill-response.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 
@@ -448,17 +450,29 @@ export class DriverOrderController {
     return ResponseDto.retrieved('Dropoff E-Job Card details retrieved successfully', result);
   }
 
-  /**
-   * Get E-Job Card configuration (diagram image, mapped class, points) for an order.
-   */
   @Get(':id/e-job-card/config')
   @ApiOperation({
     summary: 'Get E-Job Card configuration for order (Driver only)',
-    description: 'Resolves the vehicle class and retrieves the diagram details and total damage points.',
+    description: 'Resolves the vehicle class and retrieves the diagram details, total damage points, and order details for pre-filling the E-Job Card form.',
   })
+  @ApiResponseDto(JobCardConfigResponseDto, false, 200)
   async getJobCardConfiguration(@Param('id', ParseIntPipe) id: number) {
     const result = await this._eJobCardService.getJobCardConfigurationAsync(id);
     return ResponseDto.retrieved('E-Job Card configuration retrieved successfully', result);
+  }
+
+  /**
+   * Get E-Job Card pre-fill data for an order.
+   */
+  @Get(':id/e-job-card/prefill-data')
+  @ApiOperation({
+    summary: 'Get E-Job Card pre-fill data for order (Driver only)',
+    description: 'Retrieves specific order details (e.g. driver name, vehicle no) to pre-fill the E-Job Card form fields.',
+  })
+  @ApiResponseDto(JobCardPrefillResponseDto, false, 200)
+  async getJobCardPrefillData(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._eJobCardService.getJobCardPrefillDataAsync(id);
+    return ResponseDto.retrieved('E-Job Card prefill data retrieved successfully', result);
   }
 
   /**

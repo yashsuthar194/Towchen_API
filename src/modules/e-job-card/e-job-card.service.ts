@@ -3,6 +3,7 @@ import { PrismaService } from '../../core/prisma/prisma.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 import { SubmitPickupJobCardDto } from './dto/submit-pickup-job-card.dto';
 import { StorageService } from 'src/services/storage/storage.service';
+import { LocationType } from '@prisma/client';
 
 @Injectable()
 export class EJobCardService {
@@ -314,7 +315,13 @@ export class EJobCardService {
   async getJobCardConfigurationAsync(orderId: number) {
     const order = await this._prisma.order.findUnique({
       where: { id: orderId },
-      include: { customer_vehicle: true },
+      include: { 
+        customer_vehicle: true,
+        customer: true,
+        driver: true,
+        service: true,
+        locations: { where: { type: LocationType.Breakdown } }
+      },
     });
 
     if (!order) {
@@ -332,16 +339,63 @@ export class EJobCardService {
       },
     });
 
-    if (!config) {
-      return {
-        mapped_class: resolvedClass,
-        diagram_image_url: '',
-        total_damage_points: 0,
-        accessories: [],
-        condition_groups: [],
-      };
+    const breakdownLocation = order.locations[0]?.address || order.locations[0]?.city || '-';
+
+    return {
+      // Configuration data
+      mapped_class: config?.mapped_class || resolvedClass,
+      diagram_image_url: config?.diagram_image_url || '',
+      total_damage_points: config?.total_damage_points || 0,
+      accessories: config?.accessories || [],
+      condition_groups: config?.condition_groups || [],
+
+      // Order pre-fill data
+      date_time: order.created_at.toISOString(),
+      order_id: order.formated_id,
+      service_type: order.service?.name || '-',
+      vehicle_brand: order.customer_vehicle?.make || '-',
+      vehicle_model: order.customer_vehicle?.model || '-',
+      vehicle_no: order.customer_vehicle?.registration_number || '-',
+      customer_ph_no: order.customer?.number || '-',
+      driver_name: order.driver?.driver_name || '-',
+      driver_ph_no: order.driver?.mobile_number || '-',
+      reaching_date_time: order.start_time ? order.start_time.toISOString() : '-',
+      event_type: 'Breakdown',
+      event_location: breakdownLocation,
+    };
+  }
+
+  async getJobCardPrefillDataAsync(orderId: number) {
+    const order = await this._prisma.order.findUnique({
+      where: { id: orderId },
+      include: { 
+        customer_vehicle: true,
+        customer: true,
+        driver: true,
+        service: true,
+        locations: { where: { type: LocationType.Breakdown } }
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    return config;
+    const breakdownLocation = order.locations[0]?.address || order.locations[0]?.city || '-';
+
+    return {
+      date_time: order.created_at.toISOString(),
+      order_id: order.formated_id,
+      service_type: order.service?.name || '-',
+      vehicle_brand: order.customer_vehicle?.make || '-',
+      vehicle_model: order.customer_vehicle?.model || '-',
+      vehicle_no: order.customer_vehicle?.registration_number || '-',
+      customer_ph_no: order.customer?.number || '-',
+      driver_name: order.driver?.driver_name || '-',
+      driver_ph_no: order.driver?.mobile_number || '-',
+      reaching_date_time: order.start_time ? order.start_time.toISOString() : '-',
+      event_type: 'Breakdown',
+      event_location: breakdownLocation,
+    };
   }
 }
