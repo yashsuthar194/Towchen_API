@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsString, IsInt, Min, IsArray, ArrayMinSize, IsOptional, ValidateNested } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform, Type, plainToInstance } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ConditionGroupInputDto {
@@ -67,13 +67,30 @@ export class CreateVehicleClassConfigDto {
     required: false,
   })
   @Transform(({ value }) => {
+    let parsedArray: any[] = [];
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
+        if (Array.isArray(parsed)) parsedArray = parsed;
+        else parsedArray = [parsed];
+      } catch (e) {
+        return value;
+      }
+    } else if (Array.isArray(value)) {
+      parsedArray = value.map((item) => {
+        if (typeof item === 'string') {
+          try {
+            return JSON.parse(item);
+          } catch (e) {}
+        }
+        return item;
+      });
+    } else {
+      return value;
     }
-    return value;
+    
+    // Explicitly convert plain objects to instances so ValidationPipe's whitelist doesn't strip properties
+    return plainToInstance(ConditionGroupInputDto, parsedArray);
   })
   @IsOptional()
   @IsArray()
