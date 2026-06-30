@@ -147,8 +147,8 @@ export class VehicleClassMappingService {
         }
       }
 
-      if (dto.condition_groups) {
-        await this._updateConditionGroupsAsync(existing.id, dto.condition_groups);
+      if (dto.vehicle_state) {
+        await this._updateConditionGroupsAsync(existing.id, dto.vehicle_state);
       }
 
       return await this.getConfigByIdAsync(existing.id);
@@ -176,20 +176,25 @@ export class VehicleClassMappingService {
       });
     }
 
-    if (dto.condition_groups) {
-      await this._updateConditionGroupsAsync(created.id, dto.condition_groups);
+    if (dto.vehicle_state) {
+      await this._updateConditionGroupsAsync(created.id, dto.vehicle_state);
     }
 
     return await this.getConfigByIdAsync(created.id);
   }
 
   async getConfigsAsync() {
-    return await this._prisma.vehicle_class_configuration.findMany({
+    const configs = await this._prisma.vehicle_class_configuration.findMany({
       orderBy: { mapped_class: 'asc' },
       include: { 
         accessories: true,
         condition_groups: { include: { options: true } }
       },
+    });
+    
+    return configs.map(config => {
+      const { condition_groups, ...rest } = config;
+      return { ...rest, vehicle_state: condition_groups };
     });
   }
 
@@ -204,7 +209,8 @@ export class VehicleClassMappingService {
     if (!config) {
       throw new BadRequestException('Configuration not found');
     }
-    return config;
+    const { condition_groups, ...rest } = config;
+    return { ...rest, vehicle_state: condition_groups };
   }
 
   async updateConfigByIdAsync(id: number, dto: UpdateVehicleClassConfigDto, diagramImageUrl?: string) {
@@ -243,8 +249,8 @@ export class VehicleClassMappingService {
       }
     }
 
-    if (dto.condition_groups) {
-      await this._updateConditionGroupsAsync(id, dto.condition_groups);
+    if (dto.vehicle_state) {
+      await this._updateConditionGroupsAsync(id, dto.vehicle_state);
     }
 
     return await this.getConfigByIdAsync(id);

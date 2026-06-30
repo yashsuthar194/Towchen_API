@@ -62,7 +62,7 @@ export class CreateVehicleClassConfigDto {
   accessories?: string[];
 
   @ApiProperty({
-    description: 'An array of condition groups associated with this class',
+    description: 'An array of vehicle state groups (condition groups) associated with this class',
     type: [ConditionGroupInputDto],
     required: false,
   })
@@ -96,7 +96,7 @@ export class CreateVehicleClassConfigDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ConditionGroupInputDto)
-  condition_groups?: ConditionGroupInputDto[];
+  vehicle_state?: ConditionGroupInputDto[];
 
 
   @ApiProperty({

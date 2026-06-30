@@ -3,10 +3,12 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { VehicleClassMappingService } from './vehicle-class-mapping.service';
 import { CreateVehicleClassConfigDto } from './dto/create-config.dto';
 import { UpdateVehicleClassConfigDto } from './dto/update-config.dto';
+import { VehicleClassConfigResponseDto } from './dto/config-response.dto';
 import { CreateAccessoryDto } from './dto/create-accessory.dto';
 import { CreateConditionGroupDto, UpdateConditionGroupDto } from './dto/condition-group.dto';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
+import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { StorageService } from 'src/services/storage/storage.service';
 import { FileHelper } from 'src/shared/helper/file-helper';
 
@@ -21,6 +23,7 @@ export class VehicleClassMappingController {
   @Post()
   @ApiOperation({ summary: 'Add or update a vehicle class configuration' })
   @ApiConsumes('multipart/form-data')
+  @ApiResponseDto(VehicleClassConfigResponseDto, false, 201)
   @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.imageFilter }))
   async createConfig(
     @Body() dto: CreateVehicleClassConfigDto,
@@ -45,6 +48,7 @@ export class VehicleClassMappingController {
 
   @Get()
   @ApiOperation({ summary: 'Get all vehicle class configurations' })
+  @ApiResponseDto(VehicleClassConfigResponseDto, true, 200)
   async findAllConfigs() {
     const result = await this._service.getConfigsAsync();
     return ResponseDto.retrieved('Configurations retrieved successfully', result);
@@ -52,6 +56,7 @@ export class VehicleClassMappingController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a vehicle class configuration by ID' })
+  @ApiResponseDto(VehicleClassConfigResponseDto, false, 200)
   async getConfigById(@Param('id') id: string) {
     const result = await this._service.getConfigByIdAsync(+id);
     return ResponseDto.retrieved('Configuration retrieved successfully', result);

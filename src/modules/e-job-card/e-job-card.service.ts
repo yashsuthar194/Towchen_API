@@ -347,7 +347,7 @@ export class EJobCardService {
       diagram_image_url: config?.diagram_image_url || '',
       total_damage_points: config?.total_damage_points || 0,
       accessories: config?.accessories || [],
-      condition_groups: config?.condition_groups || [],
+      vehicle_state: config?.condition_groups || [],
 
       // Order pre-fill data
       date_time: order.created_at.toISOString(),
