@@ -10,7 +10,7 @@ import {
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderListDto } from './dto/order-list.dto';
-import { OrderDetailDto } from './dto/order-detail.dto';
+import { OrderDetailDto, OrderOtpDetailDto } from './dto/order-detail.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
@@ -91,6 +91,23 @@ export class OrderController {
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<OrderDetailDto>> {
     const order = await this._orderService.getByIdAsync(id);
     return ResponseDto.retrieved('Order details fetched successfully', order);
+  }
+
+  /**
+   * Get OTPs for a specific order (For Customers)
+   */
+  @Get(':id/otp')
+  @ApiOperation({
+    summary: 'Get order OTPs by ID (Customer only)',
+    description:
+      'Returns the OTPs for a given order.\n' +
+      'Only the customer who created the order can access its OTPs.',
+  })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the order', example: 1 })
+  @ApiResponseDto(OrderOtpDetailDto, true, 200)
+  async getOrderOtps(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<OrderOtpDetailDto[]>> {
+    const otps = await this._orderService.getOrderOtpsAsync(id);
+    return ResponseDto.retrieved('Order OTPs fetched successfully', otps);
   }
 }
 
