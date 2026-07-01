@@ -335,7 +335,7 @@ export class EJobCardService {
       where: { mapped_class: resolvedClass },
       include: { 
         accessories: true,
-        condition_groups: { include: { options: true } }
+        vehicle_states: { include: { options: true } }
       },
     });
 
@@ -347,7 +347,7 @@ export class EJobCardService {
       diagram_image_url: config?.diagram_image_url || '',
       total_damage_points: config?.total_damage_points || 0,
       accessories: config?.accessories || [],
-      vehicle_state: config?.condition_groups || [],
+      vehicle_state: config?.vehicle_states || [],
 
       // Order pre-fill data
       date_time: order.created_at.toISOString(),
