@@ -16,7 +16,7 @@ export class ConditionOptionResponseDto {
   id: number;
 
   @ApiProperty({ example: 1 })
-  condition_group_id: number;
+  vehicle_state_id: number;
 
   @ApiProperty({ example: 'Day' })
   name: string;
