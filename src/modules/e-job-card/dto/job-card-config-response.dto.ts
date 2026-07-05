@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { JobCardPrefillItemDto } from './job-card-prefill-item.dto';
 
+import { AccessoryResponseDto, ConditionGroupResponseDto } from '../../vehicle-class-mapping/dto/config-response.dto';
+
 export class JobCardConfigResponseDto {
   @ApiProperty({ description: 'The mapped vehicle class', example: 'Car' })
   mapped_class: string;
@@ -11,11 +13,11 @@ export class JobCardConfigResponseDto {
   @ApiProperty({ description: 'Total damage points', example: 25 })
   total_damage_points: number;
 
-  @ApiProperty({ description: 'List of accessories' })
-  accessories: any[];
+  @ApiProperty({ description: 'List of accessories', type: [AccessoryResponseDto] })
+  accessories: AccessoryResponseDto[];
 
-  @ApiProperty({ description: 'List of condition groups (Day/Night, Wet/Dry, etc)' })
-  condition_groups: any[];
+  @ApiProperty({ description: 'Array of vehicle state (condition groups) and their options', type: [ConditionGroupResponseDto] })
+  vehicle_state: ConditionGroupResponseDto[];
 
   @ApiProperty({ description: 'Array of prefill details', type: [JobCardPrefillItemDto] })
   prefill_details: JobCardPrefillItemDto[];

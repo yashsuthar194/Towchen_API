@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { OrderStatus, LocationType } from '@prisma/client';
+import { OrderStatus, LocationType, OrderOtpType } from '@prisma/client';
 import { ServiceDto, SubServiceDto } from '../../vendor/dto/service.dto';
 import { CustomerDetailDto, CustomerVehicleDetailDto } from '../../customer/dto/customer-detail.dto';
 
@@ -21,6 +21,29 @@ class OrderLocationDetailDto {
 
   @ApiPropertyOptional()
   contact_number?: string;
+}
+
+export class OrderOtpDetailDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  order_id: number;
+
+  @ApiProperty({ enum: OrderOtpType })
+  type: OrderOtpType;
+
+  @ApiProperty()
+  otp: string;
+
+  @ApiProperty()
+  expires_at: Date;
+
+  @ApiPropertyOptional({ nullable: true })
+  verified_at?: Date | null;
+
+  @ApiProperty()
+  is_verified: boolean;
 }
 
 export class OrderDetailDto {

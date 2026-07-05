@@ -91,15 +91,8 @@ export class OrderService {
       data: { status: OrderStatus.OtpPending },
     });
 
-    // Integrate with SMS service to send OTP to order.customer.number
-    await this._notificationService.notifyOrderOtp(
-      orderId,
-      order.customer.number,
-      otpCode,
-      type,
-    );
-
-    return { message: `OTP sent successfully to ${order.customer.number}` };
+    // OTP is now generated and accessible via customer app (no SMS sent)
+    return { message: 'OTP generated successfully' };
   }
 
   /**
@@ -731,5 +724,30 @@ export class OrderService {
     });
 
     return { url: res.url };
+  }
+
+  /**
+   * Gets OTPs for a specific order (For Customers)
+   */
+  async getOrderOtpsAsync(orderId: number) {
+    if (!this._callerService.isCustomer()) {
+      throw new BadRequestException('Only customers can view order OTPs');
+    }
+
+    const customerId = this._callerService.getUserId();
+    const order = await this._prisma.order.findUnique({
+      where: { id: orderId },
+      include: { otps: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    if (order.customer_id !== customerId) {
+      throw new BadRequestException('You do not have permission to view OTPs for this order');
+    }
+
+    return order.otps;
   }
 }
