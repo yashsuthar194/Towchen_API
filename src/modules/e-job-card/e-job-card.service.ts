@@ -4,6 +4,7 @@ import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-cla
 import { SubmitPickupJobCardDto } from './dto/submit-pickup-job-card.dto';
 import { StorageService } from 'src/services/storage/storage.service';
 import { LocationType } from '@prisma/client';
+import { JobCardPrefillResponseDto } from './dto/job-card-prefill-response.dto';
 
 @Injectable()
 export class EJobCardService {
@@ -349,20 +350,75 @@ export class EJobCardService {
       accessories: config?.accessories || [],
       condition_groups: config?.condition_groups || [],
 
-      // Order pre-fill data
-      date_time: order.created_at.toISOString(),
-      order_id: order.formated_id,
-      service_type: order.service?.name || '-',
-      vehicle_brand: order.customer_vehicle?.make || '-',
-      vehicle_model: order.customer_vehicle?.model || '-',
-      vehicle_no: order.customer_vehicle?.registration_number || '-',
-      customer_ph_no: order.customer?.number || '-',
-      driver_name: order.driver?.driver_name || '-',
-      driver_ph_no: order.driver?.mobile_number || '-',
-      reaching_date_time: order.start_time ? order.start_time.toISOString() : '-',
-      event_type: 'Breakdown',
-      event_location: breakdownLocation,
+      // Order pre-fill data array
+      prefill_details: this.mapEJobCardFilledDetailsArray({
+        date_time: order.created_at.toISOString(),
+        order_id: order.formated_id,
+        service_type: order.service?.name || '-',
+        vehicle_brand: order.customer_vehicle?.make || '-',
+        vehicle_model: order.customer_vehicle?.model || '-',
+        vehicle_no: order.customer_vehicle?.registration_number || '-',
+        customer_ph_no: order.customer?.number || '-',
+        driver_name: order.driver?.driver_name || '-',
+        driver_ph_no: order.driver?.mobile_number || '-',
+        reaching_date_time: order.start_time ? order.start_time.toISOString() : '-',
+        event_type: 'Breakdown',
+        event_location: breakdownLocation,
+      }),
     };
+  }
+
+  private mapEJobCardFilledDetailsArray(dto: any) {
+    return [
+      {
+        Label: 'Date & Time',
+        Value: dto.date_time
+      },
+      {
+        Label: 'Order ID',
+        Value: dto.order_id
+      },
+      {
+        Label: 'Service Type',
+        Value: dto.service_type
+      },
+      {
+        Label: 'Vehicle Brand',
+        Value: dto.vehicle_brand
+      },
+      {
+        Label: 'Vehicle Model',
+        Value: dto.vehicle_model
+      },
+      {
+        Label: 'Vehicle No.',
+        Value: dto.vehicle_no
+      },
+      {
+        Label: 'Customer Ph No.',
+        Value: dto.customer_ph_no
+      },
+      {
+        Label: 'Driver Name',
+        Value: dto.driver_name
+      },
+      {
+        Label: 'Driver Ph No.',
+        Value: dto.driver_ph_no
+      },
+      {
+        Label: 'Reaching Date & Time',
+        Value: dto.reaching_date_time
+      },
+      {
+        Label: 'Event Type',
+        Value: dto.event_type
+      },
+      {
+        Label: 'Event Location',
+        Value: dto.event_location
+      }
+    ]
   }
 
   async getJobCardPrefillDataAsync(orderId: number) {
@@ -384,18 +440,20 @@ export class EJobCardService {
     const breakdownLocation = order.locations[0]?.address || order.locations[0]?.city || '-';
 
     return {
-      date_time: order.created_at.toISOString(),
-      order_id: order.formated_id,
-      service_type: order.service?.name || '-',
-      vehicle_brand: order.customer_vehicle?.make || '-',
-      vehicle_model: order.customer_vehicle?.model || '-',
-      vehicle_no: order.customer_vehicle?.registration_number || '-',
-      customer_ph_no: order.customer?.number || '-',
-      driver_name: order.driver?.driver_name || '-',
-      driver_ph_no: order.driver?.mobile_number || '-',
-      reaching_date_time: order.start_time ? order.start_time.toISOString() : '-',
-      event_type: 'Breakdown',
-      event_location: breakdownLocation,
+      prefill_details: this.mapEJobCardFilledDetailsArray({
+        date_time: order.created_at.toISOString(),
+        order_id: order.formated_id,
+        service_type: order.service?.name || '-',
+        vehicle_brand: order.customer_vehicle?.make || '-',
+        vehicle_model: order.customer_vehicle?.model || '-',
+        vehicle_no: order.customer_vehicle?.registration_number || '-',
+        customer_ph_no: order.customer?.number || '-',
+        driver_name: order.driver?.driver_name || '-',
+        driver_ph_no: order.driver?.mobile_number || '-',
+        reaching_date_time: order.start_time ? order.start_time.toISOString() : '-',
+        event_type: 'Breakdown',
+        event_location: breakdownLocation,
+      })
     };
   }
 }
