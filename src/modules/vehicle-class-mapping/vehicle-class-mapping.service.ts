@@ -21,11 +21,15 @@ export class VehicleClassMappingService {
           hasSome: [subClass, subClass.toUpperCase(), subClass.toLowerCase()],
         },
       },
-      include: { accessories: true },
+      include: { 
+        accessories: true,
+        vehicle_states: { include: { options: true } }
+      },
     });
 
     if (config) {
-      return config;
+      const { vehicle_states, ...rest } = config;
+      return { ...rest, vehicle_state: vehicle_states };
     }
 
     // Default hardcoded fallbacks
@@ -37,7 +41,10 @@ export class VehicleClassMappingService {
 
     const fallbackConfig = await this._prisma.vehicle_class_configuration.findUnique({
       where: { mapped_class: mappedClass },
-      include: { accessories: true },
+      include: { 
+        accessories: true,
+        vehicle_states: { include: { options: true } }
+      },
     });
 
     if (!fallbackConfig) {
@@ -47,10 +54,12 @@ export class VehicleClassMappingService {
         total_damage_points: 0,
         accessories: [],
         sub_classes: [],
+        vehicle_state: [],
       };
     }
 
-    return fallbackConfig;
+    const { vehicle_states, ...rest } = fallbackConfig;
+    return { ...rest, vehicle_state: vehicle_states };
   }
 
   async resolveMappedClass(sourceClass?: string | null): Promise<string> {
