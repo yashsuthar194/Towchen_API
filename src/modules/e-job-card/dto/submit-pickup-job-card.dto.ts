@@ -30,28 +30,17 @@ export class EJobCardConditionInputDto {
   selected_option_name: string;
 }
 
-export class EJobCardDamageDto {
-  @ApiProperty({ description: 'The point number of the damage from the vehicle diagram', example: 1 })
-  @IsNotEmpty()
-  @IsInt()
-  damage_number: number;
-
-  @ApiProperty({ description: 'The image URL showing the damage', example: 'https://example.com/damage-1.jpg' })
-  @IsNotEmpty()
-  @IsString()
-  image_url: string;
-}
 
 export class SubmitPickupJobCardDto {
-  @ApiProperty({ description: 'Fuel amount (e.g. 50%)', example: '50%' })
-  @IsNotEmpty()
+  @ApiProperty({ description: 'Fuel amount (e.g. 50%)', example: '50%', required: false })
+  @IsOptional()
   @IsString()
-  fuel_amount: string;
+  fuel_amount?: string;
 
-  @ApiProperty({ description: 'Odometer reading text', example: '124500 km' })
-  @IsNotEmpty()
+  @ApiProperty({ description: 'Odometer reading text', example: '124500 km', required: false })
+  @IsOptional()
   @IsString()
-  odometer_reading_text: string;
+  odometer_reading_text?: string;
 
   @ApiProperty({ description: 'Remarks/comments', example: 'Front bumper scratches noted.' })
   @IsOptional()
@@ -181,31 +170,12 @@ export class SubmitPickupJobCardDto {
   @Type(() => EJobCardConditionInputDto)
   selected_conditions?: EJobCardConditionInputDto[];
 
-  @ApiProperty({ 
-    type: 'string',
-    description: 'Comma separated string of damage point numbers corresponding to the uploaded damage images. (e.g. "1,5")', 
-    example: '1,5' 
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value.split(',').map((v) => parseInt(v.trim(), 10)).filter((v) => !isNaN(v));
-    }
-    return value;
-  })
-  @IsArray()
-  @IsInt({ each: true })
-  damage_numbers?: number[];
+  @ApiProperty({ type: 'string', format: 'binary', description: 'Odometer Image (File)', required: false })
+  odometer_image?: any;
 
-  @ApiProperty({ type: 'string', format: 'binary', description: 'Odometer Image (File)' })
-  odometer_image: any;
+  @ApiProperty({ type: 'string', format: 'binary', description: 'Driver Image (File)', required: false })
+  driver_image?: any;
 
-  @ApiProperty({ type: 'string', format: 'binary', description: 'Driver Image (File)' })
-  driver_image: any;
-
-  @ApiProperty({ type: 'string', format: 'binary', description: 'Driver Signature (File)' })
-  driver_sign: any;
-
-  @ApiProperty({ type: 'array', items: { type: 'string', format: 'binary' }, description: 'Damage Images (Files)' })
-  damage_images: any[];
+  @ApiProperty({ type: 'string', format: 'binary', description: 'Driver Signature (File)', required: false })
+  driver_sign?: any;
 }

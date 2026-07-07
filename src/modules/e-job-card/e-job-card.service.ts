@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 import { SubmitPickupJobCardDto } from './dto/submit-pickup-job-card.dto';
+import { AddDamageDto } from './dto/add-damage.dto';
 import { StorageService } from 'src/services/storage/storage.service';
 import { LocationType } from '@prisma/client';
 import { JobCardPrefillResponseDto } from './dto/job-card-prefill-response.dto';
@@ -22,7 +23,6 @@ export class EJobCardService {
       odometer_image?: Express.Multer.File[];
       driver_image?: Express.Multer.File[];
       driver_sign?: Express.Multer.File[];
-      damage_images?: Express.Multer.File[];
     }
   ) {
     const order = await this._prisma.order.findUnique({
@@ -48,63 +48,38 @@ export class EJobCardService {
       throw new BadRequestException('Invalid vehicle_class_configuration_id');
     }
 
-    // Upload required images
-    if (!files.odometer_image?.[0]) throw new BadRequestException('odometer_image file is required');
-    if (!files.driver_image?.[0]) throw new BadRequestException('driver_image file is required');
-    if (!files.driver_sign?.[0]) throw new BadRequestException('driver_sign file is required');
-
+    // Upload images (only if provided)
     const folder = `e-job-card/${orderId}/pickup`;
 
-    const [odometerUpload, driverUpload, signUpload] = await Promise.all([
-      this._storageService.uploadFileAsync({
-        buffer: files.odometer_image[0].buffer,
-        originalName: files.odometer_image[0].originalname,
-        mimeType: files.odometer_image[0].mimetype,
-        size: files.odometer_image[0].size,
-        folderPath: folder,
-      }),
-      this._storageService.uploadFileAsync({
-        buffer: files.driver_image[0].buffer,
-        originalName: files.driver_image[0].originalname,
-        mimeType: files.driver_image[0].mimetype,
-        size: files.driver_image[0].size,
-        folderPath: folder,
-      }),
-      this._storageService.uploadFileAsync({
-        buffer: files.driver_sign[0].buffer,
-        originalName: files.driver_sign[0].originalname,
-        mimeType: files.driver_sign[0].mimetype,
-        size: files.driver_sign[0].size,
-        folderPath: folder,
-      }),
-    ]);
+    const odometerUpload = files.odometer_image?.[0]
+      ? await this._storageService.uploadFileAsync({
+          buffer: files.odometer_image[0].buffer,
+          originalName: files.odometer_image[0].originalname,
+          mimeType: files.odometer_image[0].mimetype,
+          size: files.odometer_image[0].size,
+          folderPath: folder,
+        })
+      : null;
 
-    // Handle damages
-    const damageData: { damage_number: number; image_url: string }[] = [];
-    if (dto.damage_numbers && files.damage_images && files.damage_images.length > 0) {
-      if (dto.damage_numbers.length !== files.damage_images.length) {
-        throw new BadRequestException('Number of damage_images must match number of damage_numbers');
-      }
+    const driverUpload = files.driver_image?.[0]
+      ? await this._storageService.uploadFileAsync({
+          buffer: files.driver_image[0].buffer,
+          originalName: files.driver_image[0].originalname,
+          mimeType: files.driver_image[0].mimetype,
+          size: files.driver_image[0].size,
+          folderPath: folder,
+        })
+      : null;
 
-      const damageUploads = await Promise.all(
-        files.damage_images.map(file => 
-          this._storageService.uploadFileAsync({
-            buffer: file.buffer,
-            originalName: file.originalname,
-            mimeType: file.mimetype,
-            size: file.size,
-            folderPath: folder + '/damages',
-          })
-        )
-      );
-
-      for (let i = 0; i < dto.damage_numbers.length; i++) {
-        damageData.push({
-          damage_number: dto.damage_numbers[i],
-          image_url: damageUploads[i].url,
-        });
-      }
-    }
+    const signUpload = files.driver_sign?.[0]
+      ? await this._storageService.uploadFileAsync({
+          buffer: files.driver_sign[0].buffer,
+          originalName: files.driver_sign[0].originalname,
+          mimeType: files.driver_sign[0].mimetype,
+          size: files.driver_sign[0].size,
+          folderPath: folder,
+        })
+      : null;
 
     return await this._prisma.$transaction(async (tx) => {
       // Delete existing pickup job card if any (idempotent submission)
@@ -123,10 +98,9 @@ export class EJobCardService {
       const metaPayload = {
         ...dto,
         vehicle_class_configuration_name: config.mapped_class,
-        odometer_image_url: odometerUpload.url,
-        driver_image_url: driverUpload.url,
-        driver_sign_url: signUpload.url,
-        damage_images_data: damageData,
+        ...(odometerUpload && { odometer_image_url: odometerUpload.url }),
+        ...(driverUpload && { driver_image_url: driverUpload.url }),
+        ...(signUpload && { driver_sign_url: signUpload.url }),
       };
 
       // Remove undefined values so the JSON is clean
@@ -140,10 +114,10 @@ export class EJobCardService {
           order_id: orderId,
           fuel_amount: dto.fuel_amount,
           odometer_reading_text: dto.odometer_reading_text,
-          odometer_image: odometerUpload.url,
+          odometer_image: odometerUpload?.url,
           vehicle_class_configuration_id: dto.vehicle_class_configuration_id,
-          driver_image: driverUpload.url,
-          driver_sign: signUpload.url,
+          driver_image: driverUpload?.url,
+          driver_sign: signUpload?.url,
           remarks: dto.remarks,
           selected_accessories: dto.selected_accessories ? (dto.selected_accessories as any) : undefined,
           date_and_time: dto.date_and_time,
@@ -164,17 +138,6 @@ export class EJobCardService {
           meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
         },
       });
-
-      // Create damages if any
-      if (damageData.length > 0) {
-        await tx.pickup_e_job_card_damage.createMany({
-          data: damageData.map((dmg) => ({
-            pickup_e_job_card_id: jobCard.id,
-            damage_number: dmg.damage_number,
-            image_url: dmg.image_url,
-          })),
-        });
-      }
 
       // Update order physical job card flag to false
       await tx.order.update({
@@ -455,5 +418,39 @@ export class EJobCardService {
         event_location: breakdownLocation,
       })
     };
+  }
+
+  async addDamageAsync(jobCardId: number, dto: AddDamageDto, file: Express.Multer.File) {
+    const jobCard = await this._prisma.pickup_e_job_card.findUnique({
+      where: { id: jobCardId },
+    });
+
+    if (!jobCard) {
+      throw new NotFoundException(`Pickup E-Job Card with ID ${jobCardId} not found`);
+    }
+
+    if (!file) {
+      throw new BadRequestException('damage_image file is required');
+    }
+
+    const folder = `e-job-card/${jobCard.order_id}/pickup/damages`;
+
+    const upload = await this._storageService.uploadFileAsync({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      folderPath: folder,
+    });
+
+    const damage = await this._prisma.pickup_e_job_card_damage.create({
+      data: {
+        pickup_e_job_card_id: jobCardId,
+        damage_number: dto.damage_number,
+        image_url: upload.url,
+      },
+    });
+
+    return damage;
   }
 }

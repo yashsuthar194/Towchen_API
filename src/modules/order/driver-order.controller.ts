@@ -36,6 +36,7 @@ import { SubmitPickupJobCardDto } from '../e-job-card/dto/submit-pickup-job-card
 import { SubmitDropoffJobCardDto } from '../e-job-card/dto/submit-dropoff-job-card.dto';
 import { JobCardConfigResponseDto } from '../e-job-card/dto/job-card-config-response.dto';
 import { JobCardPrefillResponseDto } from '../e-job-card/dto/job-card-prefill-response.dto';
+import { AddDamageDto } from '../e-job-card/dto/add-damage.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 
@@ -378,7 +379,6 @@ export class DriverOrderController {
       { name: 'odometer_image', maxCount: 1 },
       { name: 'driver_image', maxCount: 1 },
       { name: 'driver_sign', maxCount: 1 },
-      { name: 'damage_images', maxCount: 30 },
     ], { fileFilter: FileHelper.imageFilter })
   )
   async submitPickupJobCard(
@@ -388,7 +388,6 @@ export class DriverOrderController {
       odometer_image?: Express.Multer.File[]; 
       driver_image?: Express.Multer.File[]; 
       driver_sign?: Express.Multer.File[]; 
-      damage_images?: Express.Multer.File[] 
     },
   ) {
     const driverId = this._callerService.getUserId();
@@ -486,5 +485,27 @@ export class DriverOrderController {
   async getVehicleClassConfigBySubClass(@Param('subClass') subClass: string) {
     const result = await this._vehicleClassMappingService.getConfigBySubClassAsync(subClass);
     return ResponseDto.retrieved('Vehicle class configuration retrieved successfully', result);
+  }
+
+  /**
+   * Add damage to a pickup E-Job Card.
+   */
+  @Post('e-job-card/:jobCardId/damage')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Add damage to pickup E-Job Card (Driver only)',
+    description: 'Adds a damage record (damage number and image file) to an existing pickup E-Job Card via formdata.',
+  })
+  @ApiParam({ name: 'jobCardId', description: 'ID of the pickup E-Job Card', example: 1 })
+  @UseInterceptors(
+    FileInterceptor('damage_image', { fileFilter: FileHelper.imageFilter }),
+  )
+  async addDamage(
+    @Param('jobCardId', ParseIntPipe) jobCardId: number,
+    @Body() dto: AddDamageDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const result = await this._eJobCardService.addDamageAsync(jobCardId, dto, file);
+    return ResponseDto.created('Damage added successfully', result);
   }
 }
