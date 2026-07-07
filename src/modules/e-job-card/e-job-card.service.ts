@@ -82,19 +82,6 @@ export class EJobCardService {
       : null;
 
     return await this._prisma.$transaction(async (tx) => {
-      // Delete existing pickup job card if any (idempotent submission)
-      const existing = await tx.pickup_e_job_card.findUnique({
-        where: {
-          order_id: orderId,
-        },
-      });
-
-      if (existing) {
-        await tx.pickup_e_job_card.delete({
-          where: { id: existing.id },
-        });
-      }
-
       const metaPayload = {
         ...dto,
         vehicle_class_configuration_name: config.mapped_class,
@@ -103,40 +90,50 @@ export class EJobCardService {
         ...(signUpload && { driver_sign_url: signUpload.url }),
       };
 
-      // Remove undefined values so the JSON is clean
+      // Remove undefined/null values so the JSON is clean
       const cleanMetaPayload = Object.fromEntries(
         Object.entries(metaPayload).filter(([_, v]) => v != null)
       );
 
-      // Create new Pickup E-Job Card
-      const jobCard = await tx.pickup_e_job_card.create({
-        data: {
+      // Build the shared data fields (used for both create & update)
+      const dataFields: Record<string, any> = {
+        fuel_amount: dto.fuel_amount,
+        odometer_reading_text: dto.odometer_reading_text,
+        vehicle_class_configuration_id: dto.vehicle_class_configuration_id,
+        remarks: dto.remarks,
+        selected_accessories: dto.selected_accessories ? (dto.selected_accessories as any) : undefined,
+        date_and_time: dto.date_and_time,
+        service_type: dto.service_type,
+        vehicle_brand: dto.vehicle_brand,
+        vehicle_model: dto.vehicle_model,
+        vehicle_no: dto.vehicle_no,
+        customer_ph_no: dto.customer_ph_no,
+        driver_name: dto.driver_name,
+        driver_ph_no: dto.driver_ph_no,
+        reaching_date_and_time: dto.reaching_date_and_time,
+        event_type: dto.event_type,
+        event_location: dto.event_location,
+        time_of_day: dto.time_of_day,
+        weather_condition: dto.weather_condition,
+        vehicle_condition: dto.vehicle_condition,
+        selected_conditions: dto.selected_conditions ? (dto.selected_conditions as any) : undefined,
+        meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
+      };
+
+      // Only set image fields when files are provided
+      if (odometerUpload) dataFields.odometer_image = odometerUpload.url;
+      if (driverUpload) dataFields.driver_image = driverUpload.url;
+      if (signUpload) dataFields.driver_sign = signUpload.url;
+
+      // Upsert: create if not exists, update if exists — single DB round-trip
+      const jobCard = await tx.pickup_e_job_card.upsert({
+        where: { order_id: orderId },
+        create: {
           order_id: orderId,
-          fuel_amount: dto.fuel_amount,
-          odometer_reading_text: dto.odometer_reading_text,
-          odometer_image: odometerUpload?.url,
-          vehicle_class_configuration_id: dto.vehicle_class_configuration_id,
-          driver_image: driverUpload?.url,
-          driver_sign: signUpload?.url,
-          remarks: dto.remarks,
-          selected_accessories: dto.selected_accessories ? (dto.selected_accessories as any) : undefined,
-          date_and_time: dto.date_and_time,
-          service_type: dto.service_type,
-          vehicle_brand: dto.vehicle_brand,
-          vehicle_model: dto.vehicle_model,
-          vehicle_no: dto.vehicle_no,
-          customer_ph_no: dto.customer_ph_no,
-          driver_name: dto.driver_name,
-          driver_ph_no: dto.driver_ph_no,
-          reaching_date_and_time: dto.reaching_date_and_time,
-          event_type: dto.event_type,
-          event_location: dto.event_location,
-          time_of_day: dto.time_of_day,
-          weather_condition: dto.weather_condition,
-          vehicle_condition: dto.vehicle_condition,
-          selected_conditions: dto.selected_conditions ? (dto.selected_conditions as any) : undefined,
-          meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
+          ...dataFields,
         },
+        update: dataFields,
+        include: { damages: true },
       });
 
       // Update order physical job card flag to false
@@ -147,10 +144,7 @@ export class EJobCardService {
         },
       });
 
-      return await tx.pickup_e_job_card.findUnique({
-        where: { id: jobCard.id },
-        include: { damages: true },
-      });
+      return jobCard;
     });
   }
 

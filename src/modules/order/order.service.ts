@@ -30,7 +30,7 @@ export class OrderService {
     private readonly _notificationService: OrderNotificationService,
     private readonly _orderCreationService: OrderCreationService,
     private readonly _storageService: StorageService,
-  ) {}
+  ) { }
 
   /**
    * Sends a 6-digit OTP to the customer for order start or completion.
@@ -687,12 +687,6 @@ export class OrderService {
       );
     }
 
-    if (type === 'pickup' && !order.is_physical_job_card_for_pickup) {
-      throw new BadRequestException(
-        'An e-job card has already been filled for pickup',
-      );
-    }
-
     if (type === 'dropoff' && !order.is_physical_job_card_for_dropoff) {
       throw new BadRequestException(
         'An e-job card has already been filled for dropoff',
@@ -716,11 +710,21 @@ export class OrderService {
         ? 'physical_pickup_job_card_image'
         : 'physical_dropoff_job_card_image';
 
-    await this._prisma.order.update({
-      where: { id: orderId },
-      data: {
-        [fieldName]: res.url,
-      },
+    await this._prisma.$transaction(async (tx) => {
+      // If uploading a physical pickup job card, delete the existing e-job card (and its damages via cascade)
+      if (type === 'pickup') {
+        await tx.pickup_e_job_card.delete({
+          where: { order_id: orderId },
+        });
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          [fieldName]: res.url,
+          ...(type === 'pickup' && { is_physical_job_card_for_pickup: true }),
+        },
+      });
     });
 
     return { url: res.url };
