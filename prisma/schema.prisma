@@ -269,10 +269,10 @@ model order {
 
   dropoff_images String[] @default([])
 
-  is_physical_job_card_for_pickup  Boolean @default(true)
-  is_physical_job_card_for_dropoff Boolean @default(true)
-  physical_pickup_job_card_image   String?
-  physical_dropoff_job_card_image  String?
+  is_physical_vcrf_for_pickup  Boolean @default(true)
+  is_physical_vcrf_for_dropoff Boolean @default(true)
+  physical_pickup_vcrf_image   String?
+  physical_dropoff_vcrf_image  String?
 
   applied_voucher_id Int?
   discount_amount    Float  @default(0.0)
@@ -290,8 +290,8 @@ model order {
   otps               order_otp[]
   voucher            voucher?            @relation(fields: [applied_voucher_id], references: [id])
   scheduled_order    scheduled_order?    @relation(fields: [scheduled_order_id], references: [id])
-  pickup_e_job_card  pickup_e_job_card?
-  dropoff_e_job_card dropoff_e_job_card?
+  pickup_evcrf  pickup_evcrf?
+  dropoff_evcrf dropoff_evcrf?
 
   @@index([customer_id])
   @@index([driver_id])
@@ -629,7 +629,7 @@ enum VehicleStatus {
   Banned
 }
 
-model pickup_e_job_card {
+model pickup_evcrf {
   id                    Int     @id @default(autoincrement())
   order_id              Int     @unique
   fuel_amount           String? @db.VarChar(50)
@@ -663,25 +663,25 @@ model pickup_e_job_card {
 
   order                       order                        @relation(fields: [order_id], references: [id], onDelete: Cascade)
   vehicle_class_configuration vehicle_class_configuration? @relation(fields: [vehicle_class_configuration_id], references: [id])
-  damages                     pickup_e_job_card_damage[]
+  damages                     pickup_evcrf_damage[]
 
   @@index([order_id])
   @@index([vehicle_class_configuration_id])
 }
 
-model pickup_e_job_card_damage {
+model pickup_evcrf_damage {
   id                   Int      @id @default(autoincrement())
-  pickup_e_job_card_id Int
+  pickup_evcrf_id      Int
   damage_number        Int
   image_url            String   @db.Text
   created_at           DateTime @default(now())
 
-  pickup_e_job_card pickup_e_job_card @relation(fields: [pickup_e_job_card_id], references: [id], onDelete: Cascade)
+  pickup_evcrf pickup_evcrf @relation(fields: [pickup_evcrf_id], references: [id], onDelete: Cascade)
 
-  @@index([pickup_e_job_card_id])
+  @@index([pickup_evcrf_id])
 }
 
-model dropoff_e_job_card {
+model dropoff_evcrf {
   id       Int     @id @default(autoincrement())
   order_id Int     @unique
   remarks  String? @db.Text
@@ -711,7 +711,7 @@ model vehicle_class_configuration {
   total_damage_points Int
   created_at          DateTime                  @default(now())
   updated_at          DateTime                  @default(now()) @updatedAt
-  pickup_e_job_cards  pickup_e_job_card[]
+  pickup_evcrfs  pickup_evcrf[]
   vehicle_states      vehicle_state[]
 }
 

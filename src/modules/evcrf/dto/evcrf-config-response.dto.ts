@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { JobCardPrefillItemDto } from './job-card-prefill-item.dto';
+import { EvcrfPrefillItemDto } from './evcrf-prefill-item.dto';
 
 import { AccessoryResponseDto, ConditionGroupResponseDto } from '../../vehicle-class-mapping/dto/config-response.dto';
 
-export class JobCardConfigResponseDto {
+export class EvcrfConfigResponseDto {
   @ApiProperty({ description: 'The mapped vehicle class', example: 'Car' })
   mapped_class: string;
 
@@ -19,6 +19,6 @@ export class JobCardConfigResponseDto {
   @ApiProperty({ description: 'Array of vehicle state (condition groups) and their options', type: [ConditionGroupResponseDto] })
   vehicle_state: ConditionGroupResponseDto[];
 
-  @ApiProperty({ description: 'Array of prefill details', type: [JobCardPrefillItemDto] })
-  prefill_details: JobCardPrefillItemDto[];
+  @ApiProperty({ description: 'Array of prefill details', type: [EvcrfPrefillItemDto] })
+  prefill_details: EvcrfPrefillItemDto[];
 }

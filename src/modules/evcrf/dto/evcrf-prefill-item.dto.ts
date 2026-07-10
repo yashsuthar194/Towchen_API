@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class JobCardPrefillItemDto {
+export class EvcrfPrefillItemDto {
   @ApiProperty({ description: 'Label for the prefill detail', example: 'Date & Time' })
   Label: string;
 

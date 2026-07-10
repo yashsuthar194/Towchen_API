@@ -658,17 +658,17 @@ export class OrderService {
   }
 
   /**
-   * Uploads a physical job card image for an order when e-job card is not used.
+   * Uploads a physical VCRF image for an order when EVCRF is not used.
    * Only the assigned driver can upload these images.
    */
-  async uploadPhysicalJobCardImageAsync(
+  async uploadPhysicalVcrfImageAsync(
     orderId: number,
     type: 'pickup' | 'dropoff',
     file: Express.Multer.File,
   ): Promise<{ url: string }> {
     if (!this._callerService.isDriver()) {
       throw new BadRequestException(
-        'Only drivers can upload physical job card images',
+        'Only drivers can upload physical VCRF images',
       );
     }
 
@@ -687,15 +687,15 @@ export class OrderService {
       );
     }
 
-    if (type === 'pickup' && !order.is_physical_job_card_for_pickup) {
+    if (type === 'pickup' && !order.is_physical_vcrf_for_pickup) {
       throw new BadRequestException(
-        'An e-job card has already been filled for pickup',
+        'An EVCRF has already been filled for pickup',
       );
     }
 
-    if (type === 'dropoff' && !order.is_physical_job_card_for_dropoff) {
+    if (type === 'dropoff' && !order.is_physical_vcrf_for_dropoff) {
       throw new BadRequestException(
-        'An e-job card has already been filled for dropoff',
+        'An EVCRF has already been filled for dropoff',
       );
     }
 
@@ -708,13 +708,13 @@ export class OrderService {
       originalName: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
-      folderPath: `order/${orderId}/physical-job-card/${type}`,
+      folderPath: `order/${orderId}/physical-vcrf/${type}`,
     });
 
     const fieldName =
       type === 'pickup'
-        ? 'physical_pickup_job_card_image'
-        : 'physical_dropoff_job_card_image';
+        ? 'physical_pickup_vcrf_image'
+        : 'physical_dropoff_vcrf_image';
 
     await this._prisma.order.update({
       where: { id: orderId },

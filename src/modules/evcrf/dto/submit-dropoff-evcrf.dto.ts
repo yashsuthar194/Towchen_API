@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class SubmitDropoffJobCardDto {
+export class SubmitDropoffEvcrfDto {
   @ApiProperty({ description: "Handover's Name", example: 'John Doe' })
   @IsNotEmpty()
   @IsString()

@@ -29,13 +29,13 @@ import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.de
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { FilesInterceptor, FileInterceptor, FileFieldsInterceptor } from '@nestjs/platform-express';
 import { UploadOrderImagesDto } from './dto/upload-order-images.dto';
-import { UploadPhysicalJobCardDto } from './dto/upload-physical-job-card.dto';
+import { UploadPhysicalVcrfDto } from './dto/upload-physical-vcrf.dto';
 import { FileHelper } from 'src/shared/helper/file-helper';
-import { EJobCardService } from '../e-job-card/e-job-card.service';
-import { SubmitPickupJobCardDto } from '../e-job-card/dto/submit-pickup-job-card.dto';
-import { SubmitDropoffJobCardDto } from '../e-job-card/dto/submit-dropoff-job-card.dto';
-import { JobCardConfigResponseDto } from '../e-job-card/dto/job-card-config-response.dto';
-import { JobCardPrefillResponseDto } from '../e-job-card/dto/job-card-prefill-response.dto';
+import { EVCRFService } from '../evcrf/evcrf.service';
+import { SubmitPickupEvcrfDto } from '../evcrf/dto/submit-pickup-evcrf.dto';
+import { SubmitDropoffEvcrfDto } from '../evcrf/dto/submit-dropoff-evcrf.dto';
+import { EvcrfConfigResponseDto } from '../evcrf/dto/evcrf-config-response.dto';
+import { EvcrfPrefillResponseDto } from '../evcrf/dto/evcrf-prefill-response.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 
@@ -46,7 +46,7 @@ import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-cla
 export class DriverOrderController {
   constructor(
     private readonly _orderService: OrderService,
-    private readonly _eJobCardService: EJobCardService,
+    private readonly _evcrfService: EVCRFService,
     private readonly _callerService: CallerService,
     private readonly _vehicleClassMappingService: VehicleClassMappingService,
   ) {}
@@ -304,74 +304,74 @@ export class DriverOrderController {
   }
 
   /**
-   * Upload physical pickup job card image for an order (when e-job card is false).
+   * Upload physical pickup VCRF image for an order (when e-VCRF is false).
    */
-  @Put(':id/physical-pickup-job-card')
+  @Put(':id/physical-pickup-vcrf')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadPhysicalJobCardDto })
+  @ApiBody({ type: UploadPhysicalVcrfDto })
   @ApiOperation({
-    summary: 'Upload physical pickup job card image for an order (Driver only)',
+    summary: 'Upload physical pickup VCRF image for an order (Driver only)',
     description:
-      'Allows the assigned driver to upload a physical job card image via formdata when e-job card is false.',
+      'Allows the assigned driver to upload a physical VCRF image via formdata when e-VCRF is false.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
   @UseInterceptors(
     FileInterceptor('file', { fileFilter: FileHelper.imageFilter }),
   )
-  async uploadPhysicalPickupJobCard(
+  async uploadPhysicalPickupVcrf(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<ResponseDto<{ url: string }>> {
-    const result = await this._orderService.uploadPhysicalJobCardImageAsync(
+    const result = await this._orderService.uploadPhysicalVcrfImageAsync(
       id,
       'pickup',
       file,
     );
     return ResponseDto.updated(
-      'Physical pickup job card image uploaded successfully',
+      'Physical pickup VCRF image uploaded successfully',
       result,
     );
   }
 
   /**
-   * Upload physical dropoff job card image for an order (when e-job card is false).
+   * Upload physical dropoff VCRF image for an order (when e-VCRF is false).
    */
-  @Put(':id/physical-dropoff-job-card')
+  @Put(':id/physical-dropoff-vcrf')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UploadPhysicalJobCardDto })
+  @ApiBody({ type: UploadPhysicalVcrfDto })
   @ApiOperation({
     summary:
-      'Upload physical dropoff job card image for an order (Driver only)',
+      'Upload physical dropoff VCRF image for an order (Driver only)',
     description:
-      'Allows the assigned driver to upload a physical job card image via formdata when e-job card is false.',
+      'Allows the assigned driver to upload a physical VCRF image via formdata when e-VCRF is false.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
   @UseInterceptors(
     FileInterceptor('file', { fileFilter: FileHelper.imageFilter }),
   )
-  async uploadPhysicalDropoffJobCard(
+  async uploadPhysicalDropoffVcrf(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<ResponseDto<{ url: string }>> {
-    const result = await this._orderService.uploadPhysicalJobCardImageAsync(
+    const result = await this._orderService.uploadPhysicalVcrfImageAsync(
       id,
       'dropoff',
       file,
     );
     return ResponseDto.updated(
-      'Physical dropoff job card image uploaded successfully',
+      'Physical dropoff VCRF image uploaded successfully',
       result,
     );
   }
 
   /**
-   * Submit E-Job Card for order pickup.
+   * Submit EVCRF for order pickup.
    */
-  @Post(':id/e-job-card/pickup')
+  @Post(':id/evcrf/pickup')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Submit E-Job Card for pickup (Driver only)',
-    description: 'Allows the assigned driver to submit E-Job Card details during pickup.',
+    summary: 'Submit EVCRF for pickup (Driver only)',
+    description: 'Allows the assigned driver to submit EVCRF details during pickup.',
   })
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -381,9 +381,9 @@ export class DriverOrderController {
       { name: 'damage_images', maxCount: 30 },
     ], { fileFilter: FileHelper.imageFilter })
   )
-  async submitPickupJobCard(
+  async submitPickupEvcrf(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: SubmitPickupJobCardDto,
+    @Body() dto: SubmitPickupEvcrfDto,
     @UploadedFiles() files: { 
       odometer_image?: Express.Multer.File[]; 
       driver_image?: Express.Multer.File[]; 
@@ -392,31 +392,31 @@ export class DriverOrderController {
     },
   ) {
     const driverId = this._callerService.getUserId();
-    const result = await this._eJobCardService.submitPickupJobCardAsync(id, driverId, dto, files);
-    return ResponseDto.created('Pickup E-Job Card submitted successfully', result);
+    const result = await this._evcrfService.submitPickupEvcrfAsync(id, driverId, dto, files);
+    return ResponseDto.created('Pickup EVCRF submitted successfully', result);
   }
 
   /**
-   * Get E-Job Card for order pickup.
+   * Get EVCRF for order pickup.
    */
-  @Get(':id/e-job-card/pickup')
+  @Get(':id/evcrf/pickup')
   @ApiOperation({
-    summary: 'Get E-Job Card for pickup (Driver only)',
-    description: 'Allows retrieving the submitted pickup E-Job Card details.',
+    summary: 'Get EVCRF for pickup (Driver only)',
+    description: 'Allows retrieving the submitted pickup EVCRF details.',
   })
-  async getPickupJobCard(@Param('id', ParseIntPipe) id: number) {
-    const result = await this._eJobCardService.getPickupJobCardAsync(id);
-    return ResponseDto.retrieved('Pickup E-Job Card details retrieved successfully', result);
+  async getPickupEvcrf(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._evcrfService.getPickupEvcrfAsync(id);
+    return ResponseDto.retrieved('Pickup EVCRF details retrieved successfully', result);
   }
 
   /**
-   * Submit E-Job Card for order dropoff.
+   * Submit EVCRF for order dropoff.
    */
-  @Post(':id/e-job-card/dropoff')
+  @Post(':id/evcrf/dropoff')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
-    summary: 'Submit E-Job Card for dropoff (Driver only)',
-    description: 'Allows the assigned driver to submit E-Job Card details during dropoff.',
+    summary: 'Submit EVCRF for dropoff (Driver only)',
+    description: 'Allows the assigned driver to submit EVCRF details during dropoff.',
   })
   @UseInterceptors(
     FileFieldsInterceptor([
@@ -424,63 +424,63 @@ export class DriverOrderController {
       { name: 'handover_signature', maxCount: 1 },
     ], { fileFilter: FileHelper.imageFilter })
   )
-  async submitDropoffJobCard(
+  async submitDropoffEvcrf(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: SubmitDropoffJobCardDto,
+    @Body() dto: SubmitDropoffEvcrfDto,
     @UploadedFiles() files: { 
       handover_image?: Express.Multer.File[]; 
       handover_signature?: Express.Multer.File[]; 
     },
   ) {
     const driverId = this._callerService.getUserId();
-    const result = await this._eJobCardService.submitDropoffJobCardAsync(id, driverId, dto, files);
-    return ResponseDto.created('Dropoff E-Job Card submitted successfully', result);
+    const result = await this._evcrfService.submitDropoffEvcrfAsync(id, driverId, dto, files);
+    return ResponseDto.created('Dropoff EVCRF submitted successfully', result);
   }
 
   /**
-   * Get E-Job Card for order dropoff.
+   * Get EVCRF for order dropoff.
    */
-  @Get(':id/e-job-card/dropoff')
+  @Get(':id/evcrf/dropoff')
   @ApiOperation({
-    summary: 'Get E-Job Card for dropoff (Driver only)',
-    description: 'Allows retrieving the submitted dropoff E-Job Card details.',
+    summary: 'Get EVCRF for dropoff (Driver only)',
+    description: 'Allows retrieving the submitted dropoff EVCRF details.',
   })
-  async getDropoffJobCard(@Param('id', ParseIntPipe) id: number) {
-    const result = await this._eJobCardService.getDropoffJobCardAsync(id);
-    return ResponseDto.retrieved('Dropoff E-Job Card details retrieved successfully', result);
+  async getDropoffEvcrf(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._evcrfService.getDropoffEvcrfAsync(id);
+    return ResponseDto.retrieved('Dropoff EVCRF details retrieved successfully', result);
   }
 
-  @Get(':id/e-job-card/config')
+  @Get(':id/evcrf/config')
   @ApiOperation({
-    summary: 'Get E-Job Card configuration for order (Driver only)',
-    description: 'Resolves the vehicle class and retrieves the diagram details, total damage points, and order details for pre-filling the E-Job Card form.',
+    summary: 'Get EVCRF configuration for order (Driver only)',
+    description: 'Resolves the vehicle class and retrieves the diagram details, total damage points, and order details for pre-filling the EVCRF form.',
   })
-  @ApiResponseDto(JobCardConfigResponseDto, false, 200)
-  async getJobCardConfiguration(@Param('id', ParseIntPipe) id: number) {
-    const result = await this._eJobCardService.getJobCardConfigurationAsync(id);
-    return ResponseDto.retrieved('E-Job Card configuration retrieved successfully', result);
+  @ApiResponseDto(EvcrfConfigResponseDto, false, 200)
+  async getEvcrfConfiguration(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._evcrfService.getEvcrfConfigurationAsync(id);
+    return ResponseDto.retrieved('EVCRF configuration retrieved successfully', result);
   }
 
   /**
-   * Get E-Job Card pre-fill data for an order.
+   * Get EVCRF pre-fill data for an order.
    */
-  @Get(':id/e-job-card/prefill-data')
+  @Get(':id/evcrf/prefill-data')
   @ApiOperation({
-    summary: 'Get E-Job Card pre-fill data for order (Driver only)',
-    description: 'Retrieves specific order details (e.g. driver name, vehicle no) to pre-fill the E-Job Card form fields.',
+    summary: 'Get EVCRF pre-fill data for order (Driver only)',
+    description: 'Retrieves specific order details (e.g. driver name, vehicle no) to pre-fill the EVCRF form fields.',
   })
-  @ApiResponseDto(JobCardPrefillResponseDto, false, 200)
-  async getJobCardPrefillData(@Param('id', ParseIntPipe) id: number) {
-    const result = await this._eJobCardService.getJobCardPrefillDataAsync(id);
-    return ResponseDto.retrieved('E-Job Card prefill data retrieved successfully', result);
+  @ApiResponseDto(EvcrfPrefillResponseDto, false, 200)
+  async getEvcrfPrefillData(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._evcrfService.getEvcrfPrefillDataAsync(id);
+    return ResponseDto.retrieved('EVCRF prefill data retrieved successfully', result);
   }
 
   /**
-   * Get E-Job Card configuration (diagram image, mapped class, points) based on sub_class.
+   * Get EVCRF configuration (diagram image, mapped class, points) based on sub_class.
    */
   @Get('vehicle-class-config/:subClass')
   @ApiOperation({
-    summary: 'Get E-Job Card configuration by sub-class (Driver only)',
+    summary: 'Get EVCRF configuration by sub-class (Driver only)',
     description: 'Retrieves the diagram details and total damage points based on the provided sub-class string (e.g. LMV, SUV).',
   })
   async getVehicleClassConfigBySubClass(@Param('subClass') subClass: string) {

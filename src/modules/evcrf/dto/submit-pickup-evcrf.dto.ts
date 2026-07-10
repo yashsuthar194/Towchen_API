@@ -2,7 +2,7 @@ import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt, IsBoo
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class EJobCardAccessoryInputDto {
+export class EVCRFAccessoryInputDto {
   @ApiProperty({ example: 1 })
   @IsInt()
   id: number;
@@ -16,7 +16,7 @@ export class EJobCardAccessoryInputDto {
   value: boolean;
 }
 
-export class EJobCardConditionInputDto {
+export class EVCRFConditionInputDto {
   @IsNumber()
   group_id: number;
 
@@ -30,7 +30,7 @@ export class EJobCardConditionInputDto {
   selected_option_name: string;
 }
 
-export class EJobCardDamageDto {
+export class EVCRFDamageDto {
   @ApiProperty({ description: 'The point number of the damage from the vehicle diagram', example: 1 })
   @IsNotEmpty()
   @IsInt()
@@ -42,7 +42,7 @@ export class EJobCardDamageDto {
   image_url: string;
 }
 
-export class SubmitPickupJobCardDto {
+export class SubmitPickupEvcrfDto {
   @ApiProperty({ description: 'Fuel amount (e.g. 50%)', example: '50%' })
   @IsNotEmpty()
   @IsString()
@@ -59,7 +59,7 @@ export class SubmitPickupJobCardDto {
   remarks?: string;
 
   @ApiProperty({ 
-    type: () => [EJobCardAccessoryInputDto],
+    type: () => [EVCRFAccessoryInputDto],
     description: 'A JSON string representing the selected accessories (e.g. [{"id":1,"name":"Tool kit","value":true}])', 
     example: '[{"id":1,"name":"Tool kit","value":true}]'
   })
@@ -68,7 +68,7 @@ export class SubmitPickupJobCardDto {
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        return plainToInstance(EJobCardAccessoryInputDto, parsed);
+        return plainToInstance(EVCRFAccessoryInputDto, parsed);
       } catch (e) {
         return value;
       }
@@ -77,8 +77,8 @@ export class SubmitPickupJobCardDto {
   })
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => EJobCardAccessoryInputDto)
-  selected_accessories?: EJobCardAccessoryInputDto[];
+  @Type(() => EVCRFAccessoryInputDto)
+  selected_accessories?: EVCRFAccessoryInputDto[];
 
   @ApiProperty({ description: 'Vehicle Class Configuration ID', example: 1 })
   @Transform(({ value }) => parseInt(value, 10))
@@ -86,65 +86,6 @@ export class SubmitPickupJobCardDto {
   @IsInt()
   vehicle_class_configuration_id: number;
 
-  @ApiProperty({ description: 'Date & Time', required: false })
-  @IsOptional()
-  @IsString()
-  date_and_time?: string;
-
-  @ApiProperty({ description: 'Order ID', required: false })
-  @IsOptional()
-  @IsString()
-  order_id?: string;
-
-  @ApiProperty({ description: 'Service Type', required: false })
-  @IsOptional()
-  @IsString()
-  service_type?: string;
-
-  @ApiProperty({ description: 'Vehicle Brand', required: false })
-  @IsOptional()
-  @IsString()
-  vehicle_brand?: string;
-
-  @ApiProperty({ description: 'Vehicle Model', required: false })
-  @IsOptional()
-  @IsString()
-  vehicle_model?: string;
-
-  @ApiProperty({ description: 'Vehicle No.', required: false })
-  @IsOptional()
-  @IsString()
-  vehicle_no?: string;
-
-  @ApiProperty({ description: 'Customer Ph. No.', required: false })
-  @IsOptional()
-  @IsString()
-  customer_ph_no?: string;
-
-  @ApiProperty({ description: 'Driver Name', required: false })
-  @IsOptional()
-  @IsString()
-  driver_name?: string;
-
-  @ApiProperty({ description: 'Driver Ph. No.', required: false })
-  @IsOptional()
-  @IsString()
-  driver_ph_no?: string;
-
-  @ApiProperty({ description: 'Reaching Date & Time', required: false })
-  @IsOptional()
-  @IsString()
-  reaching_date_and_time?: string;
-
-  @ApiProperty({ description: 'Event Type', required: false })
-  @IsOptional()
-  @IsString()
-  event_type?: string;
-
-  @ApiProperty({ description: 'Event Location', required: false })
-  @IsOptional()
-  @IsString()
-  event_location?: string;
 
   @ApiProperty({ description: 'Time of day (e.g. Day, Night)', required: false, example: 'Day' })
   @IsOptional()
@@ -178,8 +119,8 @@ export class SubmitPickupJobCardDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => EJobCardConditionInputDto)
-  selected_conditions?: EJobCardConditionInputDto[];
+  @Type(() => EVCRFConditionInputDto)
+  selected_conditions?: EVCRFConditionInputDto[];
 
   @ApiProperty({ 
     type: 'string',

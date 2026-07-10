@@ -1,23 +1,23 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
-import { SubmitPickupJobCardDto } from './dto/submit-pickup-job-card.dto';
+import { SubmitPickupEvcrfDto } from './dto/submit-pickup-evcrf.dto';
 import { StorageService } from 'src/services/storage/storage.service';
 import { LocationType } from '@prisma/client';
-import { JobCardPrefillResponseDto } from './dto/job-card-prefill-response.dto';
+import { EvcrfPrefillResponseDto } from './dto/evcrf-prefill-response.dto';
 
 @Injectable()
-export class EJobCardService {
+export class EVCRFService {
   constructor(
     private readonly _prisma: PrismaService,
     private readonly _mappingService: VehicleClassMappingService,
     private readonly _storageService: StorageService,
   ) {}
 
-  async submitPickupJobCardAsync(
+  async submitPickupEvcrfAsync(
     orderId: number, 
     driverId: number, 
-    dto: SubmitPickupJobCardDto,
+    dto: SubmitPickupEvcrfDto,
     files: {
       odometer_image?: Express.Multer.File[];
       driver_image?: Express.Multer.File[];
@@ -27,7 +27,13 @@ export class EJobCardService {
   ) {
     const order = await this._prisma.order.findUnique({
       where: { id: orderId },
-      include: { customer_vehicle: true },
+      include: { 
+        customer_vehicle: true,
+        customer: true,
+        driver: true,
+        service: true,
+        locations: { where: { type: LocationType.Breakdown } }
+      },
     });
 
     if (!order) {
@@ -38,7 +44,7 @@ export class EJobCardService {
       throw new BadRequestException('You are not the assigned driver for this order');
     }
 
-    // Physical flag will be updated to false on successful E-Job card submission
+    // Physical flag will be updated to false on successful EVCRF submission
 
     // Check configuration exists
     const config = await this._prisma.vehicle_class_configuration.findUnique({
@@ -53,7 +59,7 @@ export class EJobCardService {
     if (!files.driver_image?.[0]) throw new BadRequestException('driver_image file is required');
     if (!files.driver_sign?.[0]) throw new BadRequestException('driver_sign file is required');
 
-    const folder = `e-job-card/${orderId}/pickup`;
+    const folder = `evcrf/${orderId}/pickup`;
 
     const [odometerUpload, driverUpload, signUpload] = await Promise.all([
       this._storageService.uploadFileAsync({
@@ -107,18 +113,31 @@ export class EJobCardService {
     }
 
     return await this._prisma.$transaction(async (tx) => {
-      // Delete existing pickup job card if any (idempotent submission)
-      const existing = await tx.pickup_e_job_card.findUnique({
+      // Delete existing pickup EVCRF if any (idempotent submission)
+      const existing = await tx.pickup_evcrf.findUnique({
         where: {
           order_id: orderId,
         },
       });
 
       if (existing) {
-        await tx.pickup_e_job_card.delete({
+        await tx.pickup_evcrf.delete({
           where: { id: existing.id },
         });
       }
+
+      const breakdownLocation = order.locations[0]?.address || order.locations[0]?.city || '-';
+      const autoDateAndTime = order.created_at.toISOString();
+      const autoServiceType = order.service?.name || '-';
+      const autoVehicleBrand = order.customer_vehicle?.make || '-';
+      const autoVehicleModel = order.customer_vehicle?.model || '-';
+      const autoVehicleNo = order.customer_vehicle?.registration_number || '-';
+      const autoCustomerPhNo = order.customer?.number || '-';
+      const autoDriverName = order.driver?.driver_name || '-';
+      const autoDriverPhNo = order.driver?.mobile_number || '-';
+      const autoReachingDateAndTime = order.start_time ? order.start_time.toISOString() : '-';
+      const autoEventType = 'Breakdown';
+      const autoEventLocation = breakdownLocation;
 
       const metaPayload = {
         ...dto,
@@ -134,8 +153,8 @@ export class EJobCardService {
         Object.entries(metaPayload).filter(([_, v]) => v != null)
       );
 
-      // Create new Pickup E-Job Card
-      const jobCard = await tx.pickup_e_job_card.create({
+      // Create new Pickup E-EVCRF
+      const evcrf = await tx.pickup_evcrf.create({
         data: {
           order_id: orderId,
           fuel_amount: dto.fuel_amount,
@@ -146,17 +165,17 @@ export class EJobCardService {
           driver_sign: signUpload.url,
           remarks: dto.remarks,
           selected_accessories: dto.selected_accessories ? (dto.selected_accessories as any) : undefined,
-          date_and_time: dto.date_and_time,
-          service_type: dto.service_type,
-          vehicle_brand: dto.vehicle_brand,
-          vehicle_model: dto.vehicle_model,
-          vehicle_no: dto.vehicle_no,
-          customer_ph_no: dto.customer_ph_no,
-          driver_name: dto.driver_name,
-          driver_ph_no: dto.driver_ph_no,
-          reaching_date_and_time: dto.reaching_date_and_time,
-          event_type: dto.event_type,
-          event_location: dto.event_location,
+          date_and_time: autoDateAndTime,
+          service_type: autoServiceType,
+          vehicle_brand: autoVehicleBrand,
+          vehicle_model: autoVehicleModel,
+          vehicle_no: autoVehicleNo,
+          customer_ph_no: autoCustomerPhNo,
+          driver_name: autoDriverName,
+          driver_ph_no: autoDriverPhNo,
+          reaching_date_and_time: autoReachingDateAndTime,
+          event_type: autoEventType,
+          event_location: autoEventLocation,
           time_of_day: dto.time_of_day,
           weather_condition: dto.weather_condition,
           vehicle_condition: dto.vehicle_condition,
@@ -167,34 +186,34 @@ export class EJobCardService {
 
       // Create damages if any
       if (damageData.length > 0) {
-        await tx.pickup_e_job_card_damage.createMany({
+        await tx.pickup_evcrf_damage.createMany({
           data: damageData.map((dmg) => ({
-            pickup_e_job_card_id: jobCard.id,
+            pickup_evcrf_id: evcrf.id,
             damage_number: dmg.damage_number,
             image_url: dmg.image_url,
           })),
         });
       }
 
-      // Update order physical job card flag to false
+      // Update order physical VCRF flag to false
       await tx.order.update({
         where: { id: orderId },
         data: {
-          is_physical_job_card_for_pickup: false,
+          is_physical_vcrf_for_pickup: false,
         },
       });
 
-      return await tx.pickup_e_job_card.findUnique({
-        where: { id: jobCard.id },
+      return await tx.pickup_evcrf.findUnique({
+        where: { id: evcrf.id },
         include: { damages: true },
       });
     });
   }
 
-  async submitDropoffJobCardAsync(
+  async submitDropoffEvcrfAsync(
     orderId: number, 
     driverId: number, 
-    dto: import('./dto/submit-dropoff-job-card.dto').SubmitDropoffJobCardDto,
+    dto: import('./dto/submit-dropoff-evcrf.dto').SubmitDropoffEvcrfDto,
     files: {
       handover_image?: Express.Multer.File[];
       handover_signature?: Express.Multer.File[];
@@ -215,7 +234,7 @@ export class EJobCardService {
     if (!files.handover_image?.[0]) throw new BadRequestException('handover_image file is required');
     if (!files.handover_signature?.[0]) throw new BadRequestException('handover_signature file is required');
 
-    const folder = `e-job-card/${orderId}/dropoff`;
+    const folder = `evcrf/${orderId}/dropoff`;
 
     const [imageUpload, signUpload] = await Promise.all([
       this._storageService.uploadFileAsync({
@@ -235,14 +254,14 @@ export class EJobCardService {
     ]);
 
     return await this._prisma.$transaction(async (tx) => {
-      const existing = await tx.dropoff_e_job_card.findUnique({
+      const existing = await tx.dropoff_evcrf.findUnique({
         where: {
           order_id: orderId,
         },
       });
 
       if (existing) {
-        await tx.dropoff_e_job_card.delete({
+        await tx.dropoff_evcrf.delete({
           where: { id: existing.id },
         });
       }
@@ -257,7 +276,7 @@ export class EJobCardService {
         Object.entries(metaPayload).filter(([_, v]) => v != null)
       );
 
-      const jobCard = await tx.dropoff_e_job_card.create({
+      const evcrf = await tx.dropoff_evcrf.create({
         data: {
           order_id: orderId,
           remarks: dto.remarks,
@@ -274,46 +293,46 @@ export class EJobCardService {
       await tx.order.update({
         where: { id: orderId },
         data: {
-          is_physical_job_card_for_dropoff: false,
+          is_physical_vcrf_for_dropoff: false,
         },
       });
 
-      return await tx.dropoff_e_job_card.findUnique({
-        where: { id: jobCard.id },
+      return await tx.dropoff_evcrf.findUnique({
+        where: { id: evcrf.id },
       });
     });
   }
 
-  async getPickupJobCardAsync(orderId: number) {
-    const jobCard = await this._prisma.pickup_e_job_card.findUnique({
+  async getPickupEvcrfAsync(orderId: number) {
+    const evcrf = await this._prisma.pickup_evcrf.findUnique({
       where: {
         order_id: orderId,
       },
       include: { damages: true },
     });
 
-    if (!jobCard) {
-      throw new NotFoundException(`Pickup E-Job Card for Order ${orderId} not found`);
+    if (!evcrf) {
+      throw new NotFoundException(`Pickup E-EVCRF for Order ${orderId} not found`);
     }
 
-    return jobCard;
+    return evcrf;
   }
 
-  async getDropoffJobCardAsync(orderId: number) {
-    const jobCard = await this._prisma.dropoff_e_job_card.findUnique({
+  async getDropoffEvcrfAsync(orderId: number) {
+    const evcrf = await this._prisma.dropoff_evcrf.findUnique({
       where: {
         order_id: orderId,
       },
     });
 
-    if (!jobCard) {
-      throw new NotFoundException(`Dropoff E-Job Card for Order ${orderId} not found`);
+    if (!evcrf) {
+      throw new NotFoundException(`Dropoff E-EVCRF for Order ${orderId} not found`);
     }
 
-    return jobCard;
+    return evcrf;
   }
 
-  async getJobCardConfigurationAsync(orderId: number) {
+  async getEvcrfConfigurationAsync(orderId: number) {
     const order = await this._prisma.order.findUnique({
       where: { id: orderId },
       include: { 
@@ -351,7 +370,7 @@ export class EJobCardService {
       vehicle_state: config?.vehicle_states || [],
 
       // Order pre-fill data array
-      prefill_details: this.mapEJobCardFilledDetailsArray({
+      prefill_details: this.mapEvcrfFilledDetailsArray({
         date_time: order.created_at.toISOString(),
         order_id: order.formated_id,
         service_type: order.service?.name || '-',
@@ -368,7 +387,7 @@ export class EJobCardService {
     };
   }
 
-  private mapEJobCardFilledDetailsArray(dto: any) {
+  private mapEvcrfFilledDetailsArray(dto: any) {
     return [
       {
         Label: 'Date & Time',
@@ -421,7 +440,7 @@ export class EJobCardService {
     ]
   }
 
-  async getJobCardPrefillDataAsync(orderId: number) {
+  async getEvcrfPrefillDataAsync(orderId: number) {
     const order = await this._prisma.order.findUnique({
       where: { id: orderId },
       include: { 
@@ -440,7 +459,7 @@ export class EJobCardService {
     const breakdownLocation = order.locations[0]?.address || order.locations[0]?.city || '-';
 
     return {
-      prefill_details: this.mapEJobCardFilledDetailsArray({
+      prefill_details: this.mapEvcrfFilledDetailsArray({
         date_time: order.created_at.toISOString(),
         order_id: order.formated_id,
         service_type: order.service?.name || '-',

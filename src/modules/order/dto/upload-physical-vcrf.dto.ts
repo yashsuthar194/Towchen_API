@@ -1,10 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class UploadPhysicalJobCardDto {
+export class UploadPhysicalVcrfDto {
   @ApiProperty({
     type: 'string',
     format: 'binary',
-    description: 'Image file of the physical job card (JPG, JPEG, PNG)',
+    description: 'Image file of the physical VCRF (JPG, JPEG, PNG)',
   })
   file: Express.Multer.File;
 }

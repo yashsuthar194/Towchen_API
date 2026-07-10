@@ -23,7 +23,7 @@ import { WalletModule } from './modules/wallet/wallet.module';
 import { VoucherModule } from './modules/voucher/voucher.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { VehicleClassMappingModule } from './modules/vehicle-class-mapping/vehicle-class-mapping.module';
-import { EJobCardModule } from './modules/e-job-card/e-job-card.module';
+import { EVCRFModule } from './modules/evcrf/evcrf.module';
 
 @Module({
   imports: [
@@ -49,7 +49,7 @@ import { EJobCardModule } from './modules/e-job-card/e-job-card.module';
     WalletModule,
     VoucherModule,
     VehicleClassMappingModule,
-    EJobCardModule
+    EVCRFModule
 ],
   controllers: [AppController],
   providers: [AppService],

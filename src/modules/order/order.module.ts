@@ -13,7 +13,7 @@ import { VoucherModule } from '../voucher/voucher.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { SmsModule } from 'src/services/sms/sms.module';
 import { StorageModule } from 'src/services/storage/storage.module';
-import { EJobCardModule } from '../e-job-card/e-job-card.module';
+import { EVCRFModule } from '../evcrf/evcrf.module';
 import { VehicleClassMappingModule } from '../vehicle-class-mapping/vehicle-class-mapping.module';
 
 @Module({
@@ -24,7 +24,7 @@ import { VehicleClassMappingModule } from '../vehicle-class-mapping/vehicle-clas
     WalletModule,
     SmsModule,
     StorageModule,
-    EJobCardModule,
+    EVCRFModule,
     VehicleClassMappingModule,
   ],
   controllers: [OrderController, OrderV2Controller, DriverOrderController],
