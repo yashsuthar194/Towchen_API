@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 import { SubmitPickupEvcrfDto } from './dto/submit-pickup-evcrf.dto';
+import { AddDamageDto } from './dto/add-damage.dto';
 import { StorageService } from 'src/services/storage/storage.service';
 import { LocationType } from '@prisma/client';
 import { EvcrfPrefillResponseDto } from './dto/evcrf-prefill-response.dto';
@@ -22,7 +23,6 @@ export class EVCRFService {
       odometer_image?: Express.Multer.File[];
       driver_image?: Express.Multer.File[];
       driver_sign?: Express.Multer.File[];
-      damage_images?: Express.Multer.File[];
     }
   ) {
     const order = await this._prisma.order.findUnique({
@@ -54,78 +54,40 @@ export class EVCRFService {
       throw new BadRequestException('Invalid vehicle_class_configuration_id');
     }
 
-    // Upload required images
-    if (!files.odometer_image?.[0]) throw new BadRequestException('odometer_image file is required');
-    if (!files.driver_image?.[0]) throw new BadRequestException('driver_image file is required');
-    if (!files.driver_sign?.[0]) throw new BadRequestException('driver_sign file is required');
-
+    // Upload images (only if provided)
     const folder = `evcrf/${orderId}/pickup`;
 
-    const [odometerUpload, driverUpload, signUpload] = await Promise.all([
-      this._storageService.uploadFileAsync({
-        buffer: files.odometer_image[0].buffer,
-        originalName: files.odometer_image[0].originalname,
-        mimeType: files.odometer_image[0].mimetype,
-        size: files.odometer_image[0].size,
-        folderPath: folder,
-      }),
-      this._storageService.uploadFileAsync({
-        buffer: files.driver_image[0].buffer,
-        originalName: files.driver_image[0].originalname,
-        mimeType: files.driver_image[0].mimetype,
-        size: files.driver_image[0].size,
-        folderPath: folder,
-      }),
-      this._storageService.uploadFileAsync({
-        buffer: files.driver_sign[0].buffer,
-        originalName: files.driver_sign[0].originalname,
-        mimeType: files.driver_sign[0].mimetype,
-        size: files.driver_sign[0].size,
-        folderPath: folder,
-      }),
-    ]);
+    const odometerUpload = files.odometer_image?.[0]
+      ? await this._storageService.uploadFileAsync({
+          buffer: files.odometer_image[0].buffer,
+          originalName: files.odometer_image[0].originalname,
+          mimeType: files.odometer_image[0].mimetype,
+          size: files.odometer_image[0].size,
+          folderPath: folder,
+        })
+      : null;
 
-    // Handle damages
-    const damageData: { damage_number: number; image_url: string }[] = [];
-    if (dto.damage_numbers && files.damage_images && files.damage_images.length > 0) {
-      if (dto.damage_numbers.length !== files.damage_images.length) {
-        throw new BadRequestException('Number of damage_images must match number of damage_numbers');
-      }
+    const driverUpload = files.driver_image?.[0]
+      ? await this._storageService.uploadFileAsync({
+          buffer: files.driver_image[0].buffer,
+          originalName: files.driver_image[0].originalname,
+          mimeType: files.driver_image[0].mimetype,
+          size: files.driver_image[0].size,
+          folderPath: folder,
+        })
+      : null;
 
-      const damageUploads = await Promise.all(
-        files.damage_images.map(file => 
-          this._storageService.uploadFileAsync({
-            buffer: file.buffer,
-            originalName: file.originalname,
-            mimeType: file.mimetype,
-            size: file.size,
-            folderPath: folder + '/damages',
-          })
-        )
-      );
-
-      for (let i = 0; i < dto.damage_numbers.length; i++) {
-        damageData.push({
-          damage_number: dto.damage_numbers[i],
-          image_url: damageUploads[i].url,
-        });
-      }
-    }
+    const signUpload = files.driver_sign?.[0]
+      ? await this._storageService.uploadFileAsync({
+          buffer: files.driver_sign[0].buffer,
+          originalName: files.driver_sign[0].originalname,
+          mimeType: files.driver_sign[0].mimetype,
+          size: files.driver_sign[0].size,
+          folderPath: folder,
+        })
+      : null;
 
     return await this._prisma.$transaction(async (tx) => {
-      // Delete existing pickup EVCRF if any (idempotent submission)
-      const existing = await tx.pickup_evcrf.findUnique({
-        where: {
-          order_id: orderId,
-        },
-      });
-
-      if (existing) {
-        await tx.pickup_evcrf.delete({
-          where: { id: existing.id },
-        });
-      }
-
       const breakdownLocation = order.locations[0]?.address || order.locations[0]?.city || '-';
       const autoDateAndTime = order.created_at.toISOString();
       const autoServiceType = order.service?.name || '-';
@@ -142,58 +104,55 @@ export class EVCRFService {
       const metaPayload = {
         ...dto,
         vehicle_class_configuration_name: config.mapped_class,
-        odometer_image_url: odometerUpload.url,
-        driver_image_url: driverUpload.url,
-        driver_sign_url: signUpload.url,
-        damage_images_data: damageData,
+        ...(odometerUpload && { odometer_image_url: odometerUpload.url }),
+        ...(driverUpload && { driver_image_url: driverUpload.url }),
+        ...(signUpload && { driver_sign_url: signUpload.url }),
       };
 
-      // Remove undefined values so the JSON is clean
+      // Remove undefined/null values so the JSON is clean
       const cleanMetaPayload = Object.fromEntries(
         Object.entries(metaPayload).filter(([_, v]) => v != null)
       );
 
-      // Create new Pickup E-EVCRF
-      const evcrf = await tx.pickup_evcrf.create({
-        data: {
-          order_id: orderId,
-          fuel_amount: dto.fuel_amount,
-          odometer_reading_text: dto.odometer_reading_text,
-          odometer_image: odometerUpload.url,
-          vehicle_class_configuration_id: dto.vehicle_class_configuration_id,
-          driver_image: driverUpload.url,
-          driver_sign: signUpload.url,
-          remarks: dto.remarks,
-          selected_accessories: dto.selected_accessories ? (dto.selected_accessories as any) : undefined,
-          date_and_time: autoDateAndTime,
-          service_type: autoServiceType,
-          vehicle_brand: autoVehicleBrand,
-          vehicle_model: autoVehicleModel,
-          vehicle_no: autoVehicleNo,
-          customer_ph_no: autoCustomerPhNo,
-          driver_name: autoDriverName,
-          driver_ph_no: autoDriverPhNo,
-          reaching_date_and_time: autoReachingDateAndTime,
-          event_type: autoEventType,
-          event_location: autoEventLocation,
-          time_of_day: dto.time_of_day,
-          weather_condition: dto.weather_condition,
-          vehicle_condition: dto.vehicle_condition,
-          selected_conditions: dto.selected_conditions ? (dto.selected_conditions as any) : undefined,
-          meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
-        },
-      });
+      const dataFields: Record<string, any> = {
+        fuel_amount: dto.fuel_amount,
+        odometer_reading_text: dto.odometer_reading_text,
+        vehicle_class_configuration_id: dto.vehicle_class_configuration_id,
+        remarks: dto.remarks,
+        selected_accessories: dto.selected_accessories ? (dto.selected_accessories as any) : undefined,
+        date_and_time: autoDateAndTime,
+        service_type: autoServiceType,
+        vehicle_brand: autoVehicleBrand,
+        vehicle_model: autoVehicleModel,
+        vehicle_no: autoVehicleNo,
+        customer_ph_no: autoCustomerPhNo,
+        driver_name: autoDriverName,
+        driver_ph_no: autoDriverPhNo,
+        reaching_date_and_time: autoReachingDateAndTime,
+        event_type: autoEventType,
+        event_location: autoEventLocation,
+        time_of_day: dto.time_of_day,
+        weather_condition: dto.weather_condition,
+        vehicle_condition: dto.vehicle_condition,
+        selected_conditions: dto.selected_conditions ? (dto.selected_conditions as any) : undefined,
+        meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
+      };
 
-      // Create damages if any
-      if (damageData.length > 0) {
-        await tx.pickup_evcrf_damage.createMany({
-          data: damageData.map((dmg) => ({
-            pickup_evcrf_id: evcrf.id,
-            damage_number: dmg.damage_number,
-            image_url: dmg.image_url,
-          })),
-        });
-      }
+      // Only set image fields when files are provided
+      if (odometerUpload) dataFields.odometer_image = odometerUpload.url;
+      if (driverUpload) dataFields.driver_image = driverUpload.url;
+      if (signUpload) dataFields.driver_sign = signUpload.url;
+
+      // Upsert: create if not exists, update if exists — single DB round-trip
+      const evcrf = await tx.pickup_evcrf.upsert({
+        where: { order_id: orderId },
+        create: {
+          order_id: orderId,
+          ...dataFields,
+        },
+        update: dataFields,
+        include: { damages: true },
+      });
 
       // Update order physical VCRF flag to false
       await tx.order.update({
@@ -203,10 +162,7 @@ export class EVCRFService {
         },
       });
 
-      return await tx.pickup_evcrf.findUnique({
-        where: { id: evcrf.id },
-        include: { damages: true },
-      });
+      return evcrf;
     });
   }
 
@@ -474,5 +430,39 @@ export class EVCRFService {
         event_location: breakdownLocation,
       })
     };
+  }
+
+  async addDamageAsync(evcrfId: number, dto: AddDamageDto, file: Express.Multer.File) {
+    const evcrf = await this._prisma.pickup_evcrf.findUnique({
+      where: { id: evcrfId },
+    });
+
+    if (!evcrf) {
+      throw new NotFoundException(`Pickup EVCRF with ID ${evcrfId} not found`);
+    }
+
+    if (!file) {
+      throw new BadRequestException('damage_image file is required');
+    }
+
+    const folder = `evcrf/${evcrf.order_id}/pickup/damages`;
+
+    const upload = await this._storageService.uploadFileAsync({
+      buffer: file.buffer,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      folderPath: folder,
+    });
+
+    const damage = await this._prisma.pickup_evcrf_damage.create({
+      data: {
+        pickup_evcrf_id: evcrfId,
+        damage_number: dto.damage_number,
+        image_url: upload.url,
+      },
+    });
+
+    return damage;
   }
 }

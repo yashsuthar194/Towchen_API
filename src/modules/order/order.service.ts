@@ -30,7 +30,7 @@ export class OrderService {
     private readonly _notificationService: OrderNotificationService,
     private readonly _orderCreationService: OrderCreationService,
     private readonly _storageService: StorageService,
-  ) {}
+  ) { }
 
   /**
    * Sends a 6-digit OTP to the customer for order start or completion.
@@ -716,11 +716,21 @@ export class OrderService {
         ? 'physical_pickup_vcrf_image'
         : 'physical_dropoff_vcrf_image';
 
-    await this._prisma.order.update({
-      where: { id: orderId },
-      data: {
-        [fieldName]: res.url,
-      },
+    await this._prisma.$transaction(async (tx) => {
+      // If uploading a physical pickup VCRF, safely delete any existing EVCRF (and its damages via cascade)
+      if (type === 'pickup') {
+        await tx.pickup_evcrf.deleteMany({
+          where: { order_id: orderId },
+        });
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          [fieldName]: res.url,
+          ...(type === 'pickup' && { is_physical_vcrf_for_pickup: true }),
+        },
+      });
     });
 
     return { url: res.url };

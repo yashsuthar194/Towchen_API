@@ -38,6 +38,7 @@ import { EvcrfConfigResponseDto } from '../evcrf/dto/evcrf-config-response.dto';
 import { EvcrfPrefillResponseDto } from '../evcrf/dto/evcrf-prefill-response.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
+import { AddDamageDto } from '../evcrf/dto/add-damage.dto';
 
 @ApiTags('Driver - Order')
 @Controller('driver/order')
@@ -378,7 +379,6 @@ export class DriverOrderController {
       { name: 'odometer_image', maxCount: 1 },
       { name: 'driver_image', maxCount: 1 },
       { name: 'driver_sign', maxCount: 1 },
-      { name: 'damage_images', maxCount: 30 },
     ], { fileFilter: FileHelper.imageFilter })
   )
   async submitPickupEvcrf(
@@ -388,7 +388,6 @@ export class DriverOrderController {
       odometer_image?: Express.Multer.File[]; 
       driver_image?: Express.Multer.File[]; 
       driver_sign?: Express.Multer.File[]; 
-      damage_images?: Express.Multer.File[] 
     },
   ) {
     const driverId = this._callerService.getUserId();
@@ -486,5 +485,27 @@ export class DriverOrderController {
   async getVehicleClassConfigBySubClass(@Param('subClass') subClass: string) {
     const result = await this._vehicleClassMappingService.getConfigBySubClassAsync(subClass);
     return ResponseDto.retrieved('Vehicle class configuration retrieved successfully', result);
+  }
+
+  /**
+   * Add damage to a pickup E-Job Card.
+   */
+  @Post('e-job-card/:jobCardId/damage')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Add damage to pickup E-Job Card (Driver only)',
+    description: 'Adds a damage record (damage number and image file) to an existing pickup E-Job Card via formdata.',
+  })
+  @ApiParam({ name: 'jobCardId', description: 'ID of the pickup E-Job Card', example: 1 })
+  @UseInterceptors(
+    FileInterceptor('damage_image', { fileFilter: FileHelper.imageFilter }),
+  )
+  async addDamage(
+    @Param('jobCardId', ParseIntPipe) jobCardId: number,
+    @Body() dto: AddDamageDto,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    const result = await this._evcrfService.addDamageAsync(jobCardId, dto, file);
+    return ResponseDto.created('Damage added successfully', result);
   }
 }
