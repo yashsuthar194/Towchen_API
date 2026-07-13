@@ -68,7 +68,11 @@ export class SubmitPickupEvcrfDto {
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        return plainToInstance(EVCRFAccessoryInputDto, parsed);
+        if(parsed) {
+          return plainToInstance(EVCRFAccessoryInputDto, parsed);
+        } else {
+          return []
+        }
       } catch (e) {
         return value;
       }
@@ -88,17 +92,19 @@ export class SubmitPickupEvcrfDto {
 
   @ApiProperty({
     description: 'JSON array of selected dynamic conditions',
-    type: 'string',
+    type: [EVCRFConditionInputDto],
     example: '[{"group_id": 1, "group_name": "Weather", "selected_option_id": 2, "selected_option_name": "Wet"}]'
   })
   @Transform(({ value }) => {
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) return parsed;
-      } catch (e) {}
+        if (parsed && Array.isArray(parsed)) return parsed;
+      } catch (e) {
+        return []
+      }
     }
-    return value;
+    return value ?? [];
   })
   @IsOptional()
   @IsArray()

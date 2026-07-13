@@ -404,6 +404,8 @@ export class OrderService {
           locations: true,
           service: true,
           sub_service: true,
+          customer_vehicle: true,
+          customer: true
         },
       })) as unknown as OrderDetailDto;
     } catch (error) {
