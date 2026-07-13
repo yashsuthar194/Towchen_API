@@ -279,19 +279,19 @@ model order {
   final_amount       Float? // Net billing price after discount
   scheduled_order_id Int? // Populated when promoted from a scheduled booking
 
-  customer           customer            @relation(fields: [customer_id], references: [id])
-  customer_vehicle   customer_vehicle?   @relation(fields: [customer_vehicle_id], references: [id])
-  vendor             vendor?             @relation(fields: [vendor_id], references: [id])
-  driver             driver?             @relation(fields: [driver_id], references: [id])
-  vehicle            vehicle?            @relation(fields: [vehicle_id], references: [id])
-  locations          order_location[]
-  service            service             @relation(fields: [service_id], references: [id])
-  sub_service        sub_service?        @relation(fields: [sub_service_id], references: [id])
-  otps               order_otp[]
-  voucher            voucher?            @relation(fields: [applied_voucher_id], references: [id])
-  scheduled_order    scheduled_order?    @relation(fields: [scheduled_order_id], references: [id])
-  pickup_evcrf  pickup_evcrf?
-  dropoff_evcrf dropoff_evcrf?
+  customer         customer          @relation(fields: [customer_id], references: [id])
+  customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
+  vendor           vendor?           @relation(fields: [vendor_id], references: [id])
+  driver           driver?           @relation(fields: [driver_id], references: [id])
+  vehicle          vehicle?          @relation(fields: [vehicle_id], references: [id])
+  locations        order_location[]
+  service          service           @relation(fields: [service_id], references: [id])
+  sub_service      sub_service?      @relation(fields: [sub_service_id], references: [id])
+  otps             order_otp[]
+  voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
+  scheduled_order  scheduled_order?  @relation(fields: [scheduled_order_id], references: [id])
+  pickup_evcrf     pickup_evcrf?
+  dropoff_evcrf    dropoff_evcrf?
 
   @@index([customer_id])
   @@index([driver_id])
@@ -651,10 +651,7 @@ model pickup_evcrf {
   reaching_date_and_time String? @db.VarChar(255)
   event_type             String? @db.VarChar(255)
   event_location         String? @db.VarChar(255)
-  time_of_day            String? @db.VarChar(50)
-  weather_condition      String? @db.VarChar(50)
-  vehicle_condition      String? @db.VarChar(50)
-  selected_conditions    Json?
+  vehicle_state          Json?
 
   meta                           Json?
   vehicle_class_configuration_id Int?
@@ -670,11 +667,11 @@ model pickup_evcrf {
 }
 
 model pickup_evcrf_damage {
-  id                   Int      @id @default(autoincrement())
-  pickup_evcrf_id      Int
-  damage_number        Int
-  image_url            String   @db.Text
-  created_at           DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  pickup_evcrf_id Int
+  damage_number   Int
+  image_url       String   @db.Text
+  created_at      DateTime @default(now())
 
   pickup_evcrf pickup_evcrf @relation(fields: [pickup_evcrf_id], references: [id], onDelete: Cascade)
 
@@ -711,7 +708,7 @@ model vehicle_class_configuration {
   total_damage_points Int
   created_at          DateTime                  @default(now())
   updated_at          DateTime                  @default(now()) @updatedAt
-  pickup_evcrfs  pickup_evcrf[]
+  pickup_evcrfs       pickup_evcrf[]
   vehicle_states      vehicle_state[]
 }
 

@@ -10,7 +10,7 @@ import { DriverProfileController } from './driver-profile.controller';
 
 @Module({
   imports: [PrismaModule, StorageModule, JwtModule, VehicleModule],
-  controllers: [DriverController, DriverProfileController],
+  controllers: [DriverProfileController, DriverController],
   providers: [DriverService],
 })
 export class DriverModule {}

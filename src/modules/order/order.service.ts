@@ -322,6 +322,10 @@ export class OrderService {
       throw new NotFoundException(`Driver profile not found`);
     }
 
+    if(!driver.vehicle_id) {
+      throw new NotFoundException('Driver does not have any vehicle assigned')
+    }
+
     try {
       await this._prisma.$transaction(async (tx) => {
         // 1. Update Order Status and Driver/Vehicle Assignment

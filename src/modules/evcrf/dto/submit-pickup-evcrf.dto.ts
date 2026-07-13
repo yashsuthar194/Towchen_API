@@ -86,22 +86,6 @@ export class SubmitPickupEvcrfDto {
   @IsInt()
   vehicle_class_configuration_id: number;
 
-
-  @ApiProperty({ description: 'Time of day (e.g. Day, Night)', required: false, example: 'Day' })
-  @IsOptional()
-  @IsString()
-  time_of_day?: string;
-
-  @ApiProperty({ description: 'Weather condition (e.g. Wet, Dry)', required: false, example: 'Wet' })
-  @IsOptional()
-  @IsString()
-  weather_condition?: string;
-
-  @ApiProperty({ description: 'Vehicle condition (e.g. Clean, Soiled)', required: false, example: 'Clean' })
-  @IsOptional()
-  @IsString()
-  vehicle_condition?: string;
-
   @ApiProperty({
     description: 'JSON array of selected dynamic conditions',
     type: 'string',
@@ -120,7 +104,7 @@ export class SubmitPickupEvcrfDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => EVCRFConditionInputDto)
-  selected_conditions?: EVCRFConditionInputDto[];
+  vehicle_state?: EVCRFConditionInputDto[];
 
   @ApiProperty({ type: 'string', format: 'binary', description: 'Odometer Image (File)', required: false })
   odometer_image?: any;

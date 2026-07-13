@@ -77,7 +77,7 @@ export class DriverProfileController {
   /**
    * Uploads or replaces current driver's Aadhaar card document.
    */
-  @UseGuards(DriverGuard)
+  @UseGuards(JwtAuthGuard, DriverGuard)
   @Put('document/aadhar-card')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadDriverDocumentDto })
@@ -93,7 +93,7 @@ export class DriverProfileController {
   /**
    * Uploads or replaces current driver's PAN card document.
    */
-  @UseGuards(DriverGuard)
+  @UseGuards(JwtAuthGuard, DriverGuard)
   @Put('document/pan-card')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadDriverDocumentDto })
@@ -109,7 +109,7 @@ export class DriverProfileController {
   /**
    * Uploads or replaces current driver's License document.
    */
-  @UseGuards(DriverGuard)
+  @UseGuards(JwtAuthGuard, DriverGuard)
   @Put('document/driver-license')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadDriverDocumentDto })
@@ -125,7 +125,7 @@ export class DriverProfileController {
   /**
    * Uploads or replaces current driver's profile image.
    */
-  @UseGuards(DriverGuard)
+  @UseGuards(JwtAuthGuard, DriverGuard)
   @Put('document/driver-image')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadDriverDocumentDto })

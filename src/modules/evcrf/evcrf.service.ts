@@ -131,10 +131,7 @@ export class EVCRFService {
         reaching_date_and_time: autoReachingDateAndTime,
         event_type: autoEventType,
         event_location: autoEventLocation,
-        time_of_day: dto.time_of_day,
-        weather_condition: dto.weather_condition,
-        vehicle_condition: dto.vehicle_condition,
-        selected_conditions: dto.selected_conditions ? (dto.selected_conditions as any) : undefined,
+        vehicle_state: dto.vehicle_state ? (dto.vehicle_state as any) : undefined,
         meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
       };
 
