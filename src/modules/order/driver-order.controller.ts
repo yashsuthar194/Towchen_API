@@ -490,7 +490,7 @@ export class DriverOrderController {
   /**
    * Add damage to a pickup E-Job Card.
    */
-  @Post('e-job-card/:jobCardId/damage')
+  @Post('evcrf/:jobCardId/damage')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({
     summary: 'Add damage to pickup E-Job Card (Driver only)',
