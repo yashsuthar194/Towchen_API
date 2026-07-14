@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt, IsBoolean, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt, IsBoolean, IsNumber, IsIn } from 'class-validator';
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -11,9 +11,10 @@ export class EVCRFAccessoryInputDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  value: boolean;
+  @ApiProperty({ example: 'Yes', enum: ['Yes', 'No'] })
+  @IsString()
+  @IsIn(['Yes', 'No'])
+  value: string;
 }
 
 export class EVCRFConditionInputDto {
@@ -44,7 +45,7 @@ export class EVCRFDamageDto {
 
 export class SubmitPickupEvcrfDto {
   @ApiProperty({ description: 'Fuel amount (e.g. 50%)', example: '50%' })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   fuel_amount?: string;
 
@@ -60,8 +61,8 @@ export class SubmitPickupEvcrfDto {
 
   @ApiProperty({ 
     type: () => [EVCRFAccessoryInputDto],
-    description: 'A JSON string representing the selected accessories (e.g. [{"id":1,"name":"Tool kit","value":true}])', 
-    example: '[{"id":1,"name":"Tool kit","value":true}]'
+    description: 'A JSON string representing the selected accessories (e.g. [{"id":1,"name":"Tool kit","value":"Yes"}])', 
+    example: '[{"id":1,"name":"Tool kit","value":"Yes"}]'
   })
   @IsOptional()
   @Transform(({ value }) => {
