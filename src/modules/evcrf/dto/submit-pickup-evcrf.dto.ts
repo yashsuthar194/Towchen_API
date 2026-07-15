@@ -14,7 +14,7 @@ export class EVCRFAccessoryInputDto {
   @ApiProperty({ example: 'Yes', enum: ['Yes', 'No'] })
   @IsString()
   @IsIn(['Yes', 'No'])
-  value: string;
+  status: string;
 }
 
 export class EVCRFConditionInputDto {
@@ -69,8 +69,8 @@ export class SubmitPickupEvcrfDto {
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        if(parsed) {
-          return plainToInstance(EVCRFAccessoryInputDto, parsed);
+        if(parsed && Array.isArray(parsed)) {
+          return parsed
         } else {
           return []
         }
