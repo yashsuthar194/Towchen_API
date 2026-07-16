@@ -70,7 +70,7 @@ export class SubmitPickupEvcrfDto {
       try {
         const parsed = JSON.parse(value);
         if(parsed && Array.isArray(parsed)) {
-          return parsed
+          return plainToInstance(EVCRFAccessoryInputDto, parsed);
         } else {
           return []
         }
@@ -100,7 +100,7 @@ export class SubmitPickupEvcrfDto {
     if (typeof value === 'string') {
       try {
         const parsed = JSON.parse(value);
-        if (parsed && Array.isArray(parsed)) return parsed;
+        if (parsed && Array.isArray(parsed)) return plainToInstance(EVCRFConditionInputDto, parsed);
       } catch (e) {
         return []
       }
