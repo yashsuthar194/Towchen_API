@@ -68,6 +68,7 @@ export class SubmitPickupEvcrfDto {
   @Transform(({ value }) => {
     if (typeof value === 'string') {
       try {
+        if(value == '{}') return []
         const parsed = JSON.parse(value);
         if(parsed && Array.isArray(parsed)) {
           return plainToInstance(EVCRFAccessoryInputDto, parsed);
@@ -99,6 +100,7 @@ export class SubmitPickupEvcrfDto {
   @Transform(({ value }) => {
     if (typeof value === 'string') {
       try {
+        if(value == '{}') return []
         const parsed = JSON.parse(value);
         if (parsed && Array.isArray(parsed)) return plainToInstance(EVCRFConditionInputDto, parsed);
       } catch (e) {
