@@ -330,7 +330,7 @@ export class DriverOrderController {
     );
     return ResponseDto.updated(
       'Physical pickup VCRF image uploaded successfully',
-      result,
+      { ...result, filled_in: 'vcrf' },
     );
   }
 
@@ -361,7 +361,7 @@ export class DriverOrderController {
     );
     return ResponseDto.updated(
       'Physical dropoff VCRF image uploaded successfully',
-      result,
+      { ...result, filled_in: 'vcrf' },
     );
   }
 
@@ -392,7 +392,7 @@ export class DriverOrderController {
   ) {
     const driverId = this._callerService.getUserId();
     const result = await this._evcrfService.submitPickupEvcrfAsync(id, driverId, dto, files);
-    return ResponseDto.created('Pickup EVCRF submitted successfully', result);
+    return ResponseDto.created('Pickup EVCRF submitted successfully', { ...result, filled_in: 'evcrf' });
   }
 
   /**
@@ -433,7 +433,7 @@ export class DriverOrderController {
   ) {
     const driverId = this._callerService.getUserId();
     const result = await this._evcrfService.submitDropoffEvcrfAsync(id, driverId, dto, files);
-    return ResponseDto.created('Dropoff EVCRF submitted successfully', result);
+    return ResponseDto.created('Dropoff EVCRF submitted successfully', { ...result, filled_in: 'evcrf' });
   }
 
   /**
@@ -472,6 +472,20 @@ export class DriverOrderController {
   async getEvcrfPrefillData(@Param('id', ParseIntPipe) id: number) {
     const result = await this._evcrfService.getEvcrfPrefillDataAsync(id);
     return ResponseDto.retrieved('EVCRF prefill data retrieved successfully', result);
+  }
+
+  /**
+   * Get EVCRF dropoff pre-fill data for an order.
+   */
+  @Get(':id/evcrf/dropoff/prefill-data')
+  @ApiOperation({
+    summary: 'Get EVCRF dropoff pre-fill data for order (Driver only)',
+    description: 'Retrieves specific order details to pre-fill the dropoff EVCRF form fields.',
+  })
+  @ApiResponseDto(EvcrfPrefillResponseDto, false, 200)
+  async getDropoffEvcrfPrefillData(@Param('id', ParseIntPipe) id: number) {
+    const result = await this._evcrfService.getDropoffEvcrfPrefillDataAsync(id);
+    return ResponseDto.retrieved('Dropoff EVCRF prefill data retrieved successfully', result);
   }
 
   /**

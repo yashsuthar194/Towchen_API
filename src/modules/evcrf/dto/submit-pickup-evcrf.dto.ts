@@ -2,6 +2,14 @@ import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested, IsInt, IsBoo
 import { Type, Transform, plainToInstance } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
+export class EVCRFDynamicFieldDto {
+  @IsString()
+  Label: string;
+
+  @IsString()
+  Value: string;
+}
+
 export class EVCRFAccessoryInputDto {
   @ApiProperty({ example: 1 })
   @IsInt()
@@ -123,4 +131,5 @@ export class SubmitPickupEvcrfDto {
 
   @ApiProperty({ type: 'string', format: 'binary', description: 'Driver Signature (File)', required: false })
   driver_sign?: any;
+
 }

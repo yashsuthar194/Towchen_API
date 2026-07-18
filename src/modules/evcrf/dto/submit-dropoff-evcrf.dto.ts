@@ -1,5 +1,14 @@
-import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsArray, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type, Transform, plainToInstance } from 'class-transformer';
+
+export class EVCRFDynamicFieldDto {
+  @IsString()
+  Label: string;
+
+  @IsString()
+  Value: string;
+}
 
 export class SubmitDropoffEvcrfDto {
   @ApiProperty({ description: "Handover's Name", example: 'John Doe' })
@@ -32,4 +41,28 @@ export class SubmitDropoffEvcrfDto {
 
   @ApiProperty({ type: 'string', format: 'binary', description: 'Handover Signature (File)' })
   handover_signature: any;
+
+
+  @ApiProperty({
+    description: 'JSON array of dynamic fields',
+    type: 'string',
+    example: '[{"Label": "Custom Field", "Value": "Custom Value"}]'
+  })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      try {
+        if(value == '{}') return []
+        const parsed = JSON.parse(value);
+        if (parsed && Array.isArray(parsed)) return plainToInstance(EVCRFDynamicFieldDto, parsed);
+      } catch (e) {
+        return []
+      }
+    }
+    return value ?? [];
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EVCRFDynamicFieldDto)
+  dynamic_fields?: EVCRFDynamicFieldDto[];
 }

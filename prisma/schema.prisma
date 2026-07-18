@@ -690,9 +690,10 @@ model dropoff_evcrf {
   handover_image         String? @db.Text
   handover_signature     String? @db.Text
 
-  meta       Json?
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
+  dynamic_fields         Json?
+  meta                   Json?
+  created_at             DateTime @default(now())
+  updated_at             DateTime @default(now()) @updatedAt
 
   order order @relation(fields: [order_id], references: [id], onDelete: Cascade)
 

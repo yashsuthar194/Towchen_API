@@ -239,6 +239,7 @@ export class EVCRFService {
           dropping_date_and_time: dto.dropping_date_and_time,
           handover_image: imageUpload.url,
           handover_signature: signUpload.url,
+          dynamic_fields: dto.dynamic_fields ? (dto.dynamic_fields as any) : undefined,
           meta: Object.keys(cleanMetaPayload).length > 0 ? cleanMetaPayload : undefined,
         },
       });
@@ -282,7 +283,22 @@ export class EVCRFService {
       throw new NotFoundException(`Dropoff E-EVCRF for Order ${orderId} not found`);
     }
 
-    return evcrf;
+    const dynamic_fields = [
+      { Label: "Handover's Name", Value: evcrf.handover_name || '-' },
+      { Label: 'Drop Location', Value: evcrf.drop_location || '-' },
+      { Label: 'Droping Type', Value: evcrf.droping_type || '-' },
+      { Label: 'Dropping (date & time)', Value: evcrf.dropping_date_and_time || '-' },
+      { Label: 'Remarks/comments', Value: evcrf.remarks || '-' }
+    ];
+
+    if (evcrf.dynamic_fields && Array.isArray(evcrf.dynamic_fields)) {
+      dynamic_fields.push(...evcrf.dynamic_fields as any[]);
+    }
+
+    return {
+      ...evcrf,
+      dynamic_fields
+    };
   }
 
   async getEvcrfConfigurationAsync(orderId: number) {
@@ -426,6 +442,34 @@ export class EVCRFService {
         event_type: 'Breakdown',
         event_location: breakdownLocation,
       })
+    };
+  }
+
+  async getDropoffEvcrfPrefillDataAsync(orderId: number) {
+    const order = await this._prisma.order.findUnique({
+      where: { id: orderId },
+      include: { 
+        customer: true,
+        locations: { where: { type: LocationType.Drop } }
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order with ID ${orderId} not found`);
+    }
+
+    const dropLocation = order.locations[0]?.address || order.locations[0]?.city || '-';
+    const handoverName = order.customer?.full_name || '-';
+    const droppingDateTime = new Date().toISOString(); 
+
+    return {
+      prefill_details: [
+        { Label: "Handover's Name", Value: handoverName },
+        { Label: 'Drop Location', Value: dropLocation },
+        { Label: 'Droping Type', Value: '-' },
+        { Label: 'Dropping (date & time)', Value: droppingDateTime },
+        { Label: 'Remarks/comments', Value: '-' }
+      ]
     };
   }
 
