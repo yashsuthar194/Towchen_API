@@ -29,14 +29,8 @@ export class EVCRFConditionInputDto {
   @IsNumber()
   group_id: number;
 
-  @IsString()
-  group_name: string;
-
   @IsNumber()
-  selected_option_id: number;
-
-  @IsString()
-  selected_option_name: string;
+  selected_state_id: number;
 }
 
 export class EVCRFDamageDto {
