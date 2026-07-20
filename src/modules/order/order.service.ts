@@ -394,10 +394,27 @@ export class OrderService {
         }
       });
 
-      // 3. Directly call the OTP sending logic with type START
+      // 4. Dispatch cleanup — mark this vendor's round Accepted and cancel
+      //    all remaining Pending rounds so the escalation cron stops.
+      //    Done in a separate lightweight transaction to keep it atomic
+      //    without coupling it to the main order update above.
+      await this._prisma.$transaction([
+        // Active round for the vendor who accepted → Accepted
+        this._prisma.order_dispatch.updateMany({
+          where: { order_id: id, status: 'Active' },
+          data: { status: 'Accepted', accepted_at: new Date() },
+        }),
+        // All remaining Pending rounds (future vendors) → Skipped
+        this._prisma.order_dispatch.updateMany({
+          where: { order_id: id, status: 'Pending' },
+          data: { status: 'Skipped' },
+        }),
+      ]);
+
+      // 4. Send START OTP to the customer
       await this.sendOrderOtpAsync(id, OrderOtpType.BREAKDOWN);
 
-      // 4. Return the updated order details
+      // 5. Return the updated order details
       return (await this._prisma.order.findUnique({
         where: { id },
         include: {
@@ -509,15 +526,46 @@ export class OrderService {
   }
 
   /**
-   * Fetches all pending orders (status: 'New') in the system for drivers.
+   * Fetches orders currently visible to the calling driver.
+   *
+   * After Phase 7, a driver only sees orders whose dispatch round is
+   * currently Active for their vendor — i.e., it is their 2-minute turn.
+   * Orders outside their window are invisible, preventing drivers from
+   * bypassing the sequencing by polling this endpoint.
    */
   async getPendingOrdersForDriverAsync(): Promise<OrderDetailDto[]> {
     if (!this._callerService.isDriver()) {
       throw new BadRequestException('Only drivers can access pending orders');
     }
 
+    const driverId = this._callerService.getUserId();
+
+    // 1. Resolve the calling driver's vendor_id
+    const driver = await this._prisma.driver.findUnique({
+      where: { id: driverId },
+      select: { vendor_id: true },
+    });
+
+    if (!driver) {
+      throw new BadRequestException('Driver profile not found');
+    }
+
+    // 2. Find order IDs where THIS vendor currently has an Active dispatch round
+    const activeDispatches = await this._prisma.order_dispatch.findMany({
+      where: {
+        vendor_id: driver.vendor_id,
+        status: 'Active',
+      },
+      select: { order_id: true },
+    });
+
+    const orderIds = activeDispatches?.map((d) => d.order_id);
+    if (orderIds.length === 0) return [];
+
+    // 3. Return only those orders that are still New (guard against race-accept)
     const orders = await this._prisma.order.findMany({
       where: {
+        id: { in: orderIds },
         status: OrderStatus.New,
       },
       include: {
@@ -527,9 +575,7 @@ export class OrderService {
         service: true,
         sub_service: true,
       },
-      orderBy: {
-        id: 'asc',
-      },
+      orderBy: { id: 'asc' },
     });
 
     orders.forEach((order) => {
@@ -547,8 +593,11 @@ export class OrderService {
 
   /**
    * Gets details of a specific order for a driver by its ID.
-   * A driver can view the order if its status is 'New' (pending) or if they are the assigned driver.
-   * @param id Order ID
+   *
+   * Access is granted if either:
+   *  (a) The driver is the assigned driver for this order, OR
+   *  (b) The order is New AND this driver's vendor currently has an
+   *      Active dispatch round for it (their 2-minute window is open)
    */
   async getOrderByIdForDriverAsync(id: number): Promise<OrderDetailDto> {
     if (!this._callerService.isDriver()) {
@@ -556,6 +605,17 @@ export class OrderService {
     }
 
     const driverId = this._callerService.getUserId();
+
+    // Load the driver's vendor_id for the dispatch window check
+    const driver = await this._prisma.driver.findUnique({
+      where: { id: driverId },
+      select: { vendor_id: true },
+    });
+
+    if (!driver) {
+      throw new BadRequestException('Driver profile not found');
+    }
+
     const order = await this._prisma.order.findUnique({
       where: { id },
       include: {
@@ -574,11 +634,9 @@ export class OrderService {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
 
-    // A driver can access an order if it is pending (New) or assigned to them
-    if (order.status !== OrderStatus.New && order.driver_id !== driverId) {
-      throw new BadRequestException(
-        'You do not have permission to view this order',
-      );
+    // (a) Assigned driver can always view their own order
+    if (order.driver_id === driverId) {
+      return order as unknown as OrderDetailDto;
     }
 
     order['breakdown_location'] = order.locations.find(
@@ -590,7 +648,25 @@ export class OrderService {
 
     order['locations'] = [];
 
-    return order as unknown as OrderDetailDto;
+    // (b) For New orders, check the vendor's Active dispatch window
+    if (order.status === OrderStatus.New) {
+      const activeDispatch = await this._prisma.order_dispatch.findFirst({
+        where: {
+          order_id: id,
+          vendor_id: driver.vendor_id,
+          status: 'Active',
+        },
+        select: { id: true },
+      });
+
+      if (activeDispatch) {
+        return order as unknown as OrderDetailDto;
+      }
+    }
+
+    throw new BadRequestException(
+      'You do not have permission to view this order',
+    );
   }
 
   /**

@@ -57,9 +57,11 @@ export class DriverOrderController {
    */
   @Get('pending')
   @ApiOperation({
-    summary: 'List all pending orders (Driver only)',
+    summary: 'List orders currently available to this driver',
     description:
-      'Returns a list of all orders with status `New` (unassigned) available in the system.\n\n' +
+      'Returns orders that are currently in an active dispatch window for this driver\'s vendor.\n\n' +
+      'Orders are shown **one vendor at a time** based on proximity to the breakdown location. ' +
+      'If no driver from the vendor accepts within 2 minutes, the order moves to the next vendor.\n\n' +
       '⚠️ Only authenticated drivers can call this endpoint.',
   })
   @ApiResponseDto(OrderDetailDto, true, 200)

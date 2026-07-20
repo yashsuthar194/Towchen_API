@@ -8,6 +8,7 @@ import { LocationResponseDto } from '../location/dto/location-response.dto';
 import { VoucherService } from '../voucher/voucher.service';
 import { WalletService } from '../wallet/wallet.service';
 import { OrderNotificationService } from './order-notification.service';
+import { OrderDispatchService } from './order-dispatch.service';
 
 @Injectable()
 export class OrderCreationService {
@@ -17,6 +18,7 @@ export class OrderCreationService {
     private readonly _voucherService: VoucherService,
     private readonly _walletService: WalletService,
     private readonly _notificationService: OrderNotificationService,
+    private readonly _orderDispatchService: OrderDispatchService,
   ) {}
 
   /**
@@ -201,6 +203,16 @@ export class OrderCreationService {
       // Transaction committed — send SMS outside the tx boundary so
       // a notification failure can never roll back the order.
       void this._notificationService.notifyOrderCreated(result.id, customerId);
+
+      // Kick off the proximity-based driver dispatch — fire-and-forget.
+      // The breakdown lat/lng come from the already-resolved address, so
+      // no extra Google Maps call is made here.
+      void this._orderDispatchService.initiateDispatchAsync(
+        result.id,
+        breakdownAddress.latitude,
+        breakdownAddress.longitude,
+        dto.sub_service_id!,
+      );
 
       return result;
     } catch (error) {

@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
 import { TypedConfigService } from './core/config/typed-config.service';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 // Force Node.js to prefer IPv4 over IPv6 globally (resolves ENETUNREACH for some cloud providers)
 dns.setDefaultResultOrder('ipv4first');
@@ -16,6 +17,9 @@ async function bootstrap() {
   const { port } = config.app;
 
   app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
+
+  // Attach Socket.IO adapter — required for the OrderGateway (Phase 3)
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Towchen API Documentation')

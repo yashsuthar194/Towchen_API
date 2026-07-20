@@ -1,12 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { MapsService } from 'src/services/maps/maps.service';
-import { AvailabilityStatus, LocationCategory, driver, location } from '@prisma/client';
+import { AvailabilityStatus, DriverStatus, LocationCategory, driver, location } from '@prisma/client';
 import { Utility } from 'src/shared/helper/utility';
 import { ServiceArrivalEstimateDto } from '../location/dto/order-estimate-response.dto';
 
 /** Maximum number of driver locations sent to the Distance Matrix API in one batch. */
 const PROXIMITY_PRE_FILTER_LIMIT = 10;
+
+// ─── Vendor Proximity Ranking ────────────────────────────────────────────────
+
+/**
+ * Result entry returned by rankVendorsByProximityAsync.
+ * Represents one vendor's best position in the dispatch queue.
+ */
+export interface VendorRankEntry {
+  /** Vendor to notify at this rank */
+  vendorId: number;
+  /** The specific driver whose start_location placed this vendor in this rank */
+  closestDriverId: number;
+  /** Straight-line distance (km) from that driver's start_location to the breakdown */
+  distanceKm: number;
+}
 
 @Injectable()
 export class DispatchService {
@@ -153,5 +168,88 @@ export class DispatchService {
     }
 
     return bestResult;
+  }
+
+  // ─── Dispatch Ranking ───────────────────────────────────────────────────────
+
+  /**
+   * Ranks all vendors by how close their nearest available driver is to the
+   * given breakdown location.
+   *
+   * Algorithm:
+   *   1. Fetch all Available drivers whose sub_service_id matches the order
+   *      and who have a start_location registered.
+   *   2. Compute the Haversine distance for each driver.
+   *   3. Group by vendor — keep the minimum-distance driver per vendor.
+   *   4. Sort vendors ascending by that minimum distance.
+   *
+   * Uses Haversine only (no Google Distance Matrix) to avoid API costs at
+   * order-creation time. The Distance Matrix is reserved for the customer-
+   * facing ETA estimate endpoint.
+   *
+   * @param breakdownLat  Latitude of the customer's breakdown location
+   * @param breakdownLng  Longitude of the customer's breakdown location
+   * @param subServiceId  Filters drivers to only those handling this sub-service
+   * @returns Array sorted ascending by distance (closest vendor first)
+   */
+  async rankVendorsByProximityAsync(
+    breakdownLat: number,
+    breakdownLng: number,
+    subServiceId: number,
+  ): Promise<VendorRankEntry[]> {
+    // 1. Fetch all eligible Available drivers with a registered start_location
+    const drivers = await this.prisma.driver.findMany({
+      where: {
+        is_deleted: false,
+        sub_service_id: subServiceId,
+        status: DriverStatus.Available,
+        availability_status: AvailabilityStatus.Available,
+        startLocation: {
+          is: { category: LocationCategory.Driver },
+        },
+      },
+      select: {
+        id: true,
+        vendor_id: true,
+        startLocation: {
+          select: { latitude: true, longitude: true },
+        },
+      },
+    });
+
+    if (drivers.length === 0) return [];
+
+    // 2. Calculate Haversine distance for every driver
+    const withDistance = drivers
+      .filter((d) => d.startLocation !== null)
+      .map((d) => ({
+        driverId: d.id,
+        vendorId: d.vendor_id,
+        distanceKm: Utility.calculateHaversineDistanceKm(
+          d.startLocation!.latitude,
+          d.startLocation!.longitude,
+          breakdownLat,
+          breakdownLng,
+        ),
+      }));
+
+    // 3. Group by vendor — keep only the minimum-distance driver per vendor
+    const vendorMap = new Map<number, VendorRankEntry>();
+
+    for (const entry of withDistance) {
+      const existing = vendorMap.get(entry.vendorId);
+      if (!existing || entry.distanceKm < existing.distanceKm) {
+        vendorMap.set(entry.vendorId, {
+          vendorId: entry.vendorId,
+          closestDriverId: entry.driverId,
+          distanceKm: entry.distanceKm,
+        });
+      }
+    }
+
+    // 4. Sort ascending — closest vendor first
+    return Array.from(vendorMap.values()).sort(
+      (a, b) => a.distanceKm - b.distanceKm,
+    );
   }
 }

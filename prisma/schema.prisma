@@ -44,6 +44,7 @@ model vendor {
   vehicles                     vehicle[]
   orders                       order[]
   services                     service[]
+  dispatches                   order_dispatch[]
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -292,6 +293,7 @@ model order {
   scheduled_order  scheduled_order?  @relation(fields: [scheduled_order_id], references: [id])
   pickup_evcrf     pickup_evcrf?
   dropoff_evcrf    dropoff_evcrf?
+  dispatches       order_dispatch[]
 
   @@index([customer_id])
   @@index([driver_id])
@@ -509,7 +511,36 @@ model scheduled_order {
   @@index([customer_id])
 }
 
+model order_dispatch {
+  id          Int                 @id @default(autoincrement())
+  order_id    Int
+  vendor_id   Int
+  rank        Int // 1 = closest vendor, 2 = second closest, etc.
+  status      DispatchRoundStatus @default(Pending)
+  notified_at DateTime? // When this vendor's drivers were first notified
+  expires_at  DateTime? // notified_at + 2 minutes — when this round ends
+  accepted_at DateTime? // Set when a driver from this vendor accepts
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  order  order  @relation(fields: [order_id], references: [id])
+  vendor vendor @relation(fields: [vendor_id], references: [id])
+
+  @@index([order_id, rank])
+  @@index([order_id, status])
+  @@index([status, expires_at]) // Used by the escalation cron to find expired rounds
+}
+
 //#region enums
+
+enum DispatchRoundStatus {
+  Pending // Vendor is in the queue but not yet notified
+  Active // Vendor's drivers are currently being shown the order
+  Skipped // 2-minute window elapsed, no driver accepted
+  Accepted // A driver from this vendor accepted the order
+}
+
 enum ScheduledOrderStatus {
   Pending
   Processing
@@ -690,10 +721,10 @@ model dropoff_evcrf {
   handover_image         String? @db.Text
   handover_signature     String? @db.Text
 
-  dynamic_fields         Json?
-  meta                   Json?
-  created_at             DateTime @default(now())
-  updated_at             DateTime @default(now()) @updatedAt
+  dynamic_fields Json?
+  meta           Json?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @default(now()) @updatedAt
 
   order order @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
