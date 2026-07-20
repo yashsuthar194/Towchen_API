@@ -1,4 +1,19 @@
 -- CreateEnum
+CREATE TYPE "DispatchRoundStatus" AS ENUM ('Pending', 'Active', 'Skipped', 'Accepted');
+
+-- CreateEnum
+CREATE TYPE "ScheduledOrderStatus" AS ENUM ('Pending', 'Processing', 'Promoted', 'Failed', 'Cancelled', 'Expired');
+
+-- CreateEnum
+CREATE TYPE "VoucherType" AS ENUM ('Enterprise', 'Basic');
+
+-- CreateEnum
+CREATE TYPE "TransactionType" AS ENUM ('CREDIT', 'DEBIT');
+
+-- CreateEnum
+CREATE TYPE "JourneyType" AS ENUM ('FourWay', 'ThreeWay');
+
+-- CreateEnum
 CREATE TYPE "HttpMethod" AS ENUM ('GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD');
 
 -- CreateEnum
@@ -9,9 +24,6 @@ CREATE TYPE "VendorStatus" AS ENUM ('Pending', 'Approved');
 
 -- CreateEnum
 CREATE TYPE "DriverStatus" AS ENUM ('Available', 'Busy', 'UnderApproval', 'Banned');
-
--- CreateEnum
-CREATE TYPE "FleetType" AS ENUM ('Flatbed', 'UnderLift', 'ZeroDegree', 'TwoWFlatbed', 'Hydra');
 
 -- CreateEnum
 CREATE TYPE "FuelType" AS ENUM ('Petrol', 'Diesel', 'CNG', 'Electric', 'Hybrid', 'LPG');
@@ -35,7 +47,7 @@ CREATE TYPE "OrderStatus" AS ENUM ('New', 'Assigned', 'OtpPending', 'InProgress'
 CREATE TYPE "LocationType" AS ENUM ('Start', 'Breakdown', 'Drop', 'End');
 
 -- CreateEnum
-CREATE TYPE "OrderOtpType" AS ENUM ('START', 'COMPLETE');
+CREATE TYPE "OrderOtpType" AS ENUM ('BREAKDOWN', 'DROP');
 
 -- CreateEnum
 CREATE TYPE "AvailabilityStatus" AS ENUM ('Available', 'Unavailable', 'Onboard Pending');
@@ -75,6 +87,7 @@ CREATE TABLE "vendor" (
     "signature_type" "SignatureType" NOT NULL,
     "vendor_name" VARCHAR(255) NOT NULL,
     "vendor_profile_image_url" TEXT NOT NULL,
+    "service_ids" INTEGER[],
 
     CONSTRAINT "vendor_pkey" PRIMARY KEY ("id")
 );
@@ -133,6 +146,7 @@ CREATE TABLE "driver" (
     "end_location_id" INTEGER,
     "start_location_id" INTEGER,
     "availability_status" "AvailabilityStatus" NOT NULL DEFAULT 'Onboard Pending',
+    "sub_service_id" INTEGER,
 
     CONSTRAINT "driver_pkey" PRIMARY KEY ("id")
 );
@@ -140,7 +154,7 @@ CREATE TABLE "driver" (
 -- CreateTable
 CREATE TABLE "vehicle" (
     "id" SERIAL NOT NULL,
-    "fleet_type" "FleetType" NOT NULL,
+    "fleet_type" INTEGER NOT NULL,
     "vendor_id" INTEGER NOT NULL,
     "fleet_location" VARCHAR(255) NOT NULL,
     "registration_number" VARCHAR(20) NOT NULL,
@@ -216,10 +230,37 @@ CREATE TABLE "location" (
     "longitude" DOUBLE PRECISION NOT NULL,
     "landmark" TEXT,
     "description" TEXT,
+    "place_id" TEXT NOT NULL,
     "category" "LocationCategory" NOT NULL DEFAULT 'Driver',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "location_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "customer_address" (
+    "id" SERIAL NOT NULL,
+    "customer_id" INTEGER NOT NULL,
+    "label" TEXT NOT NULL,
+    "is_default" BOOLEAN NOT NULL DEFAULT false,
+    "address" TEXT,
+    "street" TEXT,
+    "area" TEXT,
+    "city" TEXT,
+    "state" TEXT,
+    "pincode" TEXT,
+    "country" TEXT,
+    "latitude" DOUBLE PRECISION NOT NULL,
+    "longitude" DOUBLE PRECISION NOT NULL,
+    "landmark" TEXT,
+    "description" TEXT,
+    "place_id" TEXT NOT NULL,
+    "name" TEXT NOT NULL DEFAULT '',
+    "number" TEXT NOT NULL DEFAULT '',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "customer_address_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -233,7 +274,7 @@ CREATE TABLE "order" (
     "vehicle_id" INTEGER,
     "service_id" INTEGER NOT NULL,
     "sub_service_id" INTEGER,
-    "fleet_type" "FleetType" NOT NULL,
+    "fleet_type" INTEGER NOT NULL,
     "status" "OrderStatus" NOT NULL DEFAULT 'New',
     "assign_time" TIMESTAMP(3),
     "start_time" TIMESTAMP(3),
@@ -242,6 +283,19 @@ CREATE TABLE "order" (
     "cancel_reason" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "meta_data" JSONB,
+    "pre_booked_images" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "pre_pickup_images" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "post_pickup_images" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "dropoff_images" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "is_physical_vcrf_for_pickup" BOOLEAN NOT NULL DEFAULT true,
+    "is_physical_vcrf_for_dropoff" BOOLEAN NOT NULL DEFAULT true,
+    "physical_pickup_vcrf_image" TEXT,
+    "physical_dropoff_vcrf_image" TEXT,
+    "applied_voucher_id" INTEGER,
+    "discount_amount" DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    "final_amount" DOUBLE PRECISION,
+    "scheduled_order_id" INTEGER,
 
     CONSTRAINT "order_pkey" PRIMARY KEY ("id")
 );
@@ -250,11 +304,21 @@ CREATE TABLE "order" (
 CREATE TABLE "order_location" (
     "id" SERIAL NOT NULL,
     "order_id" INTEGER NOT NULL,
-    "location_id" INTEGER NOT NULL,
     "type" "LocationType" NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "address" TEXT,
+    "street" TEXT,
+    "area" TEXT,
+    "city" TEXT,
+    "state" TEXT,
+    "pincode" TEXT,
+    "country" TEXT,
+    "latitude" DOUBLE PRECISION NOT NULL,
+    "longitude" DOUBLE PRECISION NOT NULL,
+    "landmark" TEXT,
+    "place_id" TEXT NOT NULL,
     "contact_name" VARCHAR(255),
     "contact_number" VARCHAR(20),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "order_location_pkey" PRIMARY KEY ("id")
 );
@@ -263,7 +327,7 @@ CREATE TABLE "order_location" (
 CREATE TABLE "order_otp" (
     "id" SERIAL NOT NULL,
     "order_id" INTEGER NOT NULL,
-    "type" "OrderOtpType" NOT NULL DEFAULT 'START',
+    "type" "OrderOtpType" NOT NULL DEFAULT 'BREAKDOWN',
     "otp" VARCHAR(6) NOT NULL,
     "expires_at" TIMESTAMP(3) NOT NULL,
     "verified_at" TIMESTAMP(3),
@@ -327,16 +391,212 @@ CREATE TABLE "sub_service" (
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "fix_distance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "fix_price" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "extra_price" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "ton" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "image_url" TEXT,
+    "journey_type" "JourneyType" NOT NULL DEFAULT 'FourWay',
 
     CONSTRAINT "sub_service_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "_driverTosub_service" (
-    "A" INTEGER NOT NULL,
-    "B" INTEGER NOT NULL,
+CREATE TABLE "sub_service_condtion" (
+    "id" SERIAL NOT NULL,
+    "sub_service_id" INTEGER NOT NULL,
+    "condition" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "_driverTosub_service_AB_pkey" PRIMARY KEY ("A","B")
+    CONSTRAINT "sub_service_condtion_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "wallet" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "wallet_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "wallet_transaction" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "wallet_id" INTEGER NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "transaction_type" "TransactionType" NOT NULL,
+    "before_transaction_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "after_transaction_amount" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "wallet_transaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "voucher" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "code" TEXT NOT NULL,
+    "has_expired" BOOLEAN NOT NULL DEFAULT false,
+    "discount_percent" DOUBLE PRECISION NOT NULL DEFAULT 10.0,
+    "used_by_id" INTEGER,
+    "used_at" TIMESTAMP(3),
+    "type" "VoucherType" NOT NULL DEFAULT 'Basic',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "voucher_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "scheduled_order" (
+    "id" SERIAL NOT NULL,
+    "idempotency_key" TEXT NOT NULL,
+    "customer_id" INTEGER NOT NULL,
+    "status" "ScheduledOrderStatus" NOT NULL DEFAULT 'Pending',
+    "payload" JSONB NOT NULL,
+    "scheduled_at" TIMESTAMP(3) NOT NULL,
+    "timezone" TEXT NOT NULL DEFAULT 'Asia/Kolkata',
+    "attempt_count" INTEGER NOT NULL DEFAULT 0,
+    "max_attempts" INTEGER NOT NULL DEFAULT 3,
+    "last_attempted_at" TIMESTAMP(3),
+    "last_error" TEXT,
+    "promoted_order_id" INTEGER,
+    "cancelled_at" TIMESTAMP(3),
+    "cancel_reason" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "scheduled_order_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "order_dispatch" (
+    "id" SERIAL NOT NULL,
+    "order_id" INTEGER NOT NULL,
+    "vendor_id" INTEGER NOT NULL,
+    "rank" INTEGER NOT NULL,
+    "status" "DispatchRoundStatus" NOT NULL DEFAULT 'Pending',
+    "notified_at" TIMESTAMP(3),
+    "expires_at" TIMESTAMP(3),
+    "accepted_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "order_dispatch_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "pickup_evcrf" (
+    "id" SERIAL NOT NULL,
+    "order_id" INTEGER NOT NULL,
+    "fuel_amount" VARCHAR(50),
+    "odometer_reading_text" VARCHAR(100),
+    "odometer_image" TEXT,
+    "driver_image" TEXT,
+    "driver_sign" TEXT,
+    "remarks" TEXT,
+    "selected_accessories" JSONB,
+    "date_and_time" VARCHAR(255),
+    "service_type" VARCHAR(255),
+    "vehicle_brand" VARCHAR(255),
+    "vehicle_model" VARCHAR(255),
+    "vehicle_no" VARCHAR(255),
+    "customer_ph_no" VARCHAR(50),
+    "driver_name" VARCHAR(255),
+    "driver_ph_no" VARCHAR(50),
+    "reaching_date_and_time" VARCHAR(255),
+    "event_type" VARCHAR(255),
+    "event_location" VARCHAR(255),
+    "vehicle_state" JSONB,
+    "meta" JSONB,
+    "vehicle_class_configuration_id" INTEGER,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "pickup_evcrf_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "pickup_evcrf_damage" (
+    "id" SERIAL NOT NULL,
+    "pickup_evcrf_id" INTEGER NOT NULL,
+    "damage_number" INTEGER NOT NULL,
+    "image_url" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "pickup_evcrf_damage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "dropoff_evcrf" (
+    "id" SERIAL NOT NULL,
+    "order_id" INTEGER NOT NULL,
+    "remarks" TEXT,
+    "handover_name" VARCHAR(255),
+    "drop_location" VARCHAR(255),
+    "droping_type" VARCHAR(255),
+    "dropping_date_and_time" VARCHAR(255),
+    "handover_image" TEXT,
+    "handover_signature" TEXT,
+    "dynamic_fields" JSONB,
+    "meta" JSONB,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "dropoff_evcrf_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "vehicle_class_configuration" (
+    "id" SERIAL NOT NULL,
+    "mapped_class" VARCHAR(255) NOT NULL,
+    "sub_classes" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "diagram_image_url" TEXT NOT NULL,
+    "total_damage_points" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "vehicle_class_configuration_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "vehicle_class_accessory" (
+    "id" SERIAL NOT NULL,
+    "vehicle_class_configuration_id" INTEGER NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "vehicle_class_accessory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "vehicle_state" (
+    "id" SERIAL NOT NULL,
+    "vehicle_class_configuration_id" INTEGER NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "vehicle_state_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "vehicle_state_option" (
+    "id" SERIAL NOT NULL,
+    "vehicle_state_id" INTEGER NOT NULL,
+    "name" VARCHAR(255) NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "vehicle_state_option_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -408,6 +668,15 @@ CREATE INDEX "location_state_idx" ON "location"("state");
 CREATE INDEX "location_category_idx" ON "location"("category");
 
 -- CreateIndex
+CREATE INDEX "location_place_id_idx" ON "location"("place_id");
+
+-- CreateIndex
+CREATE INDEX "customer_address_customer_id_idx" ON "customer_address"("customer_id");
+
+-- CreateIndex
+CREATE INDEX "customer_address_place_id_idx" ON "customer_address"("place_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "order_formated_id_key" ON "order"("formated_id");
 
 -- CreateIndex
@@ -426,10 +695,16 @@ CREATE INDEX "order_vehicle_id_idx" ON "order"("vehicle_id");
 CREATE INDEX "order_vendor_id_idx" ON "order"("vendor_id");
 
 -- CreateIndex
-CREATE INDEX "order_location_location_id_idx" ON "order_location"("location_id");
+CREATE INDEX "order_applied_voucher_id_idx" ON "order"("applied_voucher_id");
+
+-- CreateIndex
+CREATE INDEX "order_scheduled_order_id_idx" ON "order"("scheduled_order_id");
 
 -- CreateIndex
 CREATE INDEX "order_location_order_id_idx" ON "order_location"("order_id");
+
+-- CreateIndex
+CREATE INDEX "order_location_place_id_idx" ON "order_location"("place_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "order_location_order_id_type_key" ON "order_location"("order_id", "type");
@@ -459,7 +734,67 @@ CREATE UNIQUE INDEX "service_name_key" ON "service"("name");
 CREATE UNIQUE INDEX "sub_service_name_service_id_key" ON "sub_service"("name", "service_id");
 
 -- CreateIndex
-CREATE INDEX "_driverTosub_service_B_index" ON "_driverTosub_service"("B");
+CREATE INDEX "sub_service_condtion_sub_service_id_idx" ON "sub_service_condtion"("sub_service_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "voucher_code_key" ON "voucher"("code");
+
+-- CreateIndex
+CREATE INDEX "voucher_user_id_idx" ON "voucher"("user_id");
+
+-- CreateIndex
+CREATE INDEX "voucher_used_by_id_idx" ON "voucher"("used_by_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "scheduled_order_idempotency_key_key" ON "scheduled_order"("idempotency_key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "scheduled_order_promoted_order_id_key" ON "scheduled_order"("promoted_order_id");
+
+-- CreateIndex
+CREATE INDEX "scheduled_order_status_scheduled_at_idx" ON "scheduled_order"("status", "scheduled_at");
+
+-- CreateIndex
+CREATE INDEX "scheduled_order_customer_id_idx" ON "scheduled_order"("customer_id");
+
+-- CreateIndex
+CREATE INDEX "order_dispatch_order_id_rank_idx" ON "order_dispatch"("order_id", "rank");
+
+-- CreateIndex
+CREATE INDEX "order_dispatch_order_id_status_idx" ON "order_dispatch"("order_id", "status");
+
+-- CreateIndex
+CREATE INDEX "order_dispatch_status_expires_at_idx" ON "order_dispatch"("status", "expires_at");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "pickup_evcrf_order_id_key" ON "pickup_evcrf"("order_id");
+
+-- CreateIndex
+CREATE INDEX "pickup_evcrf_order_id_idx" ON "pickup_evcrf"("order_id");
+
+-- CreateIndex
+CREATE INDEX "pickup_evcrf_vehicle_class_configuration_id_idx" ON "pickup_evcrf"("vehicle_class_configuration_id");
+
+-- CreateIndex
+CREATE INDEX "pickup_evcrf_damage_pickup_evcrf_id_idx" ON "pickup_evcrf_damage"("pickup_evcrf_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "dropoff_evcrf_order_id_key" ON "dropoff_evcrf"("order_id");
+
+-- CreateIndex
+CREATE INDEX "dropoff_evcrf_order_id_idx" ON "dropoff_evcrf"("order_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "vehicle_class_configuration_mapped_class_key" ON "vehicle_class_configuration"("mapped_class");
+
+-- CreateIndex
+CREATE INDEX "vehicle_class_accessory_vehicle_class_configuration_id_idx" ON "vehicle_class_accessory"("vehicle_class_configuration_id");
+
+-- CreateIndex
+CREATE INDEX "vehicle_state_vehicle_class_configuration_id_idx" ON "vehicle_state"("vehicle_class_configuration_id");
+
+-- CreateIndex
+CREATE INDEX "vehicle_state_option_vehicle_state_id_idx" ON "vehicle_state_option"("vehicle_state_id");
 
 -- CreateIndex
 CREATE INDEX "_serviceTovendor_B_index" ON "_serviceTovendor"("B");

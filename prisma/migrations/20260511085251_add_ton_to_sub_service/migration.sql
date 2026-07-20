@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "sub_service" ADD COLUMN     "ton" DOUBLE PRECISION NOT NULL DEFAULT 0;
