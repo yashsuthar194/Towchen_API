@@ -27,10 +27,10 @@ export class EVCRFAccessoryInputDto {
 
 export class EVCRFConditionInputDto {
   @IsNumber()
-  group_id: number;
+  vehicle_state_id: number;
 
   @IsNumber()
-  selected_state_id: number;
+  selected_option_id: number;
 }
 
 export class EVCRFDamageDto {
