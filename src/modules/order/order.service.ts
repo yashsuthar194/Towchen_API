@@ -457,7 +457,7 @@ export class OrderService {
           where: {
             order_id_type: {
               order_id: id,
-              type: OrderOtpType.START,
+              type: OrderOtpType.BREAKDOWN,
             },
           },
           update: {
@@ -469,7 +469,7 @@ export class OrderService {
           },
           create: {
             order_id: id,
-            type: OrderOtpType.START,
+            type: OrderOtpType.BREAKDOWN,
             otp: otpCode,
             expires_at: expiresAt,
           },

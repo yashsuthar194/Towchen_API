@@ -24,6 +24,7 @@ import { VoucherModule } from './modules/voucher/voucher.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { VehicleClassMappingModule } from './modules/vehicle-class-mapping/vehicle-class-mapping.module';
 import { EVCRFModule } from './modules/evcrf/evcrf.module';
+import { ReviewModule } from './modules/review/review.module';
 
 @Module({
   imports: [
@@ -49,7 +50,8 @@ import { EVCRFModule } from './modules/evcrf/evcrf.module';
     WalletModule,
     VoucherModule,
     VehicleClassMappingModule,
-    EVCRFModule
+    EVCRFModule,
+    ReviewModule,
 ],
   controllers: [AppController],
   providers: [AppService],
