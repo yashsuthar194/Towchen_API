@@ -133,10 +133,10 @@ export class OrderService {
 
     // Perform verification and status update within a database transaction context
     const updateData: any = {
-      status: type === OrderOtpType.START ? OrderStatus.InProgress : OrderStatus.Completed,
+      status: type === OrderOtpType.BREAKDOWN ? OrderStatus.InProgress : OrderStatus.Completed,
     };
 
-    if (type === OrderOtpType.START) {
+    if (type === OrderOtpType.BREAKDOWN) {
       updateData.start_time = new Date();
     } else {
       updateData.completion_time = new Date();
@@ -162,7 +162,7 @@ export class OrderService {
       });
 
       // If completing order and a voucher was applied, credit the creator's wallet with ₹75
-      if (type !== OrderOtpType.START && updatedOrder.voucher) {
+      if (type !== OrderOtpType.BREAKDOWN && updatedOrder.voucher) {
         await this._walletService.updateWallet(
           updatedOrder.voucher.user_id,
           75.0,
@@ -423,7 +423,7 @@ export class OrderService {
           where: {
             order_id_type: {
               order_id: id,
-              type: OrderOtpType.START,
+              type: OrderOtpType.BREAKDOWN,
             },
           },
           update: {
@@ -435,7 +435,7 @@ export class OrderService {
           },
           create: {
             order_id: id,
-            type: OrderOtpType.START,
+            type: OrderOtpType.BREAKDOWN,
             otp: otpCode,
             expires_at: expiresAt,
           },

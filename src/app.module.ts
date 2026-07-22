@@ -21,6 +21,7 @@ import { DispatchModule } from './modules/dispatch/dispatch.module';
 import { SubServiceConditionModule } from './modules/sub-service-condition/sub-service-condition.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { VoucherModule } from './modules/voucher/voucher.module';
+import { ReviewModule } from './modules/review/review.module';
 
 @Module({
   imports: [
@@ -43,7 +44,8 @@ import { VoucherModule } from './modules/voucher/voucher.module';
     DispatchModule,
     SubServiceConditionModule,
     WalletModule,
-    VoucherModule
+    VoucherModule,
+    ReviewModule,
 ],
   controllers: [AppController],
   providers: [AppService],

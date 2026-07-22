@@ -101,6 +101,8 @@ model driver {
   start_location_id       Int?
   availability_status     AvailabilityStatus @default(Onboard_Pending)
   sub_service_id          Int?
+  average_rating          Float              @default(0)
+  total_reviews           Int                @default(0)
   startLocation           location?          @relation("DriverStartLocation", fields: [start_location_id], references: [id])
   endLocation             location?          @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
@@ -161,6 +163,8 @@ model customer {
   created_at         DateTime           @default(now())
   updated_at         DateTime           @default(now()) @updatedAt
   is_deleted_by      Int?
+  average_rating     Float              @default(0)
+  total_reviews      Int                @default(0)
   customer_vehicles  customer_vehicle[]
   orders             order[]
   customer_addresses customer_address[]
@@ -275,6 +279,7 @@ model order {
   sub_service      sub_service?      @relation(fields: [sub_service_id], references: [id])
   otps             order_otp[]
   voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
+  reviews          review[]
 
   @@index([customer_id])
   @@index([driver_id])
@@ -459,6 +464,28 @@ model voucher {
   @@index([used_by_id])
 }
 
+model review {
+  id            Int            @id @default(autoincrement())
+  order_id      Int
+  reviewer_type ReviewUserType
+  reviewer_id   Int
+  reviewee_type ReviewUserType
+  reviewee_id   Int
+  rating        Int
+  title         String?        @db.VarChar(150)
+  comment       String?        @db.Text
+  tags          Json?
+  is_anonymous  Boolean        @default(false)
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+
+  order order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+  @@index([reviewee_type, reviewee_id])
+  @@unique([order_id, reviewer_type, reviewer_id])
+}
+
 //#region enums
 enum VoucherType {
   Enterprise
@@ -556,6 +583,8 @@ enum LocationType {
 enum OrderOtpType {
   START
   COMPLETE
+  BREAKDOWN
+  DROP
 }
 
 enum AvailabilityStatus {
@@ -568,4 +597,9 @@ enum VehicleStatus {
   Available
   UnderApproval
   Banned
+}
+
+enum ReviewUserType {
+  Customer
+  Driver
 }
