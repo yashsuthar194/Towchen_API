@@ -19,6 +19,13 @@ export class CustomerController {
         private readonly callerService: CallerService
     ) { }
 
+    @Get('list')
+    @ApiOperation({ summary: 'Get list of all customers' })
+    async getList() {
+        const result = await this.customerService.getListAsync();
+        return ResponseDto.retrieved('Customers retrieved successfully', result);
+    }
+
     @Post('register')
     @ApiOperation({ summary: 'Register a new customer and their vehicle' })
     @ApiBody({ type: RegisterCustomerDto })

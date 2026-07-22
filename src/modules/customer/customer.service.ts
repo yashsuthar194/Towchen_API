@@ -300,4 +300,20 @@ export class CustomerService {
             }
         });
     }
+
+    /**
+     * Retrieves all active customers
+     */
+    async getListAsync() {
+        return await this.prisma.customer.findMany({
+            where: { is_deleted: false },
+            orderBy: { id: 'desc' },
+            include: {
+                customer_vehicles: {
+                    where: { is_deleted: false }
+                },
+                customer_addresses: true
+            }
+        });
+    }
 }
