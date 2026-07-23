@@ -1,7 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderStatus, LocationType, OrderOtpType } from '@prisma/client';
 import { ServiceDto, SubServiceDto } from '../../vendor/dto/service.dto';
-import { CustomerDetailDto, CustomerVehicleDetailDto } from '../../customer/dto/customer-detail.dto';
+import {
+  CustomerDetailDto,
+  CustomerVehicleDetailDto,
+} from '../../customer/dto/customer-detail.dto';
 
 class OrderLocationDetailDto {
   @ApiProperty()
@@ -95,7 +98,10 @@ export class OrderDetailDto {
   @ApiProperty({ type: [OrderLocationDetailDto] })
   locations: OrderLocationDetailDto[];
 
-  @ApiPropertyOptional({ description: 'Order metadata (JSON) containing nested sub_service estimate details' })
+  @ApiPropertyOptional({
+    description:
+      'Order metadata (JSON) containing nested sub_service estimate details',
+  })
   meta_data?: any;
 
   @ApiPropertyOptional({ type: () => CustomerDetailDto })
