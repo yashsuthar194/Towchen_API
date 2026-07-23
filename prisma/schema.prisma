@@ -102,6 +102,8 @@ model driver {
   start_location_id       Int?
   availability_status     AvailabilityStatus @default(Onboard_Pending)
   sub_service_id          Int?
+  average_rating          Float              @default(0)
+  total_reviews           Int                @default(0)
   startLocation           location?          @relation("DriverStartLocation", fields: [start_location_id], references: [id])
   endLocation             location?          @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
@@ -162,6 +164,8 @@ model customer {
   created_at         DateTime           @default(now())
   updated_at         DateTime           @default(now()) @updatedAt
   is_deleted_by      Int?
+  average_rating     Float              @default(0)
+  total_reviews      Int                @default(0)
   customer_vehicles  customer_vehicle[]
   orders             order[]
   customer_addresses customer_address[]
@@ -280,20 +284,22 @@ model order {
   final_amount       Float? // Net billing price after discount
   scheduled_order_id Int? // Populated when promoted from a scheduled booking
 
-  customer         customer          @relation(fields: [customer_id], references: [id])
-  customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
-  vendor           vendor?           @relation(fields: [vendor_id], references: [id])
-  driver           driver?           @relation(fields: [driver_id], references: [id])
-  vehicle          vehicle?          @relation(fields: [vehicle_id], references: [id])
-  locations        order_location[]
-  service          service           @relation(fields: [service_id], references: [id])
-  sub_service      sub_service?      @relation(fields: [sub_service_id], references: [id])
-  otps             order_otp[]
-  voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
-  scheduled_order  scheduled_order?  @relation(fields: [scheduled_order_id], references: [id])
-  pickup_evcrf     pickup_evcrf?
-  dropoff_evcrf    dropoff_evcrf?
-  dispatches       order_dispatch[]
+  customer          customer          @relation(fields: [customer_id], references: [id])
+  customer_vehicle  customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
+  vendor            vendor?           @relation(fields: [vendor_id], references: [id])
+  driver            driver?           @relation(fields: [driver_id], references: [id])
+  vehicle           vehicle?          @relation(fields: [vehicle_id], references: [id])
+  locations         order_location[]
+  service           service           @relation(fields: [service_id], references: [id])
+  sub_service       sub_service?      @relation(fields: [sub_service_id], references: [id])
+  otps              order_otp[]
+  voucher           voucher?          @relation(fields: [applied_voucher_id], references: [id])
+  reviews           review[]
+  scheduledOrder    scheduled_order?  @relation(fields: [scheduled_orderId], references: [id])
+  scheduled_orderId Int?
+  orderDispatches   order_dispatch[]
+  pickupEvcrf       pickup_evcrf?
+  dropoffEvcrf      dropoff_evcrf?
 
   @@index([customer_id])
   @@index([driver_id])
@@ -305,10 +311,15 @@ model order {
 }
 
 model order_location {
-  id       Int          @id @default(autoincrement())
-  order_id Int
-  type     LocationType
+  id             Int          @id @default(autoincrement())
+  order_id       Int
+  place_id       String
+  type           LocationType
+  created_at     DateTime     @default(now())
+  contact_name   String?      @db.VarChar(255)
+  contact_number String?      @db.VarChar(20)
 
+  // Location fields moved here from the location table
   address   String?
   street    String?
   area      String?
@@ -316,15 +327,9 @@ model order_location {
   state     String?
   pincode   String?
   country   String?
-  latitude  Float
-  longitude Float
+  latitude  Float?
+  longitude Float?
   landmark  String?
-  place_id  String
-
-  contact_name   String? @db.VarChar(255)
-  contact_number String? @db.VarChar(20)
-
-  created_at DateTime @default(now())
 
   order order @relation(fields: [order_id], references: [id])
 
@@ -530,6 +535,28 @@ model order_dispatch {
   @@index([order_id, rank])
   @@index([order_id, status])
   @@index([status, expires_at]) // Used by the escalation cron to find expired rounds
+}
+
+model review {
+  id            Int            @id @default(autoincrement())
+  order_id      Int
+  reviewer_type ReviewUserType
+  reviewer_id   Int
+  reviewee_type ReviewUserType
+  reviewee_id   Int
+  rating        Int
+  title         String?        @db.VarChar(150)
+  comment       String?        @db.Text
+  tags          Json?
+  is_anonymous  Boolean        @default(false)
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+
+  order order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@unique([order_id, reviewer_type, reviewer_id])
+  @@index([order_id])
+  @@index([reviewee_type, reviewee_id])
 }
 
 //#region enums
@@ -779,4 +806,9 @@ model vehicle_state_option {
   vehicle_state vehicle_state @relation(fields: [vehicle_state_id], references: [id])
 
   @@index([vehicle_state_id])
+}
+
+enum ReviewUserType {
+  Customer
+  Driver
 }

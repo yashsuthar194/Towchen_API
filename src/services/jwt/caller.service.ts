@@ -275,6 +275,13 @@ export class CallerService {
    * Checks if the current user is a customer
    *
    * @returns True if authenticated and user type is Customer
+   *
+   * @example
+   * ```typescript
+   * if (!this.callerService.isCustomer()) {
+   *   throw new ForbiddenException('Customer access required');
+   * }
+   * ```
    */
   isCustomer(): boolean {
     const caller = this.getCallerOrNull();

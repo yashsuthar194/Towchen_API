@@ -154,10 +154,7 @@ export class OrderService {
 
     // Perform verification and status update within a database transaction context
     const updateData: any = {
-      status:
-        type === OrderOtpType.BREAKDOWN
-          ? OrderStatus.InProgress
-          : OrderStatus.Completed,
+      status: type === OrderOtpType.BREAKDOWN ? OrderStatus.InProgress : OrderStatus.Completed,
     };
 
     if (type === OrderOtpType.BREAKDOWN) {
@@ -211,32 +208,9 @@ export class OrderService {
    */
   async createAsync(dto: CreateOrderDto): Promise<OrderDetailDto> {
     const customerId = this._callerService.getUserId();
-    return this.createForCustomerAsync(customerId, dto);
+    return this._orderCreationService.createForCustomerAsync(customerId, dto);
   }
 
-  /**
-   * Creates a new order for an explicitly provided customer ID.
-   *
-   * This is the canonical order-creation method. It is intentionally decoupled
-   * from the HTTP request context so it can be safely called from:
-   *  - The REST controller (via {@link createAsync})
-   *  - The scheduled-order processor (headless, no CallerService available)
-   *
-   * @param customerId - ID of the customer who owns the order
-   * @param dto - Full order creation payload
-   * @param scheduledOrderId - Optional FK to the scheduled_order row that triggered this creation
-   */
-  async createForCustomerAsync(
-    customerId: number,
-    dto: CreateOrderDto,
-    scheduledOrderId?: number,
-  ): Promise<OrderDetailDto> {
-    return this._orderCreationService.createForCustomerAsync(
-      customerId,
-      dto,
-      scheduledOrderId,
-    );
-  }
 
   /**
    * Gets a list of orders.
@@ -322,11 +296,15 @@ export class OrderService {
       throw new NotFoundException(`Driver profile not found`);
     }
 
-    if(!driver.vehicle_id) {
+    if (!driver.vehicle_id) {
       throw new NotFoundException('Driver does not have any vehicle assigned')
     }
 
     try {
+      // Generate 6-digit OTP
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date('9999-12-31'); // No expiration (far future date)
+
       await this._prisma.$transaction(async (tx) => {
         // 1. Update Order Status and Driver/Vehicle Assignment
         await tx.order.update({
@@ -340,12 +318,36 @@ export class OrderService {
           },
         });
 
-        // 2. Link Driver Locations (Start and End)
+        // 2. Create/Update Order OTP record
+        await tx.order_otp.upsert({
+          where: {
+            order_id_type: {
+              order_id: id,
+              type: OrderOtpType.BREAKDOWN,
+            },
+          },
+          update: {
+            otp: otpCode,
+            expires_at: expiresAt,
+            is_verified: false,
+            verified_at: null,
+            attempts: 0,
+          },
+          create: {
+            order_id: id,
+            type: OrderOtpType.BREAKDOWN,
+            otp: otpCode,
+            expires_at: expiresAt,
+          },
+        });
+
+        // 3. Link Driver Locations (Start and End) by copying driver location details directly
         const orderLocations: any[] = [];
 
         if (driver.startLocation) {
           orderLocations.push({
             order_id: id,
+            place_id: driver.startLocation.place_id || '',
             type: LocationType.Start,
             address: driver.startLocation.address,
             street: driver.startLocation.street,
@@ -357,13 +359,13 @@ export class OrderService {
             latitude: driver.startLocation.latitude,
             longitude: driver.startLocation.longitude,
             landmark: driver.startLocation.landmark,
-            place_id: driver.startLocation.place_id,
           });
         }
 
         if (driver.endLocation) {
           orderLocations.push({
             order_id: id,
+            place_id: driver.endLocation.place_id || '',
             type: LocationType.End,
             address: driver.endLocation.address,
             street: driver.endLocation.street,
@@ -375,7 +377,6 @@ export class OrderService {
             latitude: driver.endLocation.latitude,
             longitude: driver.endLocation.longitude,
             landmark: driver.endLocation.landmark,
-            place_id: driver.endLocation.place_id,
           });
         }
 
