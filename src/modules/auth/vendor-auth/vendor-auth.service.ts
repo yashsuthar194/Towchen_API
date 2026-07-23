@@ -34,7 +34,7 @@ export class VendorAuthService {
     private readonly _smsService: SmsService,
     private readonly _emailService: MailService,
     private readonly _jwtService: JwtService,
-  ) { }
+  ) {}
 
   //#region OTP
   /**
@@ -181,7 +181,7 @@ export class VendorAuthService {
     // Check vendor exists with this number (but respond generically either way
     // to prevent mobile-number enumeration attacks).
     const vendor = await this._prismaService.vendor.findFirst({
-      where: { email: dto.email, is_deleted: false }
+      where: { email: dto.email, is_deleted: false },
     });
 
     if (!vendor) {
@@ -255,11 +255,15 @@ export class VendorAuthService {
     });
 
     if (!otpRecord) {
-      throw new BadRequestException('No OTP found for this email. Please request a new one.');
+      throw new BadRequestException(
+        'No OTP found for this email. Please request a new one.',
+      );
     }
 
     if (otpRecord.expires_at < new Date()) {
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
     }
 
     if (otpRecord.otp !== dto.otp.toString()) {
@@ -298,11 +302,15 @@ export class VendorAuthService {
     });
 
     if (!otpRecord) {
-      throw new BadRequestException('No OTP found for this email. Please request a new one.');
+      throw new BadRequestException(
+        'No OTP found for this email. Please request a new one.',
+      );
     }
 
     if (otpRecord.expires_at < new Date()) {
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
     }
 
     if (otpRecord.otp !== dto.otp.toString()) {
@@ -320,7 +328,10 @@ export class VendorAuthService {
     }
 
     // Prevent setting the same password
-    const isSamePassword = await Hash.verifyAsync(dto.new_password, vendor.password);
+    const isSamePassword = await Hash.verifyAsync(
+      dto.new_password,
+      vendor.password,
+    );
     if (isSamePassword) {
       throw new BadRequestException(
         'New password must be different from the current password.',
@@ -367,7 +378,7 @@ export class VendorAuthService {
     );
 
     if (!isPasswordValid) {
-      throw new BadRequestException('Invalid email or password');
+      throw new BadRequestException('Invalid ID or password');
     }
 
     // Generate JWT tokens
