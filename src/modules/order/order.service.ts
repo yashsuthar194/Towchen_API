@@ -30,7 +30,7 @@ export class OrderService {
     private readonly _notificationService: OrderNotificationService,
     private readonly _orderCreationService: OrderCreationService,
     private readonly _storageService: StorageService,
-  ) { }
+  ) {}
 
   /**
    * Sends a 6-digit OTP to the customer for order start or completion.
@@ -322,8 +322,8 @@ export class OrderService {
       throw new NotFoundException(`Driver profile not found`);
     }
 
-    if(!driver.vehicle_id) {
-      throw new NotFoundException('Driver does not have any vehicle assigned')
+    if (!driver.vehicle_id) {
+      throw new NotFoundException('Driver does not have any vehicle assigned');
     }
 
     try {
@@ -422,7 +422,7 @@ export class OrderService {
           service: true,
           sub_service: true,
           customer_vehicle: true,
-          customer: true
+          customer: true,
         },
       })) as unknown as OrderDetailDto;
     } catch (error) {
@@ -837,7 +837,9 @@ export class OrderService {
     }
 
     if (order.customer_id !== customerId) {
-      throw new BadRequestException('You do not have permission to view OTPs for this order');
+      throw new BadRequestException(
+        'You do not have permission to view OTPs for this order',
+      );
     }
 
     return order.otps;
