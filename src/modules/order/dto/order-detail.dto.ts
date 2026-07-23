@@ -9,6 +9,7 @@ class OrderLocationDetailDto {
 
   @ApiProperty()
   place_id: string;
+  place_id: string;
 
   @ApiProperty({ enum: LocationType })
   type: LocationType;

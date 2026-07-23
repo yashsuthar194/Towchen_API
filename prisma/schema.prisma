@@ -284,21 +284,22 @@ model order {
   final_amount       Float? // Net billing price after discount
   scheduled_order_id Int? // Populated when promoted from a scheduled booking
 
-  customer         customer          @relation(fields: [customer_id], references: [id])
-  customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
-  vendor           vendor?           @relation(fields: [vendor_id], references: [id])
-  driver           driver?           @relation(fields: [driver_id], references: [id])
-  vehicle          vehicle?          @relation(fields: [vehicle_id], references: [id])
-  locations        order_location[]
-  service          service           @relation(fields: [service_id], references: [id])
-  sub_service      sub_service?      @relation(fields: [sub_service_id], references: [id])
-  otps             order_otp[]
-  voucher          voucher?          @relation(fields: [applied_voucher_id], references: [id])
-  scheduled_order  scheduled_order?  @relation(fields: [scheduled_order_id], references: [id])
-  pickup_evcrf     pickup_evcrf?
-  dropoff_evcrf    dropoff_evcrf?
-  dispatches       order_dispatch[]
-  reviews          review[]
+  customer          customer          @relation(fields: [customer_id], references: [id])
+  customer_vehicle  customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
+  vendor            vendor?           @relation(fields: [vendor_id], references: [id])
+  driver            driver?           @relation(fields: [driver_id], references: [id])
+  vehicle           vehicle?          @relation(fields: [vehicle_id], references: [id])
+  locations         order_location[]
+  service           service           @relation(fields: [service_id], references: [id])
+  sub_service       sub_service?      @relation(fields: [sub_service_id], references: [id])
+  otps              order_otp[]
+  voucher           voucher?          @relation(fields: [applied_voucher_id], references: [id])
+  reviews           review[]
+  scheduledOrder    scheduled_order?  @relation(fields: [scheduled_orderId], references: [id])
+  scheduled_orderId Int?
+  orderDispatches   order_dispatch[]
+  pickupEvcrf       pickup_evcrf?
+  dropoffEvcrf      dropoff_evcrf?
 
   @@index([customer_id])
   @@index([driver_id])
@@ -553,9 +554,9 @@ model review {
 
   order order @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
+  @@unique([order_id, reviewer_type, reviewer_id])
   @@index([order_id])
   @@index([reviewee_type, reviewee_id])
-  @@unique([order_id, reviewer_type, reviewer_id])
 }
 
 //#region enums
