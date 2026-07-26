@@ -156,8 +156,8 @@ export class OrderDispatchService {
       subServiceName: order.sub_service?.name ?? '',
       breakdown: {
         address: breakdown.address ?? '',
-        latitude: breakdown.latitude,
-        longitude: breakdown.longitude,
+        latitude: breakdown.latitude ?? 0,
+        longitude: breakdown.longitude ?? 0,
       },
       expiresAt: expiresAt.toISOString(),
     };
