@@ -25,6 +25,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { VehicleClassMappingModule } from './modules/vehicle-class-mapping/vehicle-class-mapping.module';
 import { EVCRFModule } from './modules/evcrf/evcrf.module';
 import { ReviewModule } from './modules/review/review.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { ReviewModule } from './modules/review/review.module';
     VehicleClassMappingModule,
     EVCRFModule,
     ReviewModule,
+    AdminModule,
 ],
   controllers: [AppController],
   providers: [AppService],
