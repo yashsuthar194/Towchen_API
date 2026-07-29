@@ -7,6 +7,19 @@ datasource db {
   relationMode = "prisma"
 }
 
+model admin {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique @db.VarChar(255)
+  password   String   @db.VarChar(255)
+  name       String   @db.VarChar(255)
+  role       Role     @default(Admin)
+  is_deleted Boolean  @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  @@index([email, is_deleted])
+}
+
 model vendor {
   id                           Int                 @id @default(autoincrement())
   formated_id                  String              @unique

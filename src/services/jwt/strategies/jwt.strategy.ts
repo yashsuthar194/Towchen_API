@@ -67,6 +67,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       if (!driver) {
         throw new UnauthorizedException('Driver not found');
       }
+    } else if (payload.type === Role.Admin || payload.type === Role.SuperAdmin) {
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: payload.id },
+      });
+
+      if (!admin || admin.is_deleted) {
+        throw new UnauthorizedException('Admin not found or has been disabled');
+      }
     }
 
     return payload;
