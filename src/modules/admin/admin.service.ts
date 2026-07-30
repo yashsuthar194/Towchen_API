@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { UpdateAdminDto } from './dto/update-admin.dto';
-
+import { CreateAdminDto } from './dto/create-admin.dto';
+import { Hash } from 'src/shared/helper/hash';
+import { Role } from '@prisma/client';
 @Injectable()
 export class AdminService {
   constructor(private readonly _prismaService: PrismaService) {}
@@ -19,6 +21,34 @@ export class AdminService {
       },
     });
     return admins;
+  }
+
+  async create(createDto: CreateAdminDto) {
+    const existingAdmin = await this._prismaService.admin.findUnique({
+      where: { email: createDto.email },
+    });
+
+    if (existingAdmin) {
+      throw new ConflictException('An admin with this email already exists');
+    }
+
+    const hashedPassword = await Hash.hashAsync(createDto.password);
+
+    const newAdmin = await this._prismaService.admin.create({
+      data: {
+        email: createDto.email,
+        name: createDto.name,
+        password: hashedPassword,
+        role: Role.Admin, // Only standard Admin creation allowed via API
+      },
+    });
+
+    return {
+      id: newAdmin.id,
+      email: newAdmin.email,
+      name: newAdmin.name,
+      role: newAdmin.role,
+    };
   }
 
   async findOne(id: number) {

@@ -1,5 +1,6 @@
-import { Controller, Get, Put, Delete, Param, Body, UseGuards, HttpStatus, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards, HttpStatus, ParseIntPipe } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { CreateAdminDto } from './dto/create-admin.dto';
 import { UpdateAdminDto } from './dto/update-admin.dto';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
@@ -12,6 +13,14 @@ import { SuperAdminGuard } from 'src/services/jwt/guards/super-admin.guard';
 @ApiBearerAuth()
 export class AdminController {
   constructor(private readonly _adminService: AdminService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Create a new Admin (SuperAdmin only)' })
+  @ApiResponse({ status: 201, description: 'Admin created successfully' })
+  async create(@Body() createAdminDto: CreateAdminDto) {
+    const data = await this._adminService.create(createAdminDto);
+    return new ResponseDto(true, HttpStatus.CREATED, 'Admin created successfully', data);
+  }
 
   @Get()
   @ApiOperation({ summary: 'Get all active admins (SuperAdmin only)' })
