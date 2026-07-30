@@ -1,12 +1,11 @@
-import { Injectable, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { AdminLoginResponseDto } from './dto/admin-login-response.dto';
 import { JwtService } from 'src/services/jwt/jwt.service';
 import { Hash } from 'src/shared/helper/hash';
-import { CreateAdminDto } from './dto/create-admin.dto';
-import { Role } from '@prisma/client';
-
+import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ResponseDto } from 'src/core/response/dto/response.dto';
 @Injectable()
 export class AdminAuthService {
   constructor(
@@ -55,37 +54,40 @@ export class AdminAuthService {
   }
 
   /**
-   * Creates a new Admin account.
+   * Refreshes the access token using a valid refresh token
    *
-   * @param createDto - Contains the new admin's details
-   * @returns Basic admin info of the created account
-   * @throws {BadRequestException} If the email is already in use
+   * @param refreshTokenDto - Contains the refresh token
+   * @returns New JWT tokens
    */
-  async createAdminAsync(createDto: CreateAdminDto) {
-    const existingAdmin = await this._prismaService.admin.findUnique({
-      where: { email: createDto.email },
+  async refreshTokenAsync(
+    refreshTokenDto: RefreshTokenDto,
+  ): Promise<ResponseDto<AdminLoginResponseDto>> {
+    const tokens = await this._jwtService.refreshAccessToken(
+      refreshTokenDto.refresh_token,
+    );
+
+    // To construct AdminLoginResponseDto we also need the admin details.
+    // The tokens object has access_token and refresh_token, we should return that.
+    // Let's decode or use verify to get admin ID and fetch admin details to match the login response.
+    const payload = await this._jwtService.verifyToken(tokens.access_token);
+    
+    const admin = await this._prismaService.admin.findUnique({
+      where: { id: payload.id as number },
     });
 
-    if (existingAdmin) {
-      throw new BadRequestException('An admin with this email already exists');
+    if (!admin || admin.is_deleted) {
+      throw new UnauthorizedException('Admin account not found or has been disabled');
     }
 
-    const hashedPassword = await Hash.hashAsync(createDto.password);
-
-    const newAdmin = await this._prismaService.admin.create({
-      data: {
-        email: createDto.email,
-        name: createDto.name,
-        password: hashedPassword,
-        role: Role.Admin, // Only standard Admin creation allowed via API
+    return new ResponseDto(true, 200, 'Token refreshed successfully', {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
       },
     });
-
-    return {
-      id: newAdmin.id,
-      email: newAdmin.email,
-      name: newAdmin.name,
-      role: newAdmin.role,
-    };
   }
 }
