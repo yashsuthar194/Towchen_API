@@ -10,7 +10,7 @@ import { SuperAdminGuard } from 'src/services/jwt/guards/super-admin.guard';
 @ApiTags('Admin Management')
 @Controller('admin')
 @UseGuards(JwtAuthGuard, SuperAdminGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 export class AdminController {
   constructor(private readonly _adminService: AdminService) {}
 

@@ -22,7 +22,7 @@ import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
  * the geographical coordinates and status of drivers.
  */
 @ApiTags('driver-location')
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('driver-location')
 export class DriverLocationController {
