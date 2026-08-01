@@ -27,6 +27,7 @@ export class ServiceService {
         id: true,
         name: true,
         description: true,
+        image_url: true,
       },
       orderBy: { id: 'asc' },
     });
@@ -59,18 +60,45 @@ export class ServiceService {
   /**
    * Creates a new service.
    */
-  async createServiceAsync(dto: CreateServiceDto): Promise<ServiceDto> {
+  async createServiceAsync(dto: CreateServiceDto, file?: Express.Multer.File): Promise<ServiceDto> {
+    const { image, ...serviceData } = dto;
+
+    if (file && !file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image files are allowed');
+    }
+
     const existing = await this._prisma.service.findUnique({
-      where: { name: dto.name },
+      where: { name: serviceData.name },
     });
 
     if (existing) {
-      throw new BadRequestException(`Service with name "${dto.name}" already exists`);
+      throw new BadRequestException(`Service with name "${serviceData.name}" already exists`);
     }
 
     const service = await this._prisma.service.create({
-      data: dto,
+      data: {
+        ...serviceData,
+        image_url: null,
+      },
     });
+
+    if (file) {
+      const folderPath = `services/${service.id}/image`;
+      const uploadResult = await this._storageService.uploadFileAsync({
+        buffer: file.buffer,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        folderPath,
+      });
+
+      const updated = await this._prisma.service.update({
+        where: { id: service.id },
+        data: { image_url: uploadResult.url },
+      });
+
+      return updated as unknown as ServiceDto;
+    }
 
     return service as unknown as ServiceDto;
   }
@@ -78,21 +106,43 @@ export class ServiceService {
   /**
    * Updates an existing service.
    */
-  async updateServiceAsync(id: number, dto: UpdateServiceDto): Promise<ServiceDto> {
+  async updateServiceAsync(id: number, dto: UpdateServiceDto, file?: Express.Multer.File): Promise<ServiceDto> {
     await this.findOneAsync(id);
 
-    if (dto.name) {
+    const { image, ...serviceData } = dto;
+
+    if (file && !file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Only image files are allowed');
+    }
+
+    if (serviceData.name) {
       const existing = await this._prisma.service.findFirst({
-        where: { name: dto.name, id: { not: id } },
+        where: { name: serviceData.name, id: { not: id } },
       });
       if (existing) {
-        throw new BadRequestException(`Service with name "${dto.name}" already exists`);
+        throw new BadRequestException(`Service with name "${serviceData.name}" already exists`);
       }
+    }
+
+    let imageUrl: string | undefined = undefined;
+    if (file) {
+      const folderPath = `services/${id}/image`;
+      const uploadResult = await this._storageService.uploadFileAsync({
+        buffer: file.buffer,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+        folderPath,
+      });
+      imageUrl = uploadResult.url;
     }
 
     const updated = await this._prisma.service.update({
       where: { id },
-      data: dto,
+      data: {
+        ...serviceData,
+        ...(imageUrl && { image_url: imageUrl }),
+      },
     });
 
     return updated as unknown as ServiceDto;

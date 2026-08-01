@@ -9,4 +9,7 @@ export class ServiceListDto {
 
   @ApiPropertyOptional({ required: false, nullable: true })
   description?: string | null;
+
+  @ApiPropertyOptional({ required: false, nullable: true })
+  image_url?: string | null;
 }
