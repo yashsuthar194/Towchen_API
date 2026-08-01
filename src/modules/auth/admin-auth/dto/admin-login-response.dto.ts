@@ -17,10 +17,10 @@ class AdminProfileDto {
 
 export class AdminLoginResponseDto {
   @ApiProperty({ description: 'JWT access token for the admin' })
-  accessToken: string;
+  access_token: string;
 
   @ApiProperty({ description: 'JWT refresh token for the admin' })
-  refreshToken: string;
+  refresh_token: string;
 
   @ApiProperty({ type: AdminProfileDto, description: 'Admin basic profile information' })
   admin: AdminProfileDto;

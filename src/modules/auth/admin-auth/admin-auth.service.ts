@@ -42,8 +42,8 @@ export class AdminAuthService {
     });
 
     return {
-      accessToken: access_token,
-      refreshToken: refresh_token,
+      access_token: access_token,
+      refresh_token: refresh_token,
       admin: {
         id: admin.id,
         email: admin.email,
@@ -80,8 +80,8 @@ export class AdminAuthService {
     }
 
     return new ResponseDto(true, 200, 'Token refreshed successfully', {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
       admin: {
         id: admin.id,
         email: admin.email,
