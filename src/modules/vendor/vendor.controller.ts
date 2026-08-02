@@ -29,6 +29,7 @@ import {
 } from 'src/core/response/decorators/api-response-dto.decorator';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
+import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
 import { CallerService } from 'src/services/jwt/caller.service';
 
 /**
@@ -110,6 +111,9 @@ export class VendorController {
    *
    * @returns An array of vendor summaries
    */
+  // Admin Auth endpoint
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
   @Get('list')
   @ApiResponseDto(VendorListDto, true, 200)
   async getListAsync(): Promise<ResponseDto<VendorListDto[]>> {
@@ -128,6 +132,9 @@ export class VendorController {
    * @returns The created vendor's profile and JWT tokens
    * @throws {BadRequestException} If passwords don't match or validation fails
    */
+  // Admin Auth endpoint
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
   @Post()
   @ApiResponseDto(VendorRegistrationResponseDto, false, 201)
   async createAsync(
@@ -362,6 +369,9 @@ export class VendorController {
    * @returns The vendor's complete profile
    * @throws {NotFoundException} If no vendor with the given ID exists or is soft-deleted
    */
+  // Admin Auth endpoint
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
   @Get(':id')
   @ApiResponseDto(VendorDetailDto, false, 200)
   async getByIdAsync(
@@ -386,6 +396,9 @@ export class VendorController {
    * @throws {NotFoundException} If no vendor with the given ID exists
    * @throws {BadRequestException} If validation fails
    */
+  // Admin Auth endpoint
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
   @Put(':id')
   @ApiResponseDto(VendorDetailDto, false, 200)
   async updateAsync(
@@ -423,6 +436,9 @@ export class VendorController {
    * @param id - The vendor's unique numeric ID
    * @throws {NotFoundException} If no vendor with the given ID exists
    */
+  // Admin Auth endpoint
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
   @Delete(':id')
   @ApiResponseDtoNull(200)
   async deleteAsync(@Param('id') id: number): Promise<ResponseDto<null>> {
