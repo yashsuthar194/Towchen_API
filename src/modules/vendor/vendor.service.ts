@@ -11,7 +11,7 @@ import { VendorAgreementDto } from './dto/vendor-agreement.dto';
 import { Hash } from 'src/shared/helper/hash';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { JwtService } from 'src/services/jwt/jwt.service';
-import { SignatureType, Role } from '@prisma/client';
+import { SignatureType, Role, OrderStatus, DispatchRoundStatus, ReviewUserType } from '@prisma/client';
 
 /**
  * Allowed document types for individual document upload.
@@ -78,26 +78,88 @@ export class VendorService {
    * @throws {NotFoundException} If no active vendor with the given ID exists
    */
   async getByIdAsync(id: number): Promise<VendorDetailDto> {
-    const vendor = await this._prismaService.vendor.findFirst({
-      where: {
-        id,
-        is_deleted: false,
-      },
-      include: {
-        bank_detail: true,
-        services: {
-          include: {
-            sub_services: true,
+    const [
+      vendor,
+      totalOrders,
+      liveOrders,
+      totalLeads,
+      liveLeads,
+      recentOrders,
+    ] = await Promise.all([
+      this._prismaService.vendor.findFirst({
+        where: { id, is_deleted: false },
+        include: {
+          bank_detail: true,
+          services: { include: { sub_services: true } },
+          vehicles: { where: { is_deleted: false } },
+          drivers: { where: { is_deleted: false }, select: { average_rating: true } },
+        },
+      }),
+      this._prismaService.order.count({ where: { vendor_id: id } }),
+      this._prismaService.order.count({
+        where: {
+          vendor_id: id,
+          status: {
+            in: [
+              OrderStatus.New,
+              OrderStatus.Assigned,
+              OrderStatus.OtpPending,
+              OrderStatus.InProgress,
+            ],
           },
         },
-      },
-    });
+      }),
+      this._prismaService.order_dispatch.count({ where: { vendor_id: id } }),
+      this._prismaService.order_dispatch.count({
+        where: {
+          vendor_id: id,
+          status: { in: [DispatchRoundStatus.Pending, DispatchRoundStatus.Active] },
+        },
+      }),
+      this._prismaService.order.findMany({
+        where: { vendor_id: id },
+        orderBy: { updated_at: 'desc' },
+        take: 10,
+        select: { formated_id: true, updated_at: true, status: true, remarks: true },
+      }),
+    ]);
 
     if (!vendor) {
       throw new NotFoundException(`Vendor with ID ${id} not found`);
     }
 
-    return vendor as unknown as VendorDetailDto;
+    const orderActivity = recentOrders.map((order) => {
+      const d = order.updated_at;
+      const dateStr = `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+      let hours = d.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const timeStr = `${hours.toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')} ${ampm}`;
+      return {
+        formated_id: order.formated_id,
+        date: `${dateStr} ${timeStr}`,
+        status: `Order ${order.status}`,
+        remarks: order.remarks,
+      };
+    });
+
+    const avgRating = vendor.drivers.length > 0 
+      ? vendor.drivers.reduce((acc, d) => acc + d.average_rating, 0) / vendor.drivers.length 
+      : 0;
+
+    const result = {
+      ...vendor,
+      total_orders: totalOrders,
+      live_orders: liveOrders,
+      total_leads: totalLeads,
+      live_leads: liveLeads,
+      ratings: Number(avgRating.toFixed(1)),
+      total_fleets: vendor.vehicles.length,
+      order_activity: orderActivity,
+    };
+
+    return result as unknown as VendorDetailDto;
   }
 
   /**
