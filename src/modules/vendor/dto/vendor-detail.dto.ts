@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { OrganizationType, VendorStatus, VehicleStatus, AvailabilityStatus } from '@prisma/client';
 import { ServiceDto } from './service.dto';
 import { VendorBankDetailDto } from '../../vendor-bank-detail/dto/vendor-bank-detail.dto';
+import { VehicleDetailDto } from '../../vehicle/dto/vehicle-detail.dto';
 
 /**
  * Slim vehicle summary embedded inside the vendor detail response.
@@ -51,7 +52,10 @@ export class VendorVehicleSummaryDto {
  */
 export class VendorDetailDto {
   id: number;
+
+  @ApiProperty({ example: 'VEND00000001' })
   formated_id: string;
+
   vendor_name: string;
   email: string;
   mobile_number: string;

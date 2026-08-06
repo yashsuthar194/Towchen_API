@@ -11,7 +11,7 @@ import { VendorAgreementDto } from './dto/vendor-agreement.dto';
 import { Hash } from 'src/shared/helper/hash';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { JwtService } from 'src/services/jwt/jwt.service';
-import { SignatureType, Role } from '@prisma/client';
+import { SignatureType, Role, OrderStatus, DispatchRoundStatus, ReviewUserType } from '@prisma/client';
 
 /**
  * Allowed document types for individual document upload.

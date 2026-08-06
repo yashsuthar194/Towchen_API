@@ -11,4 +11,12 @@ export class CreateServiceDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiProperty({
+    type: 'string',
+    format: 'binary',
+    required: false,
+    description: 'Image file for the service preview',
+  })
+  image?: any;
 }

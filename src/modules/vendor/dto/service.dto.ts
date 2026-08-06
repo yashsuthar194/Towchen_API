@@ -75,6 +75,9 @@ export class ServiceDto {
   @ApiProperty()
   is_active: boolean;
 
+  @ApiProperty({ required: false, nullable: true })
+  image_url?: string | null;
+
   @ApiProperty()
   created_at: Date;
 

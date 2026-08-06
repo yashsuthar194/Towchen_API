@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiConsumes, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiConsumes, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ServiceService } from './service.service';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -11,7 +11,12 @@ import { ServiceListDto } from './dto/service-list.dto';
 import { ResponseDto } from '../../core/response/dto/response.dto';
 import { ApiResponseDto, ApiResponseDtoNull } from '../../core/response/decorators/api-response-dto.decorator';
 
+import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
+import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
+
 @ApiTags('Service')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('service')
 export class ServiceController {
   constructor(private readonly _serviceService: ServiceService) {}
@@ -34,20 +39,28 @@ export class ServiceController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new service' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponseDto(ServiceDto, false, 201)
-  async createService(@Body() dto: CreateServiceDto): Promise<ResponseDto<ServiceDto>> {
-    const service = await this._serviceService.createServiceAsync(dto);
+  @UseInterceptors(FileInterceptor('image'))
+  async createService(
+    @Body() dto: CreateServiceDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ): Promise<ResponseDto<ServiceDto>> {
+    const service = await this._serviceService.createServiceAsync(dto, file);
     return ResponseDto.created('Service created successfully', service);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update an existing service' })
+  @ApiConsumes('multipart/form-data')
   @ApiResponseDto(ServiceDto)
+  @UseInterceptors(FileInterceptor('image'))
   async updateService(
     @Param('id') id: number,
     @Body() dto: UpdateServiceDto,
+    @UploadedFile() file?: Express.Multer.File,
   ): Promise<ResponseDto<ServiceDto>> {
-    const service = await this._serviceService.updateServiceAsync(id, dto);
+    const service = await this._serviceService.updateServiceAsync(id, dto, file);
     return ResponseDto.updated('Service updated successfully', service);
   }
 

@@ -7,11 +7,14 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { DriverLocationService } from './driver-location.service';
 import { CreateDriverLocationDto } from './dto/create-driver-location.dto';
 import { UpdateDriverLocationDto } from './dto/update-driver-location.dto';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
+import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
 
 /**
  * Controller for managing driver locations.
@@ -19,6 +22,8 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
  * the geographical coordinates and status of drivers.
  */
 @ApiTags('driver-location')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('driver-location')
 export class DriverLocationController {
   constructor(private readonly driverLocationService: DriverLocationService) { }
