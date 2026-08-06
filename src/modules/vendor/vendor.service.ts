@@ -73,31 +73,90 @@ export class VendorService {
   /**
    * Retrieves the full details of a specific vendor by their numeric ID.
    *
+   * In addition to the base profile, this method fetches:
+   * - Active driver count and their ratings (to compute vendor_rating)
+   * - Completed and running order counts
+   * - Active vehicle list and fleet count
+   *
    * @param id - The vendor's unique numeric ID
-   * @returns The vendor's complete profile including bank details and document URLs
+   * @returns The vendor's complete profile with aggregated stats
    * @throws {NotFoundException} If no active vendor with the given ID exists
    */
   async getByIdAsync(id: number): Promise<VendorDetailDto> {
-    const vendor = await this._prismaService.vendor.findFirst({
-      where: {
-        id,
-        is_deleted: false,
-      },
-      include: {
-        bank_detail: true,
-        services: {
+    // Run the base profile fetch and all aggregate queries in parallel
+    const [vendor, drivers, vehicles, completedOrdersCount, runningOrdersCount] =
+      await Promise.all([
+        // Base profile
+        this._prismaService.vendor.findFirst({
+          where: { id, is_deleted: false },
           include: {
-            sub_services: true,
+            bank_detail: true,
+            services: { include: { sub_services: true } },
           },
-        },
-      },
-    });
+        }),
+
+        // Active drivers — only need id + average_rating for computing vendor rating
+        this._prismaService.driver.findMany({
+          where: { vendor_id: id, is_deleted: false },
+          select: { id: true, average_rating: true },
+        }),
+
+        // Active vehicles — slim list for the vehicles[] array
+        this._prismaService.vehicle.findMany({
+          where: { vendor_id: id, is_deleted: false },
+          select: {
+            id: true,
+            registration_number: true,
+            make: true,
+            model: true,
+            vehicle_class: true,
+            fleet_type: true,
+            status: true,
+            availability_status: true,
+            vehicle_validity: true,
+            insurance_validity: true,
+            vehical_image_url: true,
+          },
+        }),
+
+        // Completed / Closed orders count
+        this._prismaService.order.count({
+          where: {
+            vendor_id: id,
+            status: { in: ['Completed', 'Closed'] },
+          },
+        }),
+
+        // Running orders count (Assigned | OtpPending | InProgress)
+        this._prismaService.order.count({
+          where: {
+            vendor_id: id,
+            status: { in: ['Assigned', 'OtpPending', 'InProgress'] },
+          },
+        }),
+      ]);
 
     if (!vendor) {
       throw new NotFoundException(`Vendor with ID ${id} not found`);
     }
 
-    return vendor as unknown as VendorDetailDto;
+    // Compute vendor rating as the mean of drivers' average_rating
+    const ratedDrivers = drivers.filter((d) => d.average_rating > 0);
+    const vendor_rating =
+      ratedDrivers.length > 0
+        ? ratedDrivers.reduce((sum, d) => sum + d.average_rating, 0) /
+          ratedDrivers.length
+        : 0;
+
+    return {
+      ...(vendor as any),
+      driver_count: drivers.length,
+      completed_orders_count: completedOrdersCount,
+      running_orders_count: runningOrdersCount,
+      vendor_rating: Math.round(vendor_rating * 100) / 100, // round to 2 dp
+      fleet_count: vehicles.length,
+      vehicles,
+    } as unknown as VendorDetailDto;
   }
 
   /**

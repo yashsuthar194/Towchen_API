@@ -1,10 +1,53 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { OrganizationType, VendorStatus } from '@prisma/client';
+import { OrganizationType, VendorStatus, VehicleStatus, AvailabilityStatus } from '@prisma/client';
 import { ServiceDto } from './service.dto';
 import { VendorBankDetailDto } from '../../vendor-bank-detail/dto/vendor-bank-detail.dto';
 
 /**
+ * Slim vehicle summary embedded inside the vendor detail response.
+ */
+export class VendorVehicleSummaryDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: 'MH12AB1234' })
+  registration_number: string;
+
+  @ApiProperty({ example: 'Toyota' })
+  make: string;
+
+  @ApiProperty({ example: 'Camry' })
+  model: string;
+
+  @ApiProperty({ example: 'Sedan', nullable: true })
+  vehicle_class: string | null;
+
+  @ApiProperty({ example: 3 })
+  fleet_type: number;
+
+  @ApiProperty({ enum: VehicleStatus })
+  status: VehicleStatus;
+
+  @ApiProperty({ enum: AvailabilityStatus })
+  availability_status: AvailabilityStatus;
+
+  @ApiProperty({ example: '2026-01-01T00:00:00Z' })
+  vehicle_validity: Date;
+
+  @ApiProperty({ example: '2026-01-01T00:00:00Z' })
+  insurance_validity: Date;
+
+  @ApiProperty({ type: [String], example: ['https://storage.example.com/vehicle.jpg'] })
+  vehical_image_url: string[];
+}
+
+/**
  * Response DTO for vendor detail endpoints.
+ *
+ * Extends the base profile with aggregated stats:
+ * - driver_count, completed_orders_count, running_orders_count
+ * - vendor_rating (average of drivers' average_rating)
+ * - fleet_count and vehicles list
  */
 export class VendorDetailDto {
   id: number;
@@ -18,7 +61,10 @@ export class VendorDetailDto {
 
   pan_card_url: string;
   aadhar_card_url: string;
+
+  @ApiProperty({ example: 'Acme Logistics Pvt. Ltd.' })
   organization_name: string;
+
   organization_certificate_url: string;
 
   @ApiProperty({
@@ -53,4 +99,33 @@ export class VendorDetailDto {
   signature_url: string | null;
 
   bank_detail: VendorBankDetailDto | null;
+
+  // ─── Aggregated Stats ────────────────────────────────────────────────
+
+  /** Total number of active (non-deleted) drivers under this vendor. */
+  @ApiProperty({ example: 12 })
+  driver_count: number;
+
+  /** Number of orders that have reached Completed or Closed status. */
+  @ApiProperty({ example: 230 })
+  completed_orders_count: number;
+
+  /** Number of orders currently in-progress (Assigned | OtpPending | InProgress). */
+  @ApiProperty({ example: 3 })
+  running_orders_count: number;
+
+  /**
+   * Vendor rating derived as the mean of all active drivers' `average_rating`.
+   * Returns 0 when the vendor has no rated drivers.
+   */
+  @ApiProperty({ example: 4.2 })
+  vendor_rating: number;
+
+  /** Number of active (non-deleted) vehicles (fleet) under this vendor. */
+  @ApiProperty({ example: 8 })
+  fleet_count: number;
+
+  /** List of active vehicles belonging to this vendor. */
+  @ApiProperty({ type: [VendorVehicleSummaryDto] })
+  vehicles: VendorVehicleSummaryDto[];
 }
