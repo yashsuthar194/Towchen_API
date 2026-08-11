@@ -5,6 +5,20 @@ import { VendorBankDetailDto } from '../../vendor-bank-detail/dto/vendor-bank-de
 import { VehicleDetailDto } from '../../vehicle/dto/vehicle-detail.dto';
 
 /**
+ * Slim driver summary embedded in the vehicle summary.
+ */
+export class VendorVehicleDriverSummaryDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: 'Ramesh Kumar' })
+  driver_name: string;
+
+  @ApiProperty({ example: '9876543210' })
+  mobile_number: string;
+}
+
+/**
  * Slim vehicle summary embedded inside the vendor detail response.
  */
 export class VendorVehicleSummaryDto {
@@ -23,8 +37,17 @@ export class VendorVehicleSummaryDto {
   @ApiProperty({ example: 'Sedan', nullable: true })
   vehicle_class: string | null;
 
+  /** Raw sub-service ID stored on the vehicle record. */
   @ApiProperty({ example: 3 })
   fleet_type: number;
+
+  /** Human-readable name resolved from the sub_service table. */
+  @ApiProperty({ example: 'Underlift', nullable: true })
+  fleet_type_name: string | null;
+
+  /** Physical location / garage where the fleet is stationed. */
+  @ApiProperty({ example: 'Mumbai Central Depot' })
+  fleet_location: string;
 
   @ApiProperty({ enum: VehicleStatus })
   status: VehicleStatus;
@@ -40,6 +63,10 @@ export class VendorVehicleSummaryDto {
 
   @ApiProperty({ type: [String], example: ['https://storage.example.com/vehicle.jpg'] })
   vehical_image_url: string[];
+
+  /** The driver currently assigned to this vehicle, or null if unassigned. */
+  @ApiProperty({ type: VendorVehicleDriverSummaryDto, nullable: true })
+  driver: VendorVehicleDriverSummaryDto | null;
 }
 
 /**
@@ -128,6 +155,10 @@ export class VendorDetailDto {
   /** Number of active (non-deleted) vehicles (fleet) under this vendor. */
   @ApiProperty({ example: 8 })
   fleet_count: number;
+
+  /** Total orders ever associated with this vendor (running + completed + all other statuses). */
+  @ApiProperty({ example: 310 })
+  total_orders: number;
 
   /** List of active vehicles belonging to this vendor. */
   @ApiProperty({ type: [VendorVehicleSummaryDto] })

@@ -84,8 +84,15 @@ export class VendorService {
    */
   async getByIdAsync(id: number): Promise<VendorDetailDto> {
     // Run the base profile fetch and all aggregate queries in parallel
-    const [vendor, drivers, vehicles, completedOrdersCount, runningOrdersCount] =
-      await Promise.all([
+    const [
+      vendor,
+      drivers,
+      vehicles,
+      completedOrdersCount,
+      runningOrdersCount,
+      totalOrdersCount,
+      allSubServices,
+    ] = await Promise.all([
         // Base profile
         this._prismaService.vendor.findFirst({
           where: { id, is_deleted: false },
@@ -101,7 +108,7 @@ export class VendorService {
           select: { id: true, average_rating: true },
         }),
 
-        // Active vehicles — slim list for the vehicles[] array
+        // Active vehicles — includes fleet_location and assigned drivers
         this._prismaService.vehicle.findMany({
           where: { vendor_id: id, is_deleted: false },
           select: {
@@ -111,11 +118,16 @@ export class VendorService {
             model: true,
             vehicle_class: true,
             fleet_type: true,
+            fleet_location: true,
             status: true,
             availability_status: true,
             vehicle_validity: true,
             insurance_validity: true,
             vehical_image_url: true,
+            drivers: {
+              where: { is_deleted: false },
+              select: { id: true, driver_name: true, mobile_number: true },
+            },
           },
         }),
 
@@ -134,6 +146,16 @@ export class VendorService {
             status: { in: ['Assigned', 'OtpPending', 'InProgress'] },
           },
         }),
+
+        // All orders ever linked to this vendor
+        this._prismaService.order.count({
+          where: { vendor_id: id },
+        }),
+
+        // Sub-services — needed to resolve fleet_type (ID → name)
+        this._prismaService.sub_service.findMany({
+          select: { id: true, name: true },
+        }),
       ]);
 
     if (!vendor) {
@@ -148,14 +170,26 @@ export class VendorService {
           ratedDrivers.length
         : 0;
 
+    // Enrich each vehicle: resolve fleet_type_name and extract first assigned driver
+    const enrichedVehicles = vehicles.map((v) => {
+      const subService = allSubServices.find((ss) => ss.id === v.fleet_type);
+      const { drivers: vehicleDrivers, ...vehicleRest } = v as any;
+      return {
+        ...vehicleRest,
+        fleet_type_name: subService?.name ?? null,
+        driver: vehicleDrivers && vehicleDrivers.length > 0 ? vehicleDrivers[0] : null,
+      };
+    });
+
     return {
       ...(vendor as any),
       driver_count: drivers.length,
       completed_orders_count: completedOrdersCount,
       running_orders_count: runningOrdersCount,
+      total_orders: totalOrdersCount,
       vendor_rating: Math.round(vendor_rating * 100) / 100, // round to 2 dp
       fleet_count: vehicles.length,
-      vehicles,
+      vehicles: enrichedVehicles,
     } as unknown as VendorDetailDto;
   }
 
