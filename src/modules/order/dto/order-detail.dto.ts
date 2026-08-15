@@ -5,6 +5,7 @@ import {
   CustomerDetailDto,
   CustomerVehicleDetailDto,
 } from '../../customer/dto/customer-detail.dto';
+import { DriverDetailDto } from '../../driver/dto/driver-detail.dto';
 
 class OrderLocationDetailDto {
   @ApiProperty()
@@ -103,6 +104,9 @@ export class OrderDetailDto {
       'Order metadata (JSON) containing nested sub_service estimate details',
   })
   meta_data?: any;
+
+  @ApiPropertyOptional({ type: () => DriverDetailDto, nullable: true })
+  driver?: DriverDetailDto | null;
 
   @ApiPropertyOptional({ type: () => CustomerDetailDto })
   customer?: CustomerDetailDto;

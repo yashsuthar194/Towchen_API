@@ -802,8 +802,14 @@ export class DriverService {
       };
     }
  
+    const avgRating = rest.average_rating ?? 0;
+    const totReviews = rest.total_reviews ?? 0;
+
     return {
       ...rest,
+      average_rating: avgRating,
+      total_reviews: totReviews,
+      total_stars: Math.round(avgRating * totReviews),
       vehicle: mappedVehicle,
       location_spot: startLocation ? { ...startLocation, address: Utility.formatAddress(startLocation) } : undefined,
       is_documents_uploaded,

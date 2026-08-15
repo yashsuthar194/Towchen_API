@@ -57,6 +57,15 @@ export class DriverDetailDto {
   @ApiProperty({ example: 'Underlift', required: false, nullable: true })
   sub_service?: string;
 
+  @ApiProperty({ description: 'Average rating of the driver', example: 4.5, required: false })
+  average_rating?: number;
+
+  @ApiProperty({ description: 'Total reviews count for the driver', example: 10, required: false })
+  total_reviews?: number;
+
+  @ApiProperty({ description: 'Total stars sum received by driver (e.g. 4 + 3 + 5 = 12 stars)', example: 45, required: false })
+  total_stars?: number;
+
   @ApiProperty({ description: 'Record creation timestamp' })
   created_at: Date;
 

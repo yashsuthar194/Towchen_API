@@ -269,6 +269,7 @@ export class OrderService {
       include: {
         locations: true,
         customer: true,
+        customer_vehicle: true,
         driver: true,
         vehicle: true,
         vendor: true,
@@ -280,6 +281,8 @@ export class OrderService {
     if (!order) {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
+
+    this._formatOrderDriver(order);
 
     return order as unknown as OrderDetailDto;
   }
@@ -634,6 +637,8 @@ export class OrderService {
       throw new NotFoundException(`Order with ID ${id} not found`);
     }
 
+    this._formatOrderDriver(order);
+
     // (a) Assigned driver can always view their own order
     if (order.driver_id === driverId) {
       return order as unknown as OrderDetailDto;
@@ -843,5 +848,21 @@ export class OrderService {
     }
 
     return order.otps;
+  }
+
+  /**
+   * Helper to format driver details attached to an order response,
+   * removing sensitive data and appending rating stats (total_stars).
+   * @private
+   */
+  private _formatOrderDriver(order: any): void {
+    if (order?.driver) {
+      delete order.driver.password;
+      const avgRating = order.driver.average_rating ?? 0;
+      const totReviews = order.driver.total_reviews ?? 0;
+      order.driver.average_rating = avgRating;
+      order.driver.total_reviews = totReviews;
+      order.driver.total_stars = Math.round(avgRating * totReviews);
+    }
   }
 }
