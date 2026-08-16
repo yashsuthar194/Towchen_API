@@ -24,7 +24,7 @@ import { ServiceLocationDto } from './dto/service-location.dto';
 
 @ApiTags('Service Location')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard, AdminGuard) // All endpoints are admin-only
+@UseGuards(JwtAuthGuard) // All endpoints are admin-only
 @Controller('service-location')
 export class ServiceLocationController {
   constructor(
