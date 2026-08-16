@@ -52,7 +52,6 @@ export class VendorPricingService {
       return {
         id: vp.id,
         sub_service_id: vp.sub_service_id,
-        fix_distance: vp.fix_distance,
         fix_price: vp.fix_price,
         extra_price: vp.extra_price,
         updated_at: vp.updated_at,
@@ -82,9 +81,11 @@ export class VendorPricingService {
     });
     if (!vendor) throw new NotFoundException('Vendor not found');
 
+    let ceiling;
+
     // Enforce ceiling: if the vendor's location has a configured ceiling, validate against it
     if (vendor.location_id) {
-      const ceiling = await this.prisma.location_pricing.findUnique({
+      ceiling = await this.prisma.location_pricing.findUnique({
         where: {
           location_id_sub_service_id: {
             location_id: vendor.location_id,
@@ -119,12 +120,11 @@ export class VendorPricingService {
       create: {
         vendor_id: vendorId,
         sub_service_id: subServiceId,
-        fix_distance: dto.fix_distance,
         fix_price: dto.fix_price,
         extra_price: dto.extra_price,
       },
       update: {
-        fix_distance: dto.fix_distance,
+        // ONLY update prices
         fix_price: dto.fix_price,
         extra_price: dto.extra_price,
       },
@@ -133,7 +133,6 @@ export class VendorPricingService {
     return {
       id: updated.id,
       sub_service_id: updated.sub_service_id,
-      fix_distance: updated.fix_distance,
       fix_price: updated.fix_price,
       extra_price: updated.extra_price,
       updated_at: updated.updated_at,
@@ -151,7 +150,6 @@ export class VendorPricingService {
     return pricings.map((vp) => ({
       id: vp.id,
       sub_service_id: vp.sub_service_id,
-      fix_distance: vp.fix_distance,
       fix_price: vp.fix_price,
       extra_price: vp.extra_price,
       updated_at: vp.updated_at,

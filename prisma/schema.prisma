@@ -876,7 +876,6 @@ model vendor_pricing {
   id             Int      @id @default(autoincrement())
   vendor_id      Int
   sub_service_id Int
-  fix_distance   Float    @default(0)
   fix_price      Float    @default(0)
   extra_price    Float    @default(0)
   created_at     DateTime @default(now())

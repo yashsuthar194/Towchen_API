@@ -165,7 +165,27 @@ export class LocationService {
 
       // Pricing resolution based on nearest vendor
       if (estimate && estimate.vendor_id) {
-        // 1. Try to find vendor's own specific pricing
+        // 1. Fall back to location's ceiling pricing (provides fix_distance and default prices)
+        const vendor = await this.prisma.vendor.findUnique({
+          where: { id: estimate.vendor_id },
+          select: { location_id: true },
+        });
+
+        if (vendor?.location_id) {
+          const locationPricing = await this.prisma.location_pricing.findUnique({
+            where: {
+              location_id_sub_service_id: { location_id: vendor.location_id, sub_service_id: ss.id },
+            },
+          });
+
+          if (locationPricing) {
+            usedFixDistance = locationPricing.fix_distance;
+            usedFixPrice = locationPricing.fix_price;
+            usedExtraPrice = locationPricing.extra_price;
+          }
+        }
+
+        // 2. Override prices if the vendor has their own specific pricing configured
         const vendorPricing = await this.prisma.vendor_pricing.findUnique({
           where: {
             vendor_id_sub_service_id: { vendor_id: estimate.vendor_id, sub_service_id: ss.id },
@@ -173,29 +193,8 @@ export class LocationService {
         });
 
         if (vendorPricing) {
-          usedFixDistance = vendorPricing.fix_distance;
           usedFixPrice = vendorPricing.fix_price;
           usedExtraPrice = vendorPricing.extra_price;
-        } else {
-          // 2. Fall back to location's ceiling pricing if vendor has no specific pricing
-          const vendor = await this.prisma.vendor.findUnique({
-            where: { id: estimate.vendor_id },
-            select: { location_id: true },
-          });
-
-          if (vendor?.location_id) {
-            const locationPricing = await this.prisma.location_pricing.findUnique({
-              where: {
-                location_id_sub_service_id: { location_id: vendor.location_id, sub_service_id: ss.id },
-              },
-            });
-
-            if (locationPricing) {
-              usedFixDistance = locationPricing.fix_distance;
-              usedFixPrice = locationPricing.fix_price;
-              usedExtraPrice = locationPricing.extra_price;
-            }
-          }
         }
       }
 

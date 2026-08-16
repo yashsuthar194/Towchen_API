@@ -8,9 +8,6 @@ export class VendorPricingDto {
   @ApiProperty({ example: 1, description: 'Sub-service this pricing applies to' })
   sub_service_id: number;
 
-  @ApiProperty({ example: 20, description: 'Included km in the base price' })
-  fix_distance: number;
-
   @ApiProperty({ example: 1800, description: 'Base price the vendor charges' })
   fix_price: number;
 

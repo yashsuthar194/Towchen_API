@@ -278,7 +278,6 @@ export class VendorService {
         data: serviceLocation.location_pricings.map((p) => ({
           vendor_id: vendor.id,
           sub_service_id: p.sub_service_id,
-          fix_distance: p.fix_distance,
           fix_price: p.fix_price,      // Vendor starts at the area ceiling
           extra_price: p.extra_price,
         })),
