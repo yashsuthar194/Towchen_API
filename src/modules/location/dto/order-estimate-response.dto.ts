@@ -25,6 +25,9 @@ export class ServiceArrivalEstimateDto {
     type: DistanceMatrixLegDto,
   })
   traffic_aware_eta?: DistanceMatrixLegDto;
+
+  /** Internal use only: vendor ID of the provider giving this estimate. Used to look up vendor pricing. */
+  vendor_id?: number;
 }
 
 /**
@@ -67,6 +70,18 @@ export class PricedSubServiceDto {
   })
   calculated_distance_string: string;
 
+  @ApiProperty({
+    description: 'Actual road distance from the driver start location to the breakdown location (in km)',
+    example: '5.00 km',
+  })
+  pickup_distance_string: string;
+
+  @ApiProperty({
+    description: 'Total combined billable distance (pickup + dropoff) in km',
+    example: '20.20 km',
+  })
+  total_calculated_distance_string: string;
+
   @ApiPropertyOptional({
     description:
       'Extra charge applied for the distance beyond base_distance. ' +
@@ -92,6 +107,12 @@ export class PricedSubServiceDto {
 
   @ApiProperty({ description: 'Actual distance in km as raw number', example: 15.2 })
   calculated_distance_int: number;
+
+  @ApiProperty({ description: 'Pickup distance in km as raw number', example: 5.0 })
+  pickup_distance_int: number;
+
+  @ApiProperty({ description: 'Total billable distance in km as raw number', example: 20.2 })
+  total_calculated_distance_int: number;
 
   @ApiProperty({ description: 'Extra charge as raw number', example: 130 })
   extra_distance_rate_int: number;

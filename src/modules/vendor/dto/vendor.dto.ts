@@ -22,6 +22,7 @@ export class VendorDto implements vendor {
   pan_card_url: string;
   pan_number: string;
   aadhar_card_url: string;
+  location_id: number | null;
 
   organization_name: string;
   organization_certificate_url: string;

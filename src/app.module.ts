@@ -26,6 +26,7 @@ import { VehicleClassMappingModule } from './modules/vehicle-class-mapping/vehic
 import { EVCRFModule } from './modules/evcrf/evcrf.module';
 import { ReviewModule } from './modules/review/review.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ServiceLocationModule } from './modules/service-location/service-location.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { AdminModule } from './modules/admin/admin.module';
     EVCRFModule,
     ReviewModule,
     AdminModule,
+    ServiceLocationModule,
 ],
   controllers: [AppController],
   providers: [AppService],

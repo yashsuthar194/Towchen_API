@@ -52,16 +52,25 @@ model vendor {
   vendor_name                  String              @db.VarChar(255)
   vendor_profile_image_url     String
   service_ids                  Int[]
+
+  // The admin-created service area location the vendor operates from.
+  // Determines which pricing ceiling applies to this vendor.
+  // Nullable to avoid breaking existing data — application layer enforces required on new registrations.
+  location_id                  Int?
+  location                     location?           @relation(fields: [location_id], references: [id])
+
   bank_detail                  vendor_bank_detail?
   drivers                      driver[]
   vehicles                     vehicle[]
   orders                       order[]
   services                     service[]
   dispatches                   order_dispatch[]
+  vendor_pricings              vendor_pricing[]     // vendor's own per-sub-service pricing
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
   @@index([mobile_number, is_deleted])
+  @@index([location_id])
 }
 
 model vendor_bank_detail {
@@ -217,12 +226,16 @@ model location {
   latitude     Float
   longitude    Float
   landmark     String?
-  description  String?
+  description  String?          // Used as the human-readable name for ServiceArea locations
   place_id     String
   category     LocationCategory @default(Driver)
   created_at   DateTime         @default(now())
   startDrivers driver[]         @relation("DriverStartLocation")
   endDrivers   driver[]         @relation("DriverEndLocation")
+
+  // Service area locations have pricing ceilings and linked vendors
+  location_pricings location_pricing[]
+  vendors           vendor[]
 
   @@index([city])
   @@index([state])
@@ -425,6 +438,7 @@ model sub_service {
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt
 
+  // Global default pricing — used as the final fallback when no vendor/location pricing exists
   fix_distance Float @default(0)
   fix_price    Float @default(0)
   extra_price  Float @default(0)
@@ -436,7 +450,9 @@ model sub_service {
   service service @relation(fields: [service_id], references: [id])
   orders  order[]
 
-  conditions sub_service_condtion[]
+  conditions        sub_service_condtion[]
+  location_pricings location_pricing[]     // admin-configured ceilings per location
+  vendor_pricings   vendor_pricing[]       // individual vendor pricing rows
 
   @@unique([name, service_id])
 }
@@ -666,6 +682,7 @@ enum SignatureType {
 enum LocationCategory {
   Driver
   Order
+  ServiceArea // Admin-created area used for vendor location assignment and pricing ceilings
 }
 
 enum OrderStatus {
@@ -825,4 +842,51 @@ model vehicle_state_option {
 enum ReviewUserType {
   Customer
   Driver
+}
+
+/**
+ * Admin-configured price CEILING per sub-service for a specific ServiceArea location.
+ * Vendors in this area cannot set prices higher than these values.
+ */
+model location_pricing {
+  id          Int      @id @default(autoincrement())
+  location_id Int
+  sub_service_id Int
+  fix_distance Float  @default(0) // Included km in the base price
+  fix_price    Float  @default(0) // Maximum base price vendor can charge
+  extra_price  Float  @default(0) // Maximum price per extra km vendor can charge
+  created_at   DateTime @default(now())
+  updated_at   DateTime @default(now()) @updatedAt
+
+  location    location    @relation(fields: [location_id], references: [id])
+  sub_service sub_service @relation(fields: [sub_service_id], references: [id])
+
+  // Each location can have at most one pricing config per sub-service
+  @@unique([location_id, sub_service_id])
+  @@index([location_id])
+  @@index([sub_service_id])
+}
+
+/**
+ * Vendor's own pricing per sub-service.
+ * Copied from location_pricing at registration time.
+ * Vendor can update values downward (cannot exceed location ceiling).
+ */
+model vendor_pricing {
+  id             Int      @id @default(autoincrement())
+  vendor_id      Int
+  sub_service_id Int
+  fix_distance   Float    @default(0)
+  fix_price      Float    @default(0)
+  extra_price    Float    @default(0)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @default(now()) @updatedAt
+
+  vendor      vendor      @relation(fields: [vendor_id], references: [id])
+  sub_service sub_service @relation(fields: [sub_service_id], references: [id])
+
+  // One pricing row per vendor per sub-service
+  @@unique([vendor_id, sub_service_id])
+  @@index([vendor_id])
+  @@index([sub_service_id])
 }

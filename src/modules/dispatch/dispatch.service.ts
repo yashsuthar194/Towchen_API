@@ -153,7 +153,8 @@ export class DispatchService {
     let bestResult: ServiceArrivalEstimateDto | null = null;
     let minSeconds = Infinity;
 
-    for (const result of matrixResults) {
+    for (let i = 0; i < matrixResults.length; i++) {
+      const result = matrixResults[i];
       if (result.status !== 'OK' || !result.travel_time || !result.distance) continue;
 
       const seconds = result.traffic_aware_duration?.raw_value ?? result.travel_time.raw_value;
@@ -163,6 +164,7 @@ export class DispatchService {
           distance: result.distance,
           eta: result.travel_time,
           traffic_aware_eta: result.traffic_aware_duration ?? undefined,
+          vendor_id: candidates[i].driver.vendor_id,
         };
       }
     }

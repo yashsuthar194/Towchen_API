@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   ArrayNotEmpty,
@@ -98,6 +98,12 @@ export class CreateVendorDto {
   @ApiProperty({ example: '27AAPFU0939F1ZV' })
   gst_number?: string;
 
+  /** ID of the service area location the vendor operates from */
+  @IsNotEmpty()
+  @Type(() => Number)
+  @ApiProperty({ example: 1 })
+  location_id: number;
+
   // ── Bank detail fields (flattened for JSON compatibility) ──
 
   /** Name of the vendor's bank */
@@ -151,10 +157,12 @@ export class CreateVendorDto {
       branch_name,
       account_holder_name,
       service_ids,
+      location_id,
       ...vendorData
     } = dto;
     return {
       ...vendorData,
+      location_id: Number(location_id),
       service_ids: service_ids.map((id) => Number(id)),
       gst_number: dto.gst_number ?? null,
       is_gst_vendor: !!dto.gst_number,

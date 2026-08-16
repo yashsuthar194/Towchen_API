@@ -11,7 +11,7 @@ import { VendorAgreementDto } from './dto/vendor-agreement.dto';
 import { Hash } from 'src/shared/helper/hash';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { JwtService } from 'src/services/jwt/jwt.service';
-import { SignatureType, Role, OrderStatus, DispatchRoundStatus, ReviewUserType } from '@prisma/client';
+import { SignatureType, Role, OrderStatus, DispatchRoundStatus, ReviewUserType, LocationCategory } from '@prisma/client';
 
 /**
  * Allowed document types for individual document upload.
@@ -259,7 +259,32 @@ export class VendorService {
     dto: CreateVendorDto,
   ): Promise<VendorRegistrationResponseDto> {
     await this.validateDuplicateVendorAsync(dto.mobile_number, dto.email);
+    
+    // Validate that the provided location is an active ServiceArea
+    const serviceLocation = await this._prismaService.location.findFirst({
+      where: { id: dto.location_id, category: LocationCategory.ServiceArea },
+      include: { location_pricings: true },
+    });
+
+    if (!serviceLocation) {
+      throw new BadRequestException(`Invalid location_id: ${dto.location_id} is not an active service area`);
+    }
+
     const vendor = await this.createVendorRecord(dto);
+
+    // Auto-copy location price ceilings into the vendor's own pricing
+    if (serviceLocation.location_pricings.length > 0) {
+      await this._prismaService.vendor_pricing.createMany({
+        data: serviceLocation.location_pricings.map((p) => ({
+          vendor_id: vendor.id,
+          sub_service_id: p.sub_service_id,
+          fix_distance: p.fix_distance,
+          fix_price: p.fix_price,      // Vendor starts at the area ceiling
+          extra_price: p.extra_price,
+        })),
+      });
+    }
+
     const vendorDetail = await this.getByIdAsync(vendor.id);
 
     // Generate JWT tokens so the vendor can authenticate immediately
@@ -315,6 +340,7 @@ export class VendorService {
         representative_name: '',
         representative_designation: '',
         signature_type: SignatureType.Upload,
+        location_id: dto.location_id,
         services: {
           connect: dto.service_ids.map((id) => ({ id })),
         },

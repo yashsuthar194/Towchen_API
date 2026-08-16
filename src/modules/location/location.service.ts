@@ -56,7 +56,7 @@ export class LocationService {
     );
 
     // Step 4: Combine metrics, pricing, and arrival estimates into the final result
-    const pricedSubServices = this.mapToPricedSubServices(
+    const pricedSubServices = await this.mapToPricedSubServicesAsync(
       subServices,
       travelMetrics.distance.raw_value,
       serviceArrivalEstimates,
@@ -145,20 +145,76 @@ export class LocationService {
 
   /**
    * Step 4 Logic: Calculates pricing for each sub-service and links the arrival estimates.
+   * Resolves pricing in the following priority:
+   * 1. Nearest available vendor's own vendor_pricing
+   * 2. Nearest available vendor's location_pricing ceiling
+   * 3. Global sub_service default pricing
    */
-  private mapToPricedSubServices(
+  private async mapToPricedSubServicesAsync(
     subServices: any[],
     actualDistanceMetres: number,
     arrivalEstimates: Map<number, ServiceArrivalEstimateDto | null>,
-  ): PricedSubServiceDto[] {
-    return subServices.map((ss) => {
+  ): Promise<PricedSubServiceDto[]> {
+    const pricedSubServices: PricedSubServiceDto[] = [];
+
+    for (const ss of subServices) {
+      const estimate = arrivalEstimates.get(ss.service_id) ?? null;
+      let usedFixDistance = ss.fix_distance;
+      let usedFixPrice = ss.fix_price;
+      let usedExtraPrice = ss.extra_price;
+
+      // Pricing resolution based on nearest vendor
+      if (estimate && estimate.vendor_id) {
+        // 1. Try to find vendor's own specific pricing
+        const vendorPricing = await this.prisma.vendor_pricing.findUnique({
+          where: {
+            vendor_id_sub_service_id: { vendor_id: estimate.vendor_id, sub_service_id: ss.id },
+          },
+        });
+
+        if (vendorPricing) {
+          usedFixDistance = vendorPricing.fix_distance;
+          usedFixPrice = vendorPricing.fix_price;
+          usedExtraPrice = vendorPricing.extra_price;
+        } else {
+          // 2. Fall back to location's ceiling pricing if vendor has no specific pricing
+          const vendor = await this.prisma.vendor.findUnique({
+            where: { id: estimate.vendor_id },
+            select: { location_id: true },
+          });
+
+          if (vendor?.location_id) {
+            const locationPricing = await this.prisma.location_pricing.findUnique({
+              where: {
+                location_id_sub_service_id: { location_id: vendor.location_id, sub_service_id: ss.id },
+              },
+            });
+
+            if (locationPricing) {
+              usedFixDistance = locationPricing.fix_distance;
+              usedFixPrice = locationPricing.fix_price;
+              usedExtraPrice = locationPricing.extra_price;
+            }
+          }
+        }
+      }
+
       const isThreeWay = ss.journey_type === 'ThreeWay';
+      
+      // Calculate breakdown -> dropoff distance
       const distanceMetres = isThreeWay ? 0 : actualDistanceMetres;
       const km = distanceMetres / 1000;
 
-      const extraKm = Math.max(0, km - ss.fix_distance);
-      const extraCharge = parseFloat((extraKm * ss.extra_price).toFixed(2));
-      const totalPrice = parseFloat((ss.fix_price + extraCharge).toFixed(2));
+      // Calculate driver start -> breakdown distance (pickup distance)
+      const pickupDistanceMetres = (isThreeWay || !estimate) ? 0 : estimate.distance.raw_value;
+      const pickupKm = pickupDistanceMetres / 1000;
+
+      // Calculate total billable distance
+      const totalKm = km + pickupKm;
+
+      const extraKm = Math.max(0, totalKm - usedFixDistance);
+      const extraCharge = parseFloat((extraKm * usedExtraPrice).toFixed(2));
+      const totalPrice = parseFloat((usedFixPrice + extraCharge).toFixed(2));
 
       // GST tax calculations
       const cgst = parseFloat((totalPrice * 0.09).toFixed(2));
@@ -166,16 +222,18 @@ export class LocationService {
       const otherTax = parseFloat((totalPrice * 0.00).toFixed(2));
       const grandTotal = parseFloat((totalPrice + cgst + sgst + otherTax).toFixed(2));
 
-      return {
+      pricedSubServices.push({
         id: ss.id,
         name: ss.name,
         ton: ss.ton,
-        base_distance_int: ss.fix_distance,
+        base_distance_int: usedFixDistance,
 
         // Human-readable formatted values
-        base_rate_string: `₹${ss.fix_price}`,
-        extra_distance_string: `₹${ss.extra_price}/km`,
+        base_rate_string: `₹${usedFixPrice}`,
+        extra_distance_string: `₹${usedExtraPrice}/km`,
         calculated_distance_string: `${km.toFixed(2)} km`,
+        pickup_distance_string: `${pickupKm.toFixed(2)} km`,
+        total_calculated_distance_string: `${totalKm.toFixed(2)} km`,
         extra_distance_rate_string: `₹${extraCharge}`,
         final_amount_string: `₹${totalPrice}`,
         cgst_string: `₹${cgst.toFixed(2)}`,
@@ -184,9 +242,11 @@ export class LocationService {
         grand_total_string: `₹${grandTotal.toFixed(2)}`,
 
         // Raw numeric values
-        base_rate_int: ss.fix_price,
-        extra_distance_int: ss.extra_price,
+        base_rate_int: usedFixPrice,
+        extra_distance_int: usedExtraPrice,
         calculated_distance_int: parseFloat(km.toFixed(2)),
+        pickup_distance_int: parseFloat(pickupKm.toFixed(2)),
+        total_calculated_distance_int: parseFloat(totalKm.toFixed(2)),
         extra_distance_rate_int: extraCharge,
         final_amount_int: totalPrice,
         cgst_rate_int: 9,
@@ -198,13 +258,15 @@ export class LocationService {
         grand_total_int: grandTotal,
 
         // Arrival estimate (time/distance from nearest provider)
-        arrival_estimate: arrivalEstimates.get(ss.service_id) ?? null,
+        arrival_estimate: estimate,
 
         // New fields mapped to DTO output
         image_url: ss.image_url,
         journey_type: ss.journey_type,
         conditions: ss.conditions || [],
-      };
-    });
+      });
+    }
+
+    return pricedSubServices;
   }
 }
