@@ -165,6 +165,7 @@ export class DispatchService {
           eta: result.travel_time,
           traffic_aware_eta: result.traffic_aware_duration ?? undefined,
           vendor_id: candidates[i].driver.vendor_id,
+          driver_id: candidates[i].driver.id,
         };
       }
     }

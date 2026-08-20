@@ -260,29 +260,16 @@ export class VendorService {
   ): Promise<VendorRegistrationResponseDto> {
     await this.validateDuplicateVendorAsync(dto.mobile_number, dto.email);
     
-    // Validate that the provided location is an active ServiceArea
-    const serviceLocation = await this._prismaService.location.findFirst({
-      where: { id: dto.location_id, category: LocationCategory.ServiceArea },
-      include: { location_pricings: true },
+    // Validate that the provided location exists (used as their physical office address)
+    const officeLocation = await this._prismaService.location.findUnique({
+      where: { id: dto.location_id },
     });
 
-    if (!serviceLocation) {
-      throw new BadRequestException(`Invalid location_id: ${dto.location_id} is not an active service area`);
+    if (!officeLocation) {
+      throw new BadRequestException(`Invalid location_id: ${dto.location_id} does not exist`);
     }
 
     const vendor = await this.createVendorRecord(dto);
-
-    // Auto-copy location price ceilings into the vendor's own pricing
-    if (serviceLocation.location_pricings.length > 0) {
-      await this._prismaService.vendor_pricing.createMany({
-        data: serviceLocation.location_pricings.map((p) => ({
-          vendor_id: vendor.id,
-          sub_service_id: p.sub_service_id,
-          fix_price: p.fix_price,      // Vendor starts at the area ceiling
-          extra_price: p.extra_price,
-        })),
-      });
-    }
 
     const vendorDetail = await this.getByIdAsync(vendor.id);
 

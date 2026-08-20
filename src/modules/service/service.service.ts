@@ -168,6 +168,16 @@ export class ServiceService {
   // #region Sub-Service CRUD
 
   /**
+   * Retrieves all sub-services across all services.
+   */
+  async findAllSubServicesAsync(): Promise<SubServiceDto[]> {
+    const subServices = await this._prisma.sub_service.findMany({
+      orderBy: { id: 'asc' },
+    });
+    return subServices;
+  }
+
+  /**
    * Creates a new sub-service for a given service.
    */
   async createSubServiceAsync(dto: CreateSubServiceDto, file?: Express.Multer.File): Promise<SubServiceDto> {

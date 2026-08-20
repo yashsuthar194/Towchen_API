@@ -140,6 +140,16 @@ export class DriverService {
     if (!dto.sub_service_id) {
       throw new BadRequestException('sub_service_id cannot be empty');
     }
+
+    if (dto.service_location_id) {
+      const location = await this._prismaService.location.findFirst({
+        where: { id: dto.service_location_id, category: 'ServiceArea' },
+      });
+      if (!location) {
+        throw new BadRequestException(`Invalid service_location_id: ${dto.service_location_id} is not an active service area`);
+      }
+    }
+
     driverData.password = await Hash.hashAsync(dto.password);
 
     // If Admin creates driver, require and use vendor_id from DTO
@@ -235,6 +245,15 @@ export class DriverService {
     if (location_spot !== undefined) {
       updateData.start_location_id = location_spot;
       updateData.end_location_id = location_spot;
+    }
+
+    if (restDto.service_location_id !== undefined) {
+      const location = await this._prismaService.location.findFirst({
+        where: { id: restDto.service_location_id, category: 'ServiceArea' },
+      });
+      if (!location) {
+        throw new BadRequestException(`Invalid service_location_id: ${restDto.service_location_id} is not an active service area`);
+      }
     }
 
     // Reset verification if email or mobile number changes

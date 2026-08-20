@@ -98,7 +98,7 @@ export class CreateVendorDto {
   @ApiProperty({ example: '27AAPFU0939F1ZV' })
   gst_number?: string;
 
-  /** ID of the service area location the vendor operates from */
+  /** ID of the location representing the vendor's physical office address */
   @IsNotEmpty()
   @Type(() => Number)
   @ApiProperty({ example: 1 })

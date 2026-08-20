@@ -28,6 +28,9 @@ export class ServiceArrivalEstimateDto {
 
   /** Internal use only: vendor ID of the provider giving this estimate. Used to look up vendor pricing. */
   vendor_id?: number;
+
+  /** Internal use only: driver ID of the provider giving this estimate. Used to look up their service area. */
+  driver_id?: number;
 }
 
 /**

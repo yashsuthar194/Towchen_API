@@ -122,12 +122,14 @@ model driver {
   driver_image_url        String?
   end_location_id         Int?
   start_location_id       Int?
+  service_location_id     Int?
   availability_status     AvailabilityStatus @default(Onboard_Pending)
   sub_service_id          Int?
   average_rating          Float              @default(0)
   total_reviews           Int                @default(0)
   startLocation           location?          @relation("DriverStartLocation", fields: [start_location_id], references: [id])
   endLocation             location?          @relation("DriverEndLocation", fields: [end_location_id], references: [id])
+  serviceLocation         location?          @relation("DriverServiceLocation", fields: [service_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
   vendor                  vendor             @relation(fields: [vendor_id], references: [id])
   orders                  order[]
@@ -136,6 +138,7 @@ model driver {
   @@index([vehicle_id])
   @@index([start_location_id])
   @@index([end_location_id])
+  @@index([service_location_id])
   @@index([email, is_deleted])
   @@index([mobile_number, is_deleted])
 }
@@ -229,13 +232,15 @@ model location {
   description  String?          // Used as the human-readable name for ServiceArea locations
   place_id     String
   category     LocationCategory @default(Driver)
-  created_at   DateTime         @default(now())
-  startDrivers driver[]         @relation("DriverStartLocation")
-  endDrivers   driver[]         @relation("DriverEndLocation")
+  created_at     DateTime         @default(now())
+  startDrivers   driver[]         @relation("DriverStartLocation")
+  endDrivers     driver[]         @relation("DriverEndLocation")
+  serviceDrivers driver[]         @relation("DriverServiceLocation")
 
   // Service area locations have pricing ceilings and linked vendors
   location_pricings location_pricing[]
   vendors           vendor[]
+  vendor_pricings   vendor_pricing[]
 
   @@index([city])
   @@index([state])
@@ -875,6 +880,7 @@ model location_pricing {
 model vendor_pricing {
   id             Int      @id @default(autoincrement())
   vendor_id      Int
+  location_id    Int
   sub_service_id Int
   fix_price      Float    @default(0)
   extra_price    Float    @default(0)
@@ -882,10 +888,12 @@ model vendor_pricing {
   updated_at     DateTime @default(now()) @updatedAt
 
   vendor      vendor      @relation(fields: [vendor_id], references: [id])
+  location    location    @relation(fields: [location_id], references: [id])
   sub_service sub_service @relation(fields: [sub_service_id], references: [id])
 
-  // One pricing row per vendor per sub-service
-  @@unique([vendor_id, sub_service_id])
+  // One pricing row per vendor per location per sub-service
+  @@unique([vendor_id, location_id, sub_service_id])
   @@index([vendor_id])
+  @@index([location_id])
   @@index([sub_service_id])
 }

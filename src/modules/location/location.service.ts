@@ -164,17 +164,18 @@ export class LocationService {
       let usedExtraPrice = ss.extra_price;
 
       // Pricing resolution based on nearest vendor
-      if (estimate && estimate.vendor_id) {
-        // 1. Fall back to location's ceiling pricing (provides fix_distance and default prices)
-        const vendor = await this.prisma.vendor.findUnique({
-          where: { id: estimate.vendor_id },
-          select: { location_id: true },
+      if (estimate && estimate.vendor_id && estimate.driver_id) {
+        // Find the driver to get their service_location_id
+        const driver = await this.prisma.driver.findUnique({
+          where: { id: estimate.driver_id },
+          select: { service_location_id: true },
         });
 
-        if (vendor?.location_id) {
+        if (driver?.service_location_id) {
+          // 1. Fall back to location's ceiling pricing (provides fix_distance and default prices)
           const locationPricing = await this.prisma.location_pricing.findUnique({
             where: {
-              location_id_sub_service_id: { location_id: vendor.location_id, sub_service_id: ss.id },
+              location_id_sub_service_id: { location_id: driver.service_location_id, sub_service_id: ss.id },
             },
           });
 
@@ -183,18 +184,22 @@ export class LocationService {
             usedFixPrice = locationPricing.fix_price;
             usedExtraPrice = locationPricing.extra_price;
           }
-        }
 
-        // 2. Override prices if the vendor has their own specific pricing configured
-        const vendorPricing = await this.prisma.vendor_pricing.findUnique({
-          where: {
-            vendor_id_sub_service_id: { vendor_id: estimate.vendor_id, sub_service_id: ss.id },
-          },
-        });
+          // 2. Override prices if the vendor has their own specific pricing configured for this location
+          const vendorPricing = await this.prisma.vendor_pricing.findUnique({
+            where: {
+              vendor_id_location_id_sub_service_id: { 
+                vendor_id: estimate.vendor_id, 
+                location_id: driver.service_location_id,
+                sub_service_id: ss.id 
+              },
+            },
+          });
 
-        if (vendorPricing) {
-          usedFixPrice = vendorPricing.fix_price;
-          usedExtraPrice = vendorPricing.extra_price;
+          if (vendorPricing) {
+            usedFixPrice = vendorPricing.fix_price;
+            usedExtraPrice = vendorPricing.extra_price;
+          }
         }
       }
 

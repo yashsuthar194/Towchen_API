@@ -23,6 +23,17 @@ import { VendorPricingDto, VendorPricingWithCeilingDto } from './dto/vendor-pric
 export class VendorPricingController {
   constructor(private readonly vendorPricingService: VendorPricingService) {}
 
+  @Get('pricing/locations')
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiOperation({
+    summary: 'Get all distinct ServiceArea locations assigned to your drivers',
+    description: 'Returns the distinct locations where your active drivers are assigned.',
+  })
+  async getMyLocations(): Promise<ResponseDto<any>> {
+    const locations = await this.vendorPricingService.getMyLocationsAsync();
+    return ResponseDto.retrieved('Driver locations retrieved', locations);
+  }
+
   @Get('pricing')
   @UseGuards(JwtAuthGuard, VendorGuard)
   @ApiOperation({

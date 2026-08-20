@@ -74,6 +74,14 @@ export class ServiceController {
 
   // #region Sub-Service Endpoints
 
+  @Get('sub-service/all')
+  @ApiOperation({ summary: 'Get all active sub-services across all services' })
+  @ApiResponseDto(SubServiceDto, true)
+  async getAllSubServices(): Promise<ResponseDto<SubServiceDto[]>> {
+    const subServices = await this._serviceService.findAllSubServicesAsync();
+    return ResponseDto.retrieved('All sub-services retrieved successfully', subServices);
+  }
+
   @Get(':id/sub-service')
   @ApiOperation({ summary: 'Get active sub-services for a specific service' })
   @ApiResponseDto(SubServiceDto, true)

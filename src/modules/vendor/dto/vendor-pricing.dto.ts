@@ -2,20 +2,23 @@ import { ApiProperty } from '@nestjs/swagger';
 
 /** Represents a single vendor pricing row returned to the vendor. */
 export class VendorPricingDto {
-  @ApiProperty({ example: 1 })
-  id: number;
+  @ApiProperty({ example: 1, nullable: true })
+  id: number | null;
+
+  @ApiProperty({ example: 1, description: 'ServiceArea location this pricing applies to' })
+  location_id: number;
 
   @ApiProperty({ example: 1, description: 'Sub-service this pricing applies to' })
   sub_service_id: number;
 
-  @ApiProperty({ example: 1800, description: 'Base price the vendor charges' })
-  fix_price: number;
+  @ApiProperty({ example: 1800, description: 'Base price the vendor charges', nullable: true })
+  fix_price: number | null;
 
-  @ApiProperty({ example: 22, description: 'Rate per extra km' })
-  extra_price: number;
+  @ApiProperty({ example: 22, description: 'Rate per extra km', nullable: true })
+  extra_price: number | null;
 
-  @ApiProperty()
-  updated_at: Date;
+  @ApiProperty({ nullable: true })
+  updated_at: Date | null;
 }
 
 /** Vendor pricing row enriched with the location ceiling for comparison. */

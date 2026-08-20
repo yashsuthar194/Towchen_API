@@ -12,6 +12,27 @@ export class VendorPricingService {
   ) {}
 
   /**
+   * Returns a distinct list of all ServiceArea locations assigned to the vendor's drivers.
+   */
+  async getMyLocationsAsync() {
+    const vendorId = this.callerService.getUserId();
+
+    const drivers = await this.prisma.driver.findMany({
+      where: { vendor_id: vendorId, is_deleted: false, service_location_id: { not: null } },
+      select: { serviceLocation: true },
+    });
+
+    const locationMap = new Map<number, any>();
+    for (const d of drivers) {
+      if (d.serviceLocation && !locationMap.has(d.serviceLocation.id)) {
+        locationMap.set(d.serviceLocation.id, d.serviceLocation);
+      }
+    }
+
+    return Array.from(locationMap.values());
+  }
+
+  /**
    * Returns all pricing rows for the currently authenticated vendor.
    * Each row is enriched with the location's ceiling values so the frontend
    * can show the vendor how much room they have to increase or decrease.
@@ -19,46 +40,53 @@ export class VendorPricingService {
   async getMyPricingAsync(): Promise<VendorPricingWithCeilingDto[]> {
     const vendorId = this.callerService.getUserId();
 
-    // Load vendor to get their linked location_id
-    const vendor = await this.prisma.vendor.findUnique({
-      where: { id: vendorId },
-      select: { id: true, location_id: true },
+    // 1. Find all distinct service_locations where the vendor has drivers
+    const drivers = await this.prisma.driver.findMany({
+      where: { vendor_id: vendorId, is_deleted: false, service_location_id: { not: null } },
+      select: { service_location_id: true },
     });
 
-    if (!vendor) throw new NotFoundException('Vendor not found');
+    const locationIds = Array.from(new Set(drivers.map((d) => d.service_location_id as number)));
 
-    // Load vendor's own pricing rows
+    // 2. Load vendor's own pricing rows for these locations
     const vendorPricings = await this.prisma.vendor_pricing.findMany({
-      where: { vendor_id: vendorId },
+      where: { vendor_id: vendorId, location_id: { in: locationIds } },
       orderBy: { sub_service_id: 'asc' },
     });
 
-    // Load location ceilings (if vendor has a location assigned)
-    const locationPricings =
-      vendor.location_id
-        ? await this.prisma.location_pricing.findMany({
-            where: { location_id: vendor.location_id },
-          })
-        : [];
+    // 3. Load location ceilings for these locations
+    const locationPricings = locationIds.length > 0
+      ? await this.prisma.location_pricing.findMany({
+          where: { location_id: { in: locationIds } },
+        })
+      : [];
 
-    // Build a quick lookup map: sub_service_id → ceiling
-    const ceilingMap = new Map(
-      locationPricings.map((lp) => [lp.sub_service_id, lp]),
+    // Build a lookup map of vendor's configured prices: `${location_id}_${sub_service_id}` → vendorPricing
+    const vendorPricingMap = new Map(
+      vendorPricings.map((vp) => [`${vp.location_id}_${vp.sub_service_id}`, vp]),
     );
 
-    // Merge vendor pricing with ceiling info for the response
-    return vendorPricings.map((vp) => {
-      const ceiling = ceilingMap.get(vp.sub_service_id);
-      return {
-        id: vp.id,
-        sub_service_id: vp.sub_service_id,
-        fix_price: vp.fix_price,
-        extra_price: vp.extra_price,
-        updated_at: vp.updated_at,
-        ceiling_fix_price: ceiling?.fix_price ?? null,
-        ceiling_extra_price: ceiling?.extra_price ?? null,
-      };
-    });
+    // Merge: Return a list of all pricing configs for every location/sub-service combo
+    // available to the vendor's drivers, showing what they have configured vs the ceiling.
+    const result: VendorPricingWithCeilingDto[] = [];
+    
+    for (const ceiling of locationPricings) {
+      const key = `${ceiling.location_id}_${ceiling.sub_service_id}`;
+      const vp = vendorPricingMap.get(key);
+      
+      result.push({
+        id: vp?.id ?? null,
+        location_id: ceiling.location_id,
+        sub_service_id: ceiling.sub_service_id,
+        fix_price: vp?.fix_price ?? null,     // null indicates falling back to ceiling
+        extra_price: vp?.extra_price ?? null, // null indicates falling back to ceiling
+        updated_at: vp?.updated_at ?? null,
+        ceiling_fix_price: ceiling.fix_price,
+        ceiling_extra_price: ceiling.extra_price,
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -74,51 +102,60 @@ export class VendorPricingService {
   ): Promise<VendorPricingDto> {
     const vendorId = this.callerService.getUserId();
 
-    // Load vendor with location_id to look up ceiling
-    const vendor = await this.prisma.vendor.findUnique({
-      where: { id: vendorId },
-      select: { id: true, location_id: true },
+    // Validate that the sub-service actually exists to prevent Prisma FK errors
+    const subService = await this.prisma.sub_service.findUnique({
+      where: { id: subServiceId },
     });
-    if (!vendor) throw new NotFoundException('Vendor not found');
+    
+    if (!subService) {
+      throw new BadRequestException(`Sub-service with ID ${subServiceId} does not exist`);
+    }
 
-    let ceiling;
+    // Check if the vendor actually has a driver operating in this location
+    const hasDriverInLocation = await this.prisma.driver.findFirst({
+      where: { vendor_id: vendorId, service_location_id: dto.location_id, is_deleted: false },
+    });
 
-    // Enforce ceiling: if the vendor's location has a configured ceiling, validate against it
-    if (vendor.location_id) {
-      ceiling = await this.prisma.location_pricing.findUnique({
-        where: {
-          location_id_sub_service_id: {
-            location_id: vendor.location_id,
-            sub_service_id: subServiceId,
-          },
+    if (!hasDriverInLocation) {
+      throw new BadRequestException('You cannot update pricing for a location where you have no active drivers');
+    }
+
+    // Enforce ceiling: validate against the location's configured ceiling
+    const ceiling = await this.prisma.location_pricing.findUnique({
+      where: {
+        location_id_sub_service_id: {
+          location_id: dto.location_id,
+          sub_service_id: subServiceId,
         },
-      });
+      },
+    });
 
-      if (ceiling) {
-        // Vendor cannot charge MORE than the location's configured maximum
-        if (dto.fix_price > ceiling.fix_price) {
-          throw new BadRequestException(
-            `fix_price ₹${dto.fix_price} exceeds the maximum allowed ₹${ceiling.fix_price} for your area`,
-          );
-        }
-        if (dto.extra_price > ceiling.extra_price) {
-          throw new BadRequestException(
-            `extra_price ₹${dto.extra_price} exceeds the maximum allowed ₹${ceiling.extra_price} for your area`,
-          );
-        }
+    if (ceiling) {
+      // Vendor cannot charge MORE than the location's configured maximum
+      if (dto.fix_price > ceiling.fix_price) {
+        throw new BadRequestException(
+          `fix_price ₹${dto.fix_price} exceeds the maximum allowed ₹${ceiling.fix_price} for this area`,
+        );
+      }
+      if (dto.extra_price > ceiling.extra_price) {
+        throw new BadRequestException(
+          `extra_price ₹${dto.extra_price} exceeds the maximum allowed ₹${ceiling.extra_price} for this area`,
+        );
       }
     }
 
-    // Upsert — creates the row if the vendor somehow has no pricing for this sub-service
+    // Upsert — creates the row if the vendor has no pricing for this location + sub-service
     const updated = await this.prisma.vendor_pricing.upsert({
       where: {
-        vendor_id_sub_service_id: {
+        vendor_id_location_id_sub_service_id: {
           vendor_id: vendorId,
+          location_id: dto.location_id,
           sub_service_id: subServiceId,
         },
       },
       create: {
         vendor_id: vendorId,
+        location_id: dto.location_id,
         sub_service_id: subServiceId,
         fix_price: dto.fix_price,
         extra_price: dto.extra_price,
@@ -132,6 +169,7 @@ export class VendorPricingService {
 
     return {
       id: updated.id,
+      location_id: updated.location_id,
       sub_service_id: updated.sub_service_id,
       fix_price: updated.fix_price,
       extra_price: updated.extra_price,
@@ -149,6 +187,7 @@ export class VendorPricingService {
     });
     return pricings.map((vp) => ({
       id: vp.id,
+      location_id: vp.location_id,
       sub_service_id: vp.sub_service_id,
       fix_price: vp.fix_price,
       extra_price: vp.extra_price,

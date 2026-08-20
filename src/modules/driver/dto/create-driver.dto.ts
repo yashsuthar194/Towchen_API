@@ -72,15 +72,22 @@ export class CreateDriverDto {
   @IsInt()
   location_spot?: number | null;
 
+  @ApiProperty({ description: 'ID of the Admin-configured Service Area the driver operates in' })
+  @IsNotEmpty()
+  @Type(() => Number)
+  @IsInt()
+  service_location_id: number;
+
 
   /**
    * Extracts driver-only data
    */
   static toDriverData(dto: CreateDriverDto) {
-    const { location_spot, sub_service_id, ...rest } = dto;
+    const { location_spot, sub_service_id, service_location_id, ...rest } = dto;
     return {
       ...rest,
       sub_service_id: Number(sub_service_id),
+      service_location_id: Number(service_location_id),
       ...(location_spot !== undefined ? { start_location_id: location_spot, end_location_id: location_spot } : {})
     };
   }
