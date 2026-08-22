@@ -53,11 +53,7 @@ model vendor {
   vendor_profile_image_url     String
   service_ids                  Int[]
 
-  // The admin-created service area location the vendor operates from.
-  // Determines which pricing ceiling applies to this vendor.
-  // Nullable to avoid breaking existing data — application layer enforces required on new registrations.
-  location_id                  Int?
-  location                     location?           @relation(fields: [location_id], references: [id])
+  vendor_location              vendor_location?
 
   bank_detail                  vendor_bank_detail?
   drivers                      driver[]
@@ -70,7 +66,25 @@ model vendor {
   @@index([id, formated_id])
   @@index([email, is_deleted])
   @@index([mobile_number, is_deleted])
-  @@index([location_id])
+}
+
+model vendor_location {
+  id           Int      @id @default(autoincrement())
+  vendor_id    Int      @unique
+  address      String?
+  street       String?
+  area         String?
+  city         String?
+  state        String?
+  pincode      String?
+  country      String?  @default("India")
+  latitude     Float
+  longitude    Float
+  landmark     String?
+  place_id     String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  vendor       vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
 }
 
 model vendor_bank_detail {
@@ -120,15 +134,11 @@ model driver {
   mobile_number           String             @db.VarChar(20)
   aadhar_card_url         String?
   driver_image_url        String?
-  end_location_id         Int?
-  start_location_id       Int?
   service_location_id     Int?
   availability_status     AvailabilityStatus @default(Onboard_Pending)
   sub_service_id          Int?
   average_rating          Float              @default(0)
   total_reviews           Int                @default(0)
-  startLocation           location?          @relation("DriverStartLocation", fields: [start_location_id], references: [id])
-  endLocation             location?          @relation("DriverEndLocation", fields: [end_location_id], references: [id])
   serviceLocation         location?          @relation("DriverServiceLocation", fields: [service_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
   vendor                  vendor             @relation(fields: [vendor_id], references: [id])
@@ -136,8 +146,6 @@ model driver {
 
   @@index([vendor_id])
   @@index([vehicle_id])
-  @@index([start_location_id])
-  @@index([end_location_id])
   @@index([service_location_id])
   @@index([email, is_deleted])
   @@index([mobile_number, is_deleted])
@@ -233,13 +241,8 @@ model location {
   place_id     String
   category     LocationCategory @default(Driver)
   created_at     DateTime         @default(now())
-  startDrivers   driver[]         @relation("DriverStartLocation")
-  endDrivers     driver[]         @relation("DriverEndLocation")
   serviceDrivers driver[]         @relation("DriverServiceLocation")
-
-  // Service area locations have pricing ceilings and linked vendors
   location_pricings location_pricing[]
-  vendors           vendor[]
   vendor_pricings   vendor_pricing[]
 
   @@index([city])

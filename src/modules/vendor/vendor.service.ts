@@ -11,6 +11,8 @@ import { VendorAgreementDto } from './dto/vendor-agreement.dto';
 import { Hash } from 'src/shared/helper/hash';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { JwtService } from 'src/services/jwt/jwt.service';
+import { UpsertVendorAddressDto } from './dto/upsert-vendor-address.dto';
+import { LocationService } from '../location/location.service';
 import { SignatureType, Role, OrderStatus, DispatchRoundStatus, ReviewUserType, LocationCategory } from '@prisma/client';
 
 /**
@@ -42,6 +44,7 @@ export class VendorService {
     private readonly _storageService: StorageService,
     private readonly _callerService: CallerService,
     private readonly _jwtService: JwtService,
+    private readonly _locationService: LocationService,
   ) { }
 
   //#region Get
@@ -98,6 +101,7 @@ export class VendorService {
           where: { id, is_deleted: false },
           include: {
             bank_detail: true,
+            vendor_location: true,
             services: { include: { sub_services: true } },
           },
         }),
@@ -260,14 +264,7 @@ export class VendorService {
   ): Promise<VendorRegistrationResponseDto> {
     await this.validateDuplicateVendorAsync(dto.mobile_number, dto.email);
     
-    // Validate that the provided location exists (used as their physical office address)
-    const officeLocation = await this._prismaService.location.findUnique({
-      where: { id: dto.location_id },
-    });
 
-    if (!officeLocation) {
-      throw new BadRequestException(`Invalid location_id: ${dto.location_id} does not exist`);
-    }
 
     const vendor = await this.createVendorRecord(dto);
 
@@ -326,7 +323,6 @@ export class VendorService {
         representative_name: '',
         representative_designation: '',
         signature_type: SignatureType.Upload,
-        location_id: dto.location_id,
         services: {
           connect: dto.service_ids.map((id) => ({ id })),
         },
@@ -596,6 +592,44 @@ export class VendorService {
     });
   }
   //#endregion
+
+  /**
+   * Upserts the vendor's physical office address by resolving a Google place_id.
+   */
+  async upsertAddressAsync(vendorId: number, dto: UpsertVendorAddressDto): Promise<void> {
+    const resolvedAddress = await this._locationService.resolveAddressAsync({ place_id: dto.place_id });
+
+    await this._prismaService.vendor_location.upsert({
+      where: { vendor_id: vendorId },
+      update: {
+        address: resolvedAddress.address,
+        street: resolvedAddress.street,
+        area: resolvedAddress.area,
+        city: resolvedAddress.city,
+        state: resolvedAddress.state,
+        pincode: resolvedAddress.pincode,
+        country: resolvedAddress.country,
+        latitude: resolvedAddress.latitude,
+        longitude: resolvedAddress.longitude,
+        place_id: resolvedAddress.place_id,
+        landmark: dto.landmark,
+      },
+      create: {
+        vendor_id: vendorId,
+        address: resolvedAddress.address,
+        street: resolvedAddress.street,
+        area: resolvedAddress.area,
+        city: resolvedAddress.city,
+        state: resolvedAddress.state,
+        pincode: resolvedAddress.pincode,
+        country: resolvedAddress.country,
+        latitude: resolvedAddress.latitude,
+        longitude: resolvedAddress.longitude,
+        place_id: resolvedAddress.place_id,
+        landmark: dto.landmark,
+      },
+    });
+  }
 
   //#region Private Function
   /**

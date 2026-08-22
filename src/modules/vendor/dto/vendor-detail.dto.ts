@@ -70,6 +70,47 @@ export class VendorVehicleSummaryDto {
 }
 
 /**
+ * Vendor physical office address.
+ */
+export class VendorLocationDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: '123 Main St' })
+  address: string;
+
+  @ApiProperty({ example: 'Main St', nullable: true })
+  street: string | null;
+
+  @ApiProperty({ example: 'Downtown', nullable: true })
+  area: string | null;
+
+  @ApiProperty({ example: 'Mumbai', nullable: true })
+  city: string | null;
+
+  @ApiProperty({ example: 'Maharashtra', nullable: true })
+  state: string | null;
+
+  @ApiProperty({ example: '400001', nullable: true })
+  pincode: string | null;
+
+  @ApiProperty({ example: 'India', nullable: true })
+  country: string | null;
+
+  @ApiProperty({ example: 19.0760 })
+  latitude: number;
+
+  @ApiProperty({ example: 72.8777 })
+  longitude: number;
+
+  @ApiProperty({ example: 'Near Central Station', nullable: true })
+  landmark: string | null;
+
+  @ApiProperty({ example: 'ChIJN1t_tDeuEmsRUsoyG83frY4', nullable: true })
+  place_id: string | null;
+}
+
+/**
  * Response DTO for vendor detail endpoints.
  *
  * Extends the base profile with aggregated stats:
@@ -114,6 +155,9 @@ export class VendorDetailDto {
   approved_by: number | null;
   created_at: Date;
   updated_at: Date;
+
+  @ApiProperty({ type: () => VendorLocationDto, nullable: true })
+  vendor_location: VendorLocationDto | null;
 
   @ApiProperty({
     type: ServiceDto,

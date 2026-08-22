@@ -3,15 +3,11 @@ import {
   IsEmail,
   IsNotEmpty,
   IsOptional,
-  IsBoolean,
   IsInt,
   Matches,
   MinLength,
-  IsEnum,
-  IsArray,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { driver } from '@prisma/client';
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 
 export class CreateDriverDto {
@@ -66,11 +62,6 @@ export class CreateDriverDto {
   @IsInt()
   vendor_id?: number;
 
-  @ApiPropertyOptional({ description: 'ID of the driver location (used for both start and end locations)' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  location_spot?: number | null;
 
   @ApiProperty({ description: 'ID of the Admin-configured Service Area the driver operates in' })
   @IsNotEmpty()
@@ -78,17 +69,15 @@ export class CreateDriverDto {
   @IsInt()
   service_location_id: number;
 
-
   /**
    * Extracts driver-only data
    */
   static toDriverData(dto: CreateDriverDto) {
-    const { location_spot, sub_service_id, service_location_id, ...rest } = dto;
+    const { sub_service_id, service_location_id, ...rest } = dto;
     return {
       ...rest,
       sub_service_id: Number(sub_service_id),
       service_location_id: Number(service_location_id),
-      ...(location_spot !== undefined ? { start_location_id: location_spot, end_location_id: location_spot } : {})
     };
   }
 }

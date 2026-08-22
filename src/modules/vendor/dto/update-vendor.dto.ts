@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -60,6 +60,7 @@ export class UpdateVendorDto {
     example: [1, 2],
   })
   service_ids: number[];
+
 
   @IsNotEmpty()
   @IsString()

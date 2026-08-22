@@ -98,11 +98,6 @@ export class CreateVendorDto {
   @ApiProperty({ example: '27AAPFU0939F1ZV' })
   gst_number?: string;
 
-  /** ID of the location representing the vendor's physical office address */
-  @IsNotEmpty()
-  @Type(() => Number)
-  @ApiProperty({ example: 1 })
-  location_id: number;
 
   // ── Bank detail fields (flattened for JSON compatibility) ──
 
@@ -157,12 +152,10 @@ export class CreateVendorDto {
       branch_name,
       account_holder_name,
       service_ids,
-      location_id,
       ...vendorData
     } = dto;
     return {
       ...vendorData,
-      location_id: Number(location_id),
       service_ids: service_ids.map((id) => Number(id)),
       gst_number: dto.gst_number ?? null,
       is_gst_vendor: !!dto.gst_number,

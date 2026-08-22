@@ -316,8 +316,6 @@ export class OrderService {
       where: { id: driverId },
       include: {
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
 
@@ -343,58 +341,8 @@ export class OrderService {
           },
         });
 
-        // 2. Link Driver Locations (Start and End)
-        const orderLocations: any[] = [];
-
-        if (driver.startLocation) {
-          orderLocations.push({
-            order_id: id,
-            type: LocationType.Start,
-            address: driver.startLocation.address,
-            street: driver.startLocation.street,
-            area: driver.startLocation.area,
-            city: driver.startLocation.city,
-            state: driver.startLocation.state,
-            pincode: driver.startLocation.pincode,
-            country: driver.startLocation.country,
-            latitude: driver.startLocation.latitude,
-            longitude: driver.startLocation.longitude,
-            landmark: driver.startLocation.landmark,
-            place_id: driver.startLocation.place_id,
-          });
-        }
-
-        if (driver.endLocation) {
-          orderLocations.push({
-            order_id: id,
-            type: LocationType.End,
-            address: driver.endLocation.address,
-            street: driver.endLocation.street,
-            area: driver.endLocation.area,
-            city: driver.endLocation.city,
-            state: driver.endLocation.state,
-            pincode: driver.endLocation.pincode,
-            country: driver.endLocation.country,
-            latitude: driver.endLocation.latitude,
-            longitude: driver.endLocation.longitude,
-            landmark: driver.endLocation.landmark,
-            place_id: driver.endLocation.place_id,
-          });
-        }
-
-        if (orderLocations.length > 0) {
-          // Clean up any existing Start/End locations for this order just in case
-          await tx.order_location.deleteMany({
-            where: {
-              order_id: id,
-              type: { in: [LocationType.Start, LocationType.End] },
-            },
-          });
-
-          await tx.order_location.createMany({
-            data: orderLocations,
-          });
-        }
+        // Start/End locations are no longer copied from the driver static profile.
+        // The app will provide live tracking locations if needed.
       });
 
       // 4. Dispatch cleanup — mark this vendor's round Accepted and cancel

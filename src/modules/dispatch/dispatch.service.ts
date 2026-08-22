@@ -61,14 +61,12 @@ export class DispatchService {
         vendor: {
           service_ids: { has: serviceId },
         },
-        startLocation: {
-          is: {
-            category: LocationCategory.Driver,
-          },
+        serviceLocation: {
+          isNot: null,
         },
       },
       include: {
-        startLocation: true,
+        serviceLocation: true,
       },
     });
   }
@@ -85,19 +83,17 @@ export class DispatchService {
         vendor: {
           service_ids: { hasSome: serviceIds },
         },
-        startLocation: {
-          is: {
-            category: LocationCategory.Driver,
-          },
+        serviceLocation: {
+          isNot: null,
         },
       },
       include: {
-        startLocation: true,
+        serviceLocation: true,
         vendor: { select: { service_ids: true } },
       },
     });
 
-    const driversByService = new Map<number, (driver & { startLocation: location | null })[]>();
+    const driversByService = new Map<number, (driver & { serviceLocation: location | null })[]>();
 
     for (const driver of drivers) {
       for (const serviceId of driver.vendor.service_ids) {
@@ -117,31 +113,36 @@ export class DispatchService {
    * Phase 2: Google Distance Matrix (accurate, road-aware)
    */
   async calculateArrivalEstimateForDrivers(
-    drivers: (driver & { startLocation: location | null })[],
+    drivers: (driver & { serviceLocation: location | null })[],
     destLat: number,
     destLng: number,
   ): Promise<ServiceArrivalEstimateDto | null> {
     // Phase 1: Pre-filter using straight-line distance
     const candidates = drivers
-      .filter((d) => d.startLocation)
+      .filter((d) => d.serviceLocation)
       .map((d) => ({
         driver: d,
         linearDistance: Utility.calculateHaversineDistanceKm(
-          d.startLocation!.latitude,
-          d.startLocation!.longitude,
+          d.serviceLocation!.latitude,
+          d.serviceLocation!.longitude,
           destLat,
           destLng,
         ),
       }))
-      .sort((a, b) => a.linearDistance - b.linearDistance)
+      .sort((a, b) => {
+        const diff = a.linearDistance - b.linearDistance;
+        if (diff !== 0) return diff;
+        // Tie-breaker: Highest average rating first
+        return (b.driver.average_rating || 0) - (a.driver.average_rating || 0);
+      })
       .slice(0, PROXIMITY_PRE_FILTER_LIMIT);
 
     if (candidates.length === 0) return null;
 
     // Phase 2: Batch road distance/time lookup
     const origins = candidates.map((c) => ({
-      lat: c.driver.startLocation!.latitude,
-      lng: c.driver.startLocation!.longitude,
+      lat: c.driver.serviceLocation!.latitude,
+      lng: c.driver.serviceLocation!.longitude,
     }));
 
     const matrixResults = await this.mapsService.getDistanceMatrixByCoordinatesAsync(
@@ -200,21 +201,22 @@ export class DispatchService {
     breakdownLng: number,
     subServiceId: number,
   ): Promise<VendorRankEntry[]> {
-    // 1. Fetch all eligible Available drivers with a registered start_location
+    // 1. Fetch all eligible Available drivers with a registered service_location
     const drivers = await this.prisma.driver.findMany({
       where: {
         is_deleted: false,
         sub_service_id: subServiceId,
         status: DriverStatus.Available,
         availability_status: AvailabilityStatus.Available,
-        startLocation: {
-          is: { category: LocationCategory.Driver },
+        serviceLocation: {
+          isNot: null,
         },
       },
       select: {
         id: true,
         vendor_id: true,
-        startLocation: {
+        average_rating: true,
+        serviceLocation: {
           select: { latitude: true, longitude: true },
         },
       },
@@ -224,35 +226,43 @@ export class DispatchService {
 
     // 2. Calculate Haversine distance for every driver
     const withDistance = drivers
-      .filter((d) => d.startLocation !== null)
+      .filter((d) => d.serviceLocation !== null)
       .map((d) => ({
+        driver: d,
         driverId: d.id,
         vendorId: d.vendor_id,
         distanceKm: Utility.calculateHaversineDistanceKm(
-          d.startLocation!.latitude,
-          d.startLocation!.longitude,
+          d.serviceLocation!.latitude,
+          d.serviceLocation!.longitude,
           breakdownLat,
           breakdownLng,
         ),
       }));
 
-    // 3. Group by vendor — keep only the minimum-distance driver per vendor
-    const vendorMap = new Map<number, VendorRankEntry>();
+    // 3. Group by vendor — keep only the minimum-distance driver per vendor (tie-break by rating)
+    const vendorMap = new Map<number, VendorRankEntry & { rating: number }>();
 
     for (const entry of withDistance) {
       const existing = vendorMap.get(entry.vendorId);
-      if (!existing || entry.distanceKm < existing.distanceKm) {
+      const isBetter = !existing || 
+        entry.distanceKm < existing.distanceKm || 
+        (entry.distanceKm === existing.distanceKm && (entry.driver.average_rating || 0) > existing.rating);
+        
+      if (isBetter) {
         vendorMap.set(entry.vendorId, {
           vendorId: entry.vendorId,
           closestDriverId: entry.driverId,
           distanceKm: entry.distanceKm,
+          rating: entry.driver.average_rating || 0,
         });
       }
     }
 
-    // 4. Sort ascending — closest vendor first
-    return Array.from(vendorMap.values()).sort(
-      (a, b) => a.distanceKm - b.distanceKm,
-    );
+    // 4. Sort ascending — closest vendor first, then tie-break by rating
+    return Array.from(vendorMap.values()).sort((a, b) => {
+      const diff = a.distanceKm - b.distanceKm;
+      if (diff !== 0) return diff;
+      return b.rating - a.rating;
+    });
   }
 }

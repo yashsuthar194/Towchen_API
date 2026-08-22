@@ -100,8 +100,6 @@ export class DriverService {
       },
       include: {
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
     if (!driver) {
@@ -177,8 +175,6 @@ export class DriverService {
       },
       include: {
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
 
@@ -209,8 +205,6 @@ export class DriverService {
           },
         },
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
 
@@ -239,13 +233,8 @@ export class DriverService {
       throw new NotFoundException(`Driver not found`);
     }
 
-    const { location_spot, ...restDto } = dto;
+    const { ...restDto } = dto;
     const updateData: any = { ...restDto };
-
-    if (location_spot !== undefined) {
-      updateData.start_location_id = location_spot;
-      updateData.end_location_id = location_spot;
-    }
 
     if (restDto.service_location_id !== undefined) {
       const location = await this._prismaService.location.findFirst({
@@ -279,8 +268,6 @@ export class DriverService {
           },
         },
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
 
@@ -339,8 +326,6 @@ export class DriverService {
       },
       include: {
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
 
@@ -382,8 +367,6 @@ export class DriverService {
         data: { vehicle_id: null },
         include: {
           vehicle: true,
-          startLocation: true,
-          endLocation: true,
         },
       });
 
@@ -406,8 +389,6 @@ export class DriverService {
       data: { vehicle_id: vehicle_id },
       include: {
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
 
@@ -433,8 +414,6 @@ export class DriverService {
       data: { status: DriverStatus.Banned },
       include: {
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
 
@@ -554,8 +533,7 @@ export class DriverService {
       }
     }
 
-    if (!driver.start_location_id) errors.push('Start location is required');
-    if (!driver.end_location_id) errors.push('End location is required');
+
 
     // Required Service
     const driverWithService = await this._prismaService.driver.findUnique({
@@ -580,8 +558,6 @@ export class DriverService {
       data: { status: DriverStatus.UnderApproval },
       include: {
         vehicle: true,
-        startLocation: true,
-        endLocation: true,
       },
     });
 
@@ -785,16 +761,13 @@ export class DriverService {
 
   /**
    * Maps a driver database record to DriverDetailDto,
-   * Transforming startLocation to location_spot and removing sensitive fields.
+   * mapping logic.
    * @private
    */
   private _mapToDetailDto(driver: any, allSubServices: any[] = []): DriverDetailDto {
     const {
       password,
-      startLocation,
-      endLocation,
-      start_location_id,
-      end_location_id,
+      service_location_id,
       ...rest
     } = driver;
  
@@ -830,7 +803,7 @@ export class DriverService {
       total_reviews: totReviews,
       total_stars: Math.round(avgRating * totReviews),
       vehicle: mappedVehicle,
-      location_spot: startLocation ? { ...startLocation, address: Utility.formatAddress(startLocation) } : undefined,
+
       is_documents_uploaded,
       sub_service: subService ? subService.name : null,
     } as unknown as DriverDetailDto;

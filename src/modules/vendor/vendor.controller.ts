@@ -22,6 +22,7 @@ import { UpdateVendorDto } from './dto/update-vendor.dto';
 import { VendorAgreementDto } from './dto/vendor-agreement.dto';
 import { VendorRegistrationResponseDto } from './dto/vendor-registration-response.dto';
 import { UploadVendorDocumentDto } from './dto/upload-vendor-document.dto';
+import { UpsertVendorAddressDto } from './dto/upsert-vendor-address.dto';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import {
   ApiResponseDto,
@@ -103,6 +104,21 @@ export class VendorController {
     const vendorId = this._callerService.getUserId();
     const vendor = await this._vendorService.updateAsync(dto, vendorId);
     return ResponseDto.updated('Vendor profile updated successfully', vendor);
+  }
+
+  /**
+   * Update current vendor's physical office address (resolved via Google Maps)
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Put('address')
+  @ApiResponseDtoNull(200)
+  async updateVendorAddress(
+    @Body() dto: UpsertVendorAddressDto,
+  ): Promise<ResponseDto<null>> {
+    const vendorId = this._callerService.getUserId();
+    await this._vendorService.upsertAddressAsync(vendorId, dto);
+    return ResponseDto.updated('Vendor address updated successfully', null);
   }
 
   /**
