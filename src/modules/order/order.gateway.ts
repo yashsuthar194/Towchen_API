@@ -17,11 +17,37 @@ export interface NewOrderPayload {
   formatedId: string;
   serviceName: string;
   subServiceName: string;
+
+  vehicleImages: string[];
+  vehicleMake: string;
+  vehicleModel: string;
+
+  totalAmount: number;
+  paymentStatus: string;
+
+  customerName: string;
+  customerRatings: number;
+
+  totalKm: number;
+
   breakdown: {
     address: string;
     latitude: number;
     longitude: number;
   };
+
+  dropoff?: {
+    address: string;
+    latitude: number;
+    longitude: number;
+  };
+
+  conditions: {
+    id: number;
+    condition: string;
+    status: string;
+  }[];
+
   /** ISO 8601 timestamp — mobile app uses this to show a 2-min countdown */
   expiresAt: string;
 }

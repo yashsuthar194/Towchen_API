@@ -125,14 +125,16 @@ export class OrderDispatchService {
       },
     });
 
-    // 2. Load order + breakdown location for the WebSocket payload
+    // 2. Load order + necessary relations for the WebSocket payload
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
       include: {
         service: true,
         sub_service: true,
+        customer: true,
+        customer_vehicle: true,
         locations: {
-          where: { type: LocationType.Breakdown },
+          where: { type: { in: [LocationType.Breakdown, LocationType.Drop] } },
         },
       },
     });
@@ -142,11 +144,18 @@ export class OrderDispatchService {
       return;
     }
 
-    const breakdown = order.locations[0];
+    const breakdown = order.locations.find((l) => l.type === LocationType.Breakdown);
+    const dropoff = order.locations.find((l) => l.type === LocationType.Drop);
+
     if (!breakdown) {
       this.logger.warn(`Order ${orderId}: no Breakdown location found`);
       return;
     }
+
+    const metaData = order.meta_data as any;
+    const subServiceMeta = metaData?.sub_service || {};
+    const conditions = Array.isArray(subServiceMeta.conditions) ? subServiceMeta.conditions : [];
+    const totalKm = subServiceMeta.calculated_distance_int || 0;
 
     // 3. Build payload and emit WebSocket notification to the vendor's drivers
     const payload: NewOrderPayload = {
@@ -154,11 +163,39 @@ export class OrderDispatchService {
       formatedId: order.formated_id,
       serviceName: order.service.name,
       subServiceName: order.sub_service?.name ?? '',
+
+      vehicleImages: order.pre_booked_images || [],
+      vehicleMake: order.customer_vehicle?.make ?? 'Unknown',
+      vehicleModel: order.customer_vehicle?.model ?? 'Unknown',
+
+      totalAmount: order.final_amount ?? 0,
+      paymentStatus: 'Unpaid',
+
+      customerName: order.customer?.full_name ?? 'Unknown',
+      customerRatings: order.customer?.average_rating ?? 0,
+
+      totalKm: totalKm,
+
       breakdown: {
         address: breakdown.address ?? '',
         latitude: breakdown.latitude ?? 0,
         longitude: breakdown.longitude ?? 0,
       },
+
+      ...(dropoff && {
+        dropoff: {
+          address: dropoff.address ?? '',
+          latitude: dropoff.latitude ?? 0,
+          longitude: dropoff.longitude ?? 0,
+        },
+      }),
+
+      conditions: conditions.map((c: any) => ({
+        id: c.id,
+        condition: c.condition,
+        status: c.status,
+      })),
+
       expiresAt: expiresAt.toISOString(),
     };
 
