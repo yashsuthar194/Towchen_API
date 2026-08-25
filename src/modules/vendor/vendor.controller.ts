@@ -12,7 +12,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { VendorService } from './vendor.service';
 import { VendorListDto } from './dto/vendor-list.dto';
 import { VendorDetailDto } from './dto/vendor-detail.dto';
@@ -423,6 +423,26 @@ export class VendorController {
   ): Promise<ResponseDto<VendorDetailDto>> {
     const vendor = await this._vendorService.updateAsync(dto, id);
     return ResponseDto.updated('Vendor updated successfully', vendor);
+  }
+
+  /**
+   * Approves a vendor.
+   *
+   * @param id - The vendor's unique numeric ID
+   * @returns The updated vendor profile
+   * @throws {NotFoundException} If no vendor with the given ID exists
+   * @throws {BadRequestException} If vendor is already approved
+   */
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiBearerAuth('JWT-auth')
+  @Put(':id/approve')
+  @ApiResponseDto(VendorDetailDto, false, 200)
+  async approveAsync(
+    @Param('id') id: number,
+  ): Promise<ResponseDto<VendorDetailDto>> {
+    const adminId = this._callerService.getUserId();
+    const vendor = await this._vendorService.approveAsync(id, adminId);
+    return ResponseDto.updated('Vendor approved successfully', vendor);
   }
 
   /**

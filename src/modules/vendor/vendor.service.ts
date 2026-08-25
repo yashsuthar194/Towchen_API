@@ -460,6 +460,41 @@ export class VendorService {
   }
   //#endregion
 
+  //#region Approve
+  /**
+   * Approves a vendor by updating their status to 'Approved' and recording the approver's ID.
+   *
+   * @param id - The vendor's unique numeric ID
+   * @param adminId - The admin ID who approved the vendor
+   * @returns The updated vendor profile
+   * @throws {NotFoundException} If no vendor with the given ID exists
+   * @throws {BadRequestException} If vendor is already approved
+   */
+  async approveAsync(id: number, adminId: number): Promise<VendorDetailDto> {
+    const vendor = await this._prismaService.vendor.findUnique({
+      where: { id },
+    });
+
+    if (!vendor || vendor.is_deleted) {
+      throw new NotFoundException(`Vendor with ID ${id} not found`);
+    }
+
+    if (vendor.status === 'Approved') {
+      throw new BadRequestException('Vendor is already approved');
+    }
+
+    await this._prismaService.vendor.update({
+      where: { id },
+      data: {
+        status: 'Approved',
+        approved_by: adminId,
+      },
+    });
+
+    return this.getByIdAsync(id);
+  }
+  //#endregion
+
   //#region Delete
   /**
    * Soft-deletes a vendor by setting `is_deleted = true`.
