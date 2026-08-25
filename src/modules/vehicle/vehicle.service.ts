@@ -28,10 +28,9 @@ export class VehicleService {
    * @returns Paginated object containing total_count and list of vehicles
    */
   async getListAsync(status?: VehicleStatus): Promise<PaginatedListDto<VehicleListDto>> {
-    const vendorId = this._callerService.getUserId();
     const where = {
       is_deleted: false,
-      vendor_id: vendorId,
+      ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
       ...(status ? { status } : {}),
     };
 
@@ -63,7 +62,7 @@ export class VehicleService {
       this._prismaService.vehicle.count({ where }),
     ]);
 
-    if (vehicles.length === 0) {
+    if (vehicles.length === 0 && this._callerService.isVendor()) {
       throw new NotFoundException('No vehicles found');
     }
 
@@ -77,11 +76,10 @@ export class VehicleService {
    * @returns Array of available vehicles
    */
   async getAvailableListAsync(): Promise<VehicleListDto[]> {
-    const vendorId = this._callerService.getUserId();
     const vehicles = await this._prismaService.vehicle.findMany({
       where: {
         is_deleted: false,
-        vendor_id: vendorId,
+        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
         status: 'Available',
         drivers: {
           none: {},
@@ -110,7 +108,7 @@ export class VehicleService {
       },
     });
 
-    if (vehicles.length === 0) {
+    if (vehicles.length === 0 && this._callerService.isVendor()) {
       throw new NotFoundException('No vehicles are available');
     }
 
@@ -125,10 +123,11 @@ export class VehicleService {
    * @throws NotFoundException if vehicle not found
    */
   async getByIdAsync(id: number): Promise<VehicleDetailDto> {
-    const vehicle = await this._prismaService.vehicle.findUnique({
+    const vehicle = await this._prismaService.vehicle.findFirst({
       where: {
         id,
         is_deleted: false,
+        ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
       },
       include: {
         drivers: {
@@ -420,6 +419,29 @@ export class VehicleService {
     const updatedVehicle = await this._prismaService.vehicle.update({
       where: { id },
       data: { status: 'Banned', availability_status: 'Unavailable' },
+    });
+
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDto<VehicleDetailDto>(updatedVehicle, allSubServices);
+  }
+
+  /**
+   * Approves a vehicle (Admin use).
+   * Sets the status to Available and records the admin who approved.
+   * 
+   * @param id - Vehicle ID
+   * @param adminId - Admin ID
+   * @returns Updated vehicle details
+   */
+  async approveVehicleAsync(id: number, adminId: number): Promise<VehicleDetailDto> {
+    await this.getByIdAsync(id);
+
+    const updatedVehicle = await this._prismaService.vehicle.update({
+      where: { id },
+      data: {
+        status: VehicleStatus.Available,
+        approved_by: adminId,
+      },
     });
 
     const allSubServices = await this._prismaService.sub_service.findMany() || [];

@@ -421,6 +421,32 @@ export class DriverService {
     return this._mapToDetailDto(result, allSubServices);
   }
 
+  /**
+   * Approves a driver (Admin use).
+   * Sets the status to Available and records the admin who approved.
+   * 
+   * @param id - Driver ID
+   * @param adminId - Admin ID
+   * @returns Updated driver details
+   */
+  async approveDriverAsync(id: number, adminId: number): Promise<DriverDetailDto> {
+    await this.getByIdAsync(id);
+
+    const result = await this._prismaService.driver.update({
+      where: { id },
+      data: {
+        status: DriverStatus.Available,
+        approved_by: adminId,
+      },
+      include: {
+        vehicle: true,
+      },
+    });
+
+    const allSubServices = await this._prismaService.sub_service.findMany() || [];
+    return this._mapToDetailDto(result, allSubServices);
+  }
+
   // #region Delete
   /**
    * Soft deletes a driver by setting is_deleted to true

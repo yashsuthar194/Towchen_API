@@ -30,6 +30,8 @@ import {
 import { DriverStatus } from '@prisma/client';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
+import { AdminOrVendorGuard } from 'src/services/jwt/guards/admin-or-vendor.guard';
+import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { DriverDetailDto } from './dto/driver-detail.dto';
 import { DriverListDto, DriverPaginatedListDto } from './dto/driver-list.dto';
@@ -65,10 +67,10 @@ export class DriverController {
   }
 
   /**
-   * Get all drivers belonging to the vendor
+   * Get all drivers belonging to the vendor (Admin gets all drivers)
    * @param active_tab Optional status filter
    */
-  @UseGuards(VendorGuard)
+  @UseGuards(AdminOrVendorGuard)
   @Get()
   @ApiResponseDto(DriverPaginatedListDto)
   @ApiQuery({ name: 'active_tab', enum: DriverStatus, required: false })
@@ -153,6 +155,24 @@ export class DriverController {
   ): Promise<ResponseDto<DriverDetailDto>> {
     const result = await this._driverService.submitForApprovalAsync(id);
     return ResponseDto.updated('Driver submitted for approval successfully', result);
+  }
+
+  /**
+   * Approve a driver (Admin Access).
+   * Changes status to Available.
+   *
+   * @param id - Driver ID
+   */
+  @UseGuards(AdminGuard)
+  @Put(':id/approve')
+  @ApiResponseDto(DriverDetailDto)
+  @ApiOperation({ summary: 'Approve a driver' })
+  async approve(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ResponseDto<DriverDetailDto>> {
+    const adminId = this._callerService.getUserId();
+    const result = await this._driverService.approveDriverAsync(id, adminId);
+    return ResponseDto.updated('Driver approved successfully', result);
   }
 
   /**

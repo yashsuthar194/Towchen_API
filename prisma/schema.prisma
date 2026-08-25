@@ -124,6 +124,7 @@ model driver {
   created_at              DateTime           @default(now())
   is_deleted              Boolean            @default(false)
   is_deleted_by           Int?
+  approved_by             Int?
   status                  DriverStatus       @default(Banned)
   updated_at              DateTime           @updatedAt
   formated_id             String             @unique
@@ -173,6 +174,7 @@ model vehicle {
   fitness_image_url   String?
   puc_image_url       String?
   is_deleted          Boolean            @default(false)
+  approved_by         Int?
   created_at          DateTime           @default(now())
   updated_at          DateTime           @default(now()) @updatedAt
   vehicle_class       String?            @db.VarChar(255)

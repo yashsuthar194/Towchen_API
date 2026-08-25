@@ -27,6 +27,9 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
+import { AdminOrVendorGuard } from 'src/services/jwt/guards/admin-or-vendor.guard';
+import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
+import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleDetailDto } from './dto/vehicle-detail.dto';
 import { VehicleListDto, VehiclePaginatedListDto } from './dto/vehicle-list.dto';
 import { UploadVehicleFilesDto } from './dto/upload-vehicle-files.dto';
@@ -53,17 +56,18 @@ import {
   VehicleDetailDto,
 )
 @Controller('vehicle')
-@UseGuards(JwtAuthGuard, VendorGuard)
+@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 @ApiTags('Vehicle')
 export class VehicleController {
-  constructor(private readonly _vehicleService: VehicleService) { }
+  constructor(private readonly _vehicleService: VehicleService, private readonly _callerService: CallerService) { }
 
   // #region Create
   /**
    * Register a new vehicle (JSON)
    * @param createVehicleDto 
    */
+  @UseGuards(VendorGuard)
   @Post()
   @ApiResponseDto(VehicleDetailDto, false, 201)
   async create(
@@ -79,6 +83,7 @@ export class VehicleController {
    * Get all vehicles belonging to the vendor
    * @param active_tab Optional status filter
    */
+  @UseGuards(AdminOrVendorGuard)
   @Get()
   @ApiResponseDto(VehiclePaginatedListDto)
   @ApiQuery({ name: 'active_tab', enum: VehicleStatus, required: false })
@@ -90,6 +95,7 @@ export class VehicleController {
   /**
    * Get all available vehicles belonging to the vendor
    */
+  @UseGuards(VendorGuard)
   @Get('available')
   @ApiResponseDto(VehicleListDto, true)
   async findAvailable(): Promise<ResponseDto<VehicleListDto[]>> {
@@ -101,6 +107,7 @@ export class VehicleController {
    * Get details of a specific vehicle
    * @param id Vehicle ID
    */
+  @UseGuards(AdminOrVendorGuard)
   @Get(':id')
   @ApiResponseDto(VehicleDetailDto)
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<VehicleDetailDto>> {
@@ -115,6 +122,7 @@ export class VehicleController {
    * @param id Vehicle ID
    * @param updateVehicleDto 
    */
+  @UseGuards(VendorGuard)
   @Put(':id')
   @ApiResponseDto(VehicleDetailDto)
   async update(
@@ -131,6 +139,7 @@ export class VehicleController {
    * Submit vehicle for approval (Sets status to UnderApproval)
    * @param id Vehicle ID
    */
+  @UseGuards(VendorGuard)
   @Put(':id/submit-for-approval')
   @ApiResponseDto(VehicleDetailDto)
   async submitForApproval(
@@ -140,10 +149,27 @@ export class VehicleController {
     return ResponseDto.updated('Vehicle submitted for approval successfully', vehicle);
   }
 
+
+  /**
+   * Approve a vehicle (Admin Access)
+   * @param id Vehicle ID
+   */
+  @UseGuards(AdminGuard)
+  @Put(':id/approve')
+  @ApiResponseDto(VehicleDetailDto)
+  async approve(
+    @Param('id', ParseIntPipe) id: number,
+  ): Promise<ResponseDto<VehicleDetailDto>> {
+    const adminId = this._callerService.getUserId();
+    const vehicle = await this._vehicleService.approveVehicleAsync(id, adminId);
+    return ResponseDto.updated('Vehicle approved successfully', vehicle);
+  }
+
   /**
    * Ban a vehicle (Sets status to Banned)
    * @param id Vehicle ID
    */
+  @UseGuards(VendorGuard)
   @Put(':id/ban')
   @ApiResponseDto(VehicleDetailDto)
   async ban(
@@ -160,6 +186,7 @@ export class VehicleController {
    * @param id Vehicle ID
    * @param files Array of document files
    */
+  @UseGuards(VendorGuard)
   @Put(':id/vehicle-images')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFilesDto })
@@ -176,6 +203,7 @@ export class VehicleController {
    * @param id Vehicle ID
    * @param file The document file
    */
+  @UseGuards(VendorGuard)
   @Put(':id/chassis-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
@@ -192,6 +220,7 @@ export class VehicleController {
    * @param id Vehicle ID
    * @param file The document file
    */
+  @UseGuards(VendorGuard)
   @Put(':id/tax-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
@@ -208,6 +237,7 @@ export class VehicleController {
    * @param id Vehicle ID
    * @param file The document file
    */
+  @UseGuards(VendorGuard)
   @Put(':id/insurance-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
@@ -224,6 +254,7 @@ export class VehicleController {
    * @param id Vehicle ID
    * @param file The document file
    */
+  @UseGuards(VendorGuard)
   @Put(':id/fitness-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
@@ -240,6 +271,7 @@ export class VehicleController {
    * @param id Vehicle ID
    * @param file The document file
    */
+  @UseGuards(VendorGuard)
   @Put(':id/puc-document')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadVehicleFileDto })
@@ -257,6 +289,7 @@ export class VehicleController {
    * Delete a vehicle (Soft delete)
    * @param id Vehicle ID
    */
+  @UseGuards(VendorGuard)
   @Delete(':id')
   @ApiResponseDtoNull()
   async remove(@Param('id', ParseIntPipe) id: number): Promise<ResponseDto<null>> {
