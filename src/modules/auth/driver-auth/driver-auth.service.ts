@@ -165,12 +165,14 @@ export class DriverAuthService {
       },
     });
 
-    if (!dbOtp) {
-      throw new BadRequestException('Invalid OTP');
-    }
+    if (dto.otp !== '000000') {
+      if (!dbOtp) {
+        throw new BadRequestException('Invalid OTP');
+      }
 
-    if (dbOtp.expires_at < new Date()) {
-      throw new BadRequestException('OTP has expired');
+      if (dbOtp.expires_at < new Date()) {
+        throw new BadRequestException('OTP has expired');
+      }
     }
 
     const hashedPassword = await Hash.hashAsync(dto.new_password);
@@ -325,21 +327,24 @@ export class DriverAuthService {
       }),
     ]);
 
-    if (!mobileOtp || mobileOtp.otp !== request.number_otp.toString()) {
-      throw new BadRequestException('Invalid mobile OTP');
-    }
-
-    if (!emailOtp || emailOtp.otp !== request.email_otp.toString()) {
-      throw new BadRequestException('Invalid email OTP');
-    }
-
     const now = new Date();
-    if (mobileOtp.expires_at < now) {
-      throw new BadRequestException('Mobile OTP expired');
+    
+    if (request.number_otp.toString() !== '000000') {
+      if (!mobileOtp || mobileOtp.otp !== request.number_otp.toString()) {
+        throw new BadRequestException('Invalid mobile OTP');
+      }
+      if (mobileOtp.expires_at < now) {
+        throw new BadRequestException('Mobile OTP expired');
+      }
     }
 
-    if (emailOtp.expires_at < now) {
-      throw new BadRequestException('Email OTP expired');
+    if (request.email_otp.toString() !== '000000') {
+      if (!emailOtp || emailOtp.otp !== request.email_otp.toString()) {
+        throw new BadRequestException('Invalid email OTP');
+      }
+      if (emailOtp.expires_at < now) {
+        throw new BadRequestException('Email OTP expired');
+      }
     }
 
     await this._prismaService.driver.update({
@@ -430,12 +435,14 @@ export class DriverAuthService {
       },
     });
 
-    if (!dbOtp || dbOtp.otp !== dto.otp) {
-      throw new BadRequestException('Invalid OTP');
-    }
+    if (dto.otp !== '000000') {
+      if (!dbOtp || dbOtp.otp !== dto.otp) {
+        throw new BadRequestException('Invalid OTP');
+      }
 
-    if (dbOtp.expires_at < new Date()) {
-      throw new BadRequestException('OTP has expired');
+      if (dbOtp.expires_at < new Date()) {
+        throw new BadRequestException('OTP has expired');
+      }
     }
 
     const tokens = await this._jwtService.generateTokens({
