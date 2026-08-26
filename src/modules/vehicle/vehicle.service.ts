@@ -27,10 +27,12 @@ export class VehicleService {
    * @param status Optional vehicle status filter
    * @returns Paginated object containing total_count and list of vehicles
    */
-  async getListAsync(status?: VehicleStatus): Promise<PaginatedListDto<VehicleListDto>> {
+  async getListAsync(status?: VehicleStatus, vendorId?: number): Promise<PaginatedListDto<VehicleListDto>> {
     const where = {
       is_deleted: false,
-      ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+      ...(this._callerService.isVendor() 
+        ? { vendor_id: this._callerService.getUserId() } 
+        : (vendorId ? { vendor_id: vendorId } : {})),
       ...(status ? { status } : {}),
     };
 

@@ -80,6 +80,23 @@ export class DriverController {
   }
 
   /**
+   * Get all drivers belonging to a specific vendor (Admin only)
+   * @param vendorId Vendor ID
+   * @param active_tab Optional status filter
+   */
+  @UseGuards(AdminGuard)
+  @Get('vendor/:vendorId')
+  @ApiResponseDto(DriverPaginatedListDto)
+  @ApiQuery({ name: 'active_tab', enum: DriverStatus, required: false })
+  async findAllByVendor(
+    @Param('vendorId', ParseIntPipe) vendorId: number,
+    @Query('active_tab') active_tab?: DriverStatus
+  ): Promise<ResponseDto<PaginatedListDto<DriverListDto>>> {
+    const data = await this._driverService.getListAsync(active_tab, vendorId);
+    return ResponseDto.retrieved('Drivers retrieved successfully', data);
+  }
+
+  /**
    * Get details of a specific driver
    * @param id Driver ID
    */

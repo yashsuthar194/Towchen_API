@@ -33,10 +33,12 @@ export class DriverService {
    * Gets a list of active drivers for the current vendor
    * @returns Array of drivers with vehicle details
    */
-  async getListAsync(status?: DriverStatus): Promise<PaginatedListDto<DriverListDto>> {
+  async getListAsync(status?: DriverStatus, vendorId?: number): Promise<PaginatedListDto<DriverListDto>> {
     const where = {
       is_deleted: false,
-      ...(this._callerService.isVendor() ? { vendor_id: this._callerService.getUserId() } : {}),
+      ...(this._callerService.isVendor() 
+        ? { vendor_id: this._callerService.getUserId() } 
+        : (vendorId ? { vendor_id: vendorId } : {})),
       ...(status ? { status } : {}),
     };
 

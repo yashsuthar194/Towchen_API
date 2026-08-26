@@ -93,6 +93,23 @@ export class VehicleController {
   }
 
   /**
+   * Get all vehicles belonging to a specific vendor (Admin only)
+   * @param vendorId Vendor ID
+   * @param active_tab Optional status filter
+   */
+  @UseGuards(AdminGuard)
+  @Get('vendor/:vendorId')
+  @ApiResponseDto(VehiclePaginatedListDto)
+  @ApiQuery({ name: 'active_tab', enum: VehicleStatus, required: false })
+  async findAllByVendor(
+    @Param('vendorId', ParseIntPipe) vendorId: number,
+    @Query('active_tab') active_tab?: VehicleStatus
+  ): Promise<ResponseDto<PaginatedListDto<VehicleListDto>>> {
+    const data = await this._vehicleService.getListAsync(active_tab, vendorId);
+    return ResponseDto.retrieved('Vehicles retrieved successfully', data);
+  }
+
+  /**
    * Get all available vehicles belonging to the vendor
    */
   @UseGuards(VendorGuard)
