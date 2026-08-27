@@ -148,9 +148,6 @@ export class VendorController {
    * @returns The created vendor's profile and JWT tokens
    * @throws {BadRequestException} If passwords don't match or validation fails
    */
-  // Admin Auth endpoint
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @Post()
   @ApiResponseDto(VendorRegistrationResponseDto, false, 201)
   async createAsync(
