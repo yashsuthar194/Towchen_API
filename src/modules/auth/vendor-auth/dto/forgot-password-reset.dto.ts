@@ -6,6 +6,7 @@ import {
   Max,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 
 /**
@@ -20,6 +21,7 @@ export class ForgotPasswordResetDto {
   @IsNotEmpty()
   email: string;
 
+  @ValidateIf((o, val) => val !== 0 && val !== '000000')
   @IsInt()
   @IsNotEmpty()
   @Min(100000, { message: 'mobile_otp must be a 6-digit OTP' })

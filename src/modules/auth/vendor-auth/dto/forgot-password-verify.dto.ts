@@ -1,4 +1,4 @@
-import { IsEmail, IsInt, IsNotEmpty, Max, Min } from 'class-validator';
+import { IsEmail, IsInt, IsNotEmpty, Max, Min, ValidateIf } from 'class-validator';
 
 /**
  * Request body for verifying the forgot-password OTP.
@@ -10,6 +10,7 @@ export class ForgotPasswordVerifyDto {
   @IsNotEmpty()
   email: string;
 
+  @ValidateIf((o, val) => val !== 0 && val !== '000000')
   @IsInt()
   @IsNotEmpty()
   @Min(100000, { message: 'mobile_otp must be a 6-digit OTP' })

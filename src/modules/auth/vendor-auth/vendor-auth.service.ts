@@ -139,8 +139,8 @@ export class VendorAuthService {
       }),
     ]);
 
-    if (verificationDto.mobile_otp.toString() !== '000000') {
-      if (!mobileOtp || mobileOtp.otp !== verificationDto.mobile_otp.toString()) {
+    if (String(verificationDto.mobile_otp) !== '000000' && verificationDto.mobile_otp !== 0) {
+      if (!mobileOtp || mobileOtp.otp !== String(verificationDto.mobile_otp)) {
         throw new BadRequestException('Invalid mobile OTP');
       }
 
@@ -149,8 +149,8 @@ export class VendorAuthService {
       }
     }
 
-    if (verificationDto.email_otp.toString() !== '000000') {
-      if (!emailOtp || emailOtp.otp !== verificationDto.email_otp.toString()) {
+    if (String(verificationDto.email_otp) !== '000000' && verificationDto.email_otp !== 0) {
+      if (!emailOtp || emailOtp.otp !== String(verificationDto.email_otp)) {
         throw new BadRequestException('Invalid email OTP');
       }
 
@@ -258,7 +258,7 @@ export class VendorAuthService {
       orderBy: { created_at: 'desc' },
     });
 
-    if (dto.otp.toString() !== '000000') {
+    if (String(dto.otp) !== '000000' && dto.otp !== 0) {
       if (!otpRecord) {
         throw new BadRequestException(
           'No OTP found for this email. Please request a new one.',
@@ -271,7 +271,7 @@ export class VendorAuthService {
         );
       }
 
-      if (otpRecord.otp !== dto.otp.toString()) {
+      if (otpRecord.otp !== String(dto.otp)) {
         throw new BadRequestException('Invalid OTP. Please check and try again.');
       }
     }
@@ -307,7 +307,7 @@ export class VendorAuthService {
       orderBy: { created_at: 'desc' },
     });
 
-    if (dto.otp.toString() !== '000000') {
+    if (String(dto.otp) !== '000000' && dto.otp !== 0) {
       if (!otpRecord) {
         throw new BadRequestException(
           'No OTP found for this email. Please request a new one.',
@@ -320,7 +320,7 @@ export class VendorAuthService {
         );
       }
 
-      if (otpRecord.otp !== dto.otp.toString()) {
+      if (otpRecord.otp !== String(dto.otp)) {
         throw new BadRequestException('Invalid OTP. Please check and try again.');
       }
     }

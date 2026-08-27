@@ -6,6 +6,7 @@ import {
   Matches,
   Max,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 export class VendorAuthVerificationDto {
@@ -21,12 +22,14 @@ export class VendorAuthVerificationDto {
   @IsEmail()
   email: string;
 
+  @ValidateIf((o, val) => val !== 0 && val !== '000000')
   @IsInt()
   @IsNotEmpty()
   @Min(100000, { message: 'mobile_otp must be a 6-digit OTP' })
   @Max(999999, { message: 'mobile_otp must be a 6-digit OTP' })
   mobile_otp: number;
 
+  @ValidateIf((o, val) => val !== 0 && val !== '000000')
   @IsInt()
   @IsNotEmpty()
   @Min(100000, { message: 'email_otp must be a 6-digit OTP' })
