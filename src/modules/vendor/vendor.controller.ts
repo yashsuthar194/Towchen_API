@@ -149,7 +149,7 @@ export class VendorController {
    * @throws {BadRequestException} If passwords don't match or validation fails
    */
   // Admin Auth endpoint
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Post()
   @ApiResponseDto(VendorRegistrationResponseDto, false, 201)
@@ -413,7 +413,7 @@ export class VendorController {
    * @throws {BadRequestException} If validation fails
    */
   // Admin Auth endpoint
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
   @Put(':id')
   @ApiResponseDto(VendorDetailDto, false, 200)
