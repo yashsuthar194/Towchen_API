@@ -15,11 +15,9 @@ import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
 
 @ApiTags('Service')
-@ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
 @Controller('service')
 export class ServiceController {
-  constructor(private readonly _serviceService: ServiceService) {}
+  constructor(private readonly _serviceService: ServiceService) { }
 
   @Get()
   @ApiOperation({ summary: 'Get all active services' })
@@ -29,7 +27,19 @@ export class ServiceController {
     return ResponseDto.retrieved('Services retrieved successfully', services);
   }
 
+  @Get('active')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get all active services (Admin Route)' })
+  @ApiResponseDto(ServiceListDto, true)
+  async findAllActive(): Promise<ResponseDto<ServiceListDto[]>> {
+    const services = await this._serviceService.findAllAsync();
+    return ResponseDto.retrieved('Services retrieved successfully', services);
+  }
+
   @Get(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get a single service by ID' })
   @ApiResponseDto(ServiceDto)
   async findOne(@Param('id') id: number): Promise<ResponseDto<ServiceDto>> {
@@ -38,6 +48,8 @@ export class ServiceController {
   }
 
   @Post()
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create a new service' })
   @ApiConsumes('multipart/form-data')
   @ApiResponseDto(ServiceDto, false, 201)
@@ -51,6 +63,8 @@ export class ServiceController {
   }
 
   @Put(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update an existing service' })
   @ApiConsumes('multipart/form-data')
   @ApiResponseDto(ServiceDto)
@@ -65,6 +79,8 @@ export class ServiceController {
   }
 
   @Delete(':id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Delete a service' })
   @ApiResponseDtoNull()
   async deleteService(@Param('id') id: number): Promise<ResponseDto<null>> {
@@ -75,6 +91,8 @@ export class ServiceController {
   // #region Sub-Service Endpoints
 
   @Get('sub-service/all')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all active sub-services across all services' })
   @ApiResponseDto(SubServiceDto, true)
   async getAllSubServices(): Promise<ResponseDto<SubServiceDto[]>> {
@@ -83,6 +101,8 @@ export class ServiceController {
   }
 
   @Get(':id/sub-service')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get active sub-services for a specific service' })
   @ApiResponseDto(SubServiceDto, true)
   async getSubServices(@Param('id') id: number): Promise<ResponseDto<SubServiceDto[]>> {
@@ -91,6 +111,8 @@ export class ServiceController {
   }
 
   @Post('sub-service')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create a new sub-service' })
   @ApiConsumes('multipart/form-data')
   @ApiResponseDto(SubServiceDto, false, 201)
@@ -104,6 +126,8 @@ export class ServiceController {
   }
 
   @Put('sub-service/:id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Update an existing sub-service' })
   @ApiConsumes('multipart/form-data')
   @ApiResponseDto(SubServiceDto)
@@ -118,6 +142,8 @@ export class ServiceController {
   }
 
   @Delete('sub-service/:id')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Delete a sub-service' })
   @ApiResponseDtoNull()
   async deleteSubService(@Param('id') id: number): Promise<ResponseDto<null>> {
