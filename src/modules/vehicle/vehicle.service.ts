@@ -442,6 +442,7 @@ export class VehicleService {
       where: { id },
       data: {
         status: VehicleStatus.Available,
+        availability_status: AvailabilityStatus.Available,
         approved_by: adminId,
       },
     });
