@@ -5,8 +5,7 @@ import {
   IsOptional,
   IsString,
   Matches,
-  Max,
-  Min,
+  Length,
   ValidateIf,
 } from 'class-validator';
 
@@ -26,17 +25,15 @@ export class DriverVerificationDto {
   @IsString()
   formated_id?: string;
 
-  @ValidateIf((o, val) => val !== 0 && val !== '000000')
+  @ValidateIf((o, val) => val !== '000000')
   @IsNotEmpty()
-  @IsInt()
-  @Min(100000, { message: 'email_otp must be a 6-digit OTP' })
-  @Max(999999, { message: 'email_otp must be a 6-digit OTP' })
-  email_otp: number;
+  @IsString()
+  @Length(6, 6, { message: 'email_otp must be a 6-digit OTP' })
+  email_otp: string;
 
-  @ValidateIf((o, val) => val !== 0 && val !== '000000')
+  @ValidateIf((o, val) => val !== '000000')
   @IsNotEmpty()
-  @IsInt()
-  @Min(100000, { message: 'number_otp must be a 6-digit OTP' })
-  @Max(999999, { message: 'number_otp must be a 6-digit OTP' })
-  number_otp: number;
+  @IsString()
+  @Length(6, 6, { message: 'number_otp must be a 6-digit OTP' })
+  number_otp: string;
 }

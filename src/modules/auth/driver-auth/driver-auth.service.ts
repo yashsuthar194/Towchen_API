@@ -329,8 +329,8 @@ export class DriverAuthService {
 
     const now = new Date();
     
-    if (String(request.number_otp) !== '000000' && request.number_otp !== 0) {
-      if (!mobileOtp || mobileOtp.otp !== String(request.number_otp)) {
+    if (request.number_otp !== '000000') {
+      if (!mobileOtp || mobileOtp.otp !== request.number_otp) {
         throw new BadRequestException('Invalid mobile OTP');
       }
       if (mobileOtp.expires_at < now) {
@@ -338,8 +338,8 @@ export class DriverAuthService {
       }
     }
 
-    if (String(request.email_otp) !== '000000' && request.email_otp !== 0) {
-      if (!emailOtp || emailOtp.otp !== String(request.email_otp)) {
+    if (request.email_otp !== '000000') {
+      if (!emailOtp || emailOtp.otp !== request.email_otp) {
         throw new BadRequestException('Invalid email OTP');
       }
       if (emailOtp.expires_at < now) {
