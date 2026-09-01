@@ -59,6 +59,7 @@ model vendor {
   drivers                      driver[]
   vehicles                     vehicle[]
   orders                       order[]
+  leads                        lead[]
   services                     service[]
   dispatches                   order_dispatch[]
   vendor_pricings              vendor_pricing[]     // vendor's own per-sub-service pricing
@@ -183,6 +184,7 @@ model vehicle {
   drivers             driver[]
   vendor              vendor             @relation(fields: [vendor_id], references: [id])
   orders              order[]
+  leads               lead[]
 
   @@index([id])
   @@index([vendor_id])
@@ -459,6 +461,7 @@ model sub_service {
 
   service service @relation(fields: [service_id], references: [id])
   orders  order[]
+  leads   lead[]
 
   conditions        sub_service_condtion[]
   location_pricings location_pricing[]     // admin-configured ceilings per location
@@ -901,4 +904,52 @@ model vendor_pricing {
   @@index([vendor_id])
   @@index([location_id])
   @@index([sub_service_id])
+}
+
+enum LeadDispatchType {
+  Current
+  Scheduled
+}
+
+model lead {
+  id              Int       @id @default(autoincrement())
+  vendor_id       Int
+  vehicle_id      Int
+  sub_service_id  Int
+
+  dispatch_type   LeadDispatchType @default(Current)
+  activation_time DateTime?
+
+  start_location  String    @db.Text
+  end_location    String    @db.Text
+
+  distance        String?   @db.VarChar(50)
+  time            String?   @db.VarChar(50)
+  lead_amount     Float
+
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @default(now()) @updatedAt
+
+  vendor          vendor      @relation(fields: [vendor_id], references: [id])
+  vehicle         vehicle     @relation(fields: [vehicle_id], references: [id])
+  sub_service     sub_service @relation(fields: [sub_service_id], references: [id])
+  tag_locations   lead_tag_location[]
+
+  @@index([vendor_id])
+  @@index([vehicle_id])
+  @@index([sub_service_id])
+}
+
+model lead_tag_location {
+  id         Int    @id @default(autoincrement())
+  lead_id    Int
+  address    String @db.Text
+  order      Int    @default(1)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  lead       lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+
+  @@index([lead_id])
 }

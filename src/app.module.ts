@@ -27,6 +27,7 @@ import { EVCRFModule } from './modules/evcrf/evcrf.module';
 import { ReviewModule } from './modules/review/review.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ServiceLocationModule } from './modules/service-location/service-location.module';
+import { LeadModule } from './modules/lead/lead.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { ServiceLocationModule } from './modules/service-location/service-locati
     ReviewModule,
     AdminModule,
     ServiceLocationModule,
+    LeadModule,
 ],
   controllers: [AppController],
   providers: [AppService],
