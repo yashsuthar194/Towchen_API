@@ -23,17 +23,17 @@ export class CreateLeadDto {
   @IsString()
   activation_time?: string;
 
-  @ApiProperty({ description: 'Start location as string', example: 'Ahmedabad' })
+  @ApiProperty({ description: 'Start location full address', example: '123 Main St, Ahmedabad, Gujarat 380001' })
   @IsNotEmpty()
   @IsString()
   start_location: string;
 
-  @ApiProperty({ description: 'End location as string', example: 'Himmatnagar' })
+  @ApiProperty({ description: 'End location full address', example: '456 Highway, Himmatnagar, Gujarat 383001' })
   @IsNotEmpty()
   @IsString()
   end_location: string;
 
-  @ApiPropertyOptional({ description: 'List of intermediate tag locations', type: [String], example: ['Gandhinagar'] })
+  @ApiPropertyOptional({ description: 'List of intermediate tag locations (full addresses)', type: [String], example: ['789 Ring Rd, Gandhinagar, Gujarat 382010'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
