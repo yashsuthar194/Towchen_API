@@ -15,23 +15,23 @@ export class CreateSubServiceDto {
   @Type(() => Number)
   service_id: number;
 
-  @ApiProperty({ description: 'Fixed distance for the base price', example: 5, default: 0 })
+  @ApiProperty({ description: 'Base distance for the base price', example: 5, default: 0 })
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  fix_distance: number;
+  base_distance: number;
 
-  @ApiProperty({ description: 'Fixed price for the base distance', example: 100, default: 0 })
+  @ApiProperty({ description: 'Base price for the base distance', example: 100, default: 0 })
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  fix_price: number;
+  base_price: number;
 
-  @ApiProperty({ description: 'Extra price per unit distance beyond fixed distance', example: 20, default: 0 })
+  @ApiProperty({ description: 'Extra price per unit distance beyond base distance', example: 20, default: 0 })
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  extra_price: number;
+  extra_distance_price: number;
 
   @ApiProperty({ description: 'Weight capacity in tons', example: 1.5, default: 0 })
   @IsOptional()

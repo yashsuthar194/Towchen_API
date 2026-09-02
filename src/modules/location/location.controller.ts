@@ -41,9 +41,9 @@ export class LocationController {
       'and traffic-aware duration. Returns ALL active sub-services with their total ' +
       'price calculated for this specific journey distance.\n\n' +
       '**Pricing formula per sub-service:**\n' +
-      '- `extra_km = max(0, actual_km - fix_distance)`\n' +
-      '- `extra_charge = extra_km × extra_price_per_km`\n' +
-      '- `total_price = fix_price + extra_charge`',
+      '- `extra_km = max(0, actual_km - base_distance)`\n' +
+      '- `extra_charge = extra_km * extra_distance_price`\n' +
+      '- `total_price = base_price + extra_charge`',
   })
   @ApiResponseDto(OrderEstimateResponseDto)
   async getOrderEstimate(

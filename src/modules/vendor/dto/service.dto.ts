@@ -40,14 +40,14 @@ export class SubServiceDto {
   @ApiProperty()
   updated_at: Date;
 
-  @ApiProperty()
-  fix_distance: number;
+  @ApiProperty({ example: 20 })
+  base_distance: number;
 
-  @ApiProperty()
-  fix_price: number;
+  @ApiProperty({ example: 2000 })
+  base_price: number;
 
-  @ApiProperty()
-  extra_price: number;
+  @ApiProperty({ example: 25 })
+  extra_distance_price: number;
 
   @ApiProperty()
   ton: number;

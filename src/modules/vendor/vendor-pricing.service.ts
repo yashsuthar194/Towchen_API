@@ -78,11 +78,11 @@ export class VendorPricingService {
         id: vp?.id ?? null,
         location_id: ceiling.location_id,
         sub_service_id: ceiling.sub_service_id,
-        fix_price: vp?.fix_price ?? null,     // null indicates falling back to ceiling
-        extra_price: vp?.extra_price ?? null, // null indicates falling back to ceiling
+        base_price: vp?.base_price ?? null,     // null indicates falling back to ceiling
+        extra_distance_price: vp?.extra_distance_price ?? null, // null indicates falling back to ceiling
         updated_at: vp?.updated_at ?? null,
-        ceiling_fix_price: ceiling.fix_price,
-        ceiling_extra_price: ceiling.extra_price,
+        ceiling_base_price: ceiling.base_price,
+        ceiling_extra_distance_price: ceiling.extra_distance_price,
       });
     }
 
@@ -132,14 +132,14 @@ export class VendorPricingService {
 
     if (ceiling) {
       // Vendor cannot charge MORE than the location's configured maximum
-      if (dto.fix_price > ceiling.fix_price) {
+      if (dto.base_price > ceiling.base_price) {
         throw new BadRequestException(
-          `fix_price ₹${dto.fix_price} exceeds the maximum allowed ₹${ceiling.fix_price} for this area`,
+          `base_price ₹${dto.base_price} exceeds the maximum allowed ₹${ceiling.base_price} for this area`,
         );
       }
-      if (dto.extra_price > ceiling.extra_price) {
+      if (dto.extra_distance_price > ceiling.extra_distance_price) {
         throw new BadRequestException(
-          `extra_price ₹${dto.extra_price} exceeds the maximum allowed ₹${ceiling.extra_price} for this area`,
+          `extra_distance_price ₹${dto.extra_distance_price} exceeds the maximum allowed ₹${ceiling.extra_distance_price} for this area`,
         );
       }
     }
@@ -157,13 +157,13 @@ export class VendorPricingService {
         vendor_id: vendorId,
         location_id: dto.location_id,
         sub_service_id: subServiceId,
-        fix_price: dto.fix_price,
-        extra_price: dto.extra_price,
+        base_price: dto.base_price,
+        extra_distance_price: dto.extra_distance_price,
       },
       update: {
         // ONLY update prices
-        fix_price: dto.fix_price,
-        extra_price: dto.extra_price,
+        base_price: dto.base_price,
+        extra_distance_price: dto.extra_distance_price,
       },
     });
 
@@ -171,8 +171,8 @@ export class VendorPricingService {
       id: updated.id,
       location_id: updated.location_id,
       sub_service_id: updated.sub_service_id,
-      fix_price: updated.fix_price,
-      extra_price: updated.extra_price,
+      base_price: updated.base_price,
+      extra_distance_price: updated.extra_distance_price,
       updated_at: updated.updated_at,
     };
   }
@@ -189,8 +189,8 @@ export class VendorPricingService {
       id: vp.id,
       location_id: vp.location_id,
       sub_service_id: vp.sub_service_id,
-      fix_price: vp.fix_price,
-      extra_price: vp.extra_price,
+      base_price: vp.base_price,
+      extra_distance_price: vp.extra_distance_price,
       updated_at: vp.updated_at,
     }));
   }

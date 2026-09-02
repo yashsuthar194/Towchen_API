@@ -159,9 +159,9 @@ export class LocationService {
 
     for (const ss of subServices) {
       const estimate = arrivalEstimates.get(ss.service_id) ?? null;
-      let usedFixDistance = ss.fix_distance;
-      let usedFixPrice = ss.fix_price;
-      let usedExtraPrice = ss.extra_price;
+      let usedBaseDistance = ss.base_distance;
+      let usedBasePrice = ss.base_price;
+      let usedExtraDistancePrice = ss.extra_distance_price;
 
       // Pricing resolution based on nearest vendor
       if (estimate && estimate.vendor_id && estimate.driver_id) {
@@ -172,7 +172,7 @@ export class LocationService {
         });
 
         if (driver?.service_location_id) {
-          // 1. Fall back to location's ceiling pricing (provides fix_distance and default prices)
+          // 1. Fall back to location's ceiling pricing (provides base_distance and default prices)
           const locationPricing = await this.prisma.location_pricing.findUnique({
             where: {
               location_id_sub_service_id: { location_id: driver.service_location_id, sub_service_id: ss.id },
@@ -180,9 +180,9 @@ export class LocationService {
           });
 
           if (locationPricing) {
-            usedFixDistance = locationPricing.fix_distance;
-            usedFixPrice = locationPricing.fix_price;
-            usedExtraPrice = locationPricing.extra_price;
+            usedBaseDistance = locationPricing.base_distance;
+            usedBasePrice = locationPricing.base_price;
+            usedExtraDistancePrice = locationPricing.extra_distance_price;
           }
 
           // 2. Override prices if the vendor has their own specific pricing configured for this location
@@ -197,8 +197,8 @@ export class LocationService {
           });
 
           if (vendorPricing) {
-            usedFixPrice = vendorPricing.fix_price;
-            usedExtraPrice = vendorPricing.extra_price;
+            usedBasePrice = vendorPricing.base_price;
+            usedExtraDistancePrice = vendorPricing.extra_distance_price;
           }
         }
       }
@@ -216,9 +216,9 @@ export class LocationService {
       // Calculate total billable distance
       const totalKm = km + pickupKm;
 
-      const extraKm = Math.max(0, totalKm - usedFixDistance);
-      const extraCharge = parseFloat((extraKm * usedExtraPrice).toFixed(2));
-      const totalPrice = parseFloat((usedFixPrice + extraCharge).toFixed(2));
+      const extraKm = Math.max(0, totalKm - usedBaseDistance);
+      const extraCharge = parseFloat((extraKm * usedExtraDistancePrice).toFixed(2));
+      const totalPrice = parseFloat((usedBasePrice + extraCharge).toFixed(2));
 
       // GST tax calculations
       const cgst = parseFloat((totalPrice * 0.09).toFixed(2));
@@ -230,11 +230,11 @@ export class LocationService {
         id: ss.id,
         name: ss.name,
         ton: ss.ton,
-        base_distance_int: usedFixDistance,
+        base_distance_int: usedBaseDistance,
 
         // Human-readable formatted values
-        base_rate_string: `₹${usedFixPrice}`,
-        extra_distance_string: `₹${usedExtraPrice}/km`,
+        base_rate_string: `₹${usedBasePrice}`,
+        extra_distance_string: `₹${usedExtraDistancePrice}/km`,
         calculated_distance_string: `${km.toFixed(2)} km`,
         pickup_distance_string: `${pickupKm.toFixed(2)} km`,
         total_calculated_distance_string: `${totalKm.toFixed(2)} km`,
@@ -246,8 +246,8 @@ export class LocationService {
         grand_total_string: `₹${grandTotal.toFixed(2)}`,
 
         // Raw numeric values
-        base_rate_int: usedFixPrice,
-        extra_distance_int: usedExtraPrice,
+        base_rate_int: usedBasePrice,
+        extra_distance_int: usedExtraDistancePrice,
         calculated_distance_int: parseFloat(km.toFixed(2)),
         pickup_distance_int: parseFloat(pickupKm.toFixed(2)),
         total_calculated_distance_int: parseFloat(totalKm.toFixed(2)),

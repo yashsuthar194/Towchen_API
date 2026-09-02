@@ -11,11 +11,11 @@ export class VendorPricingDto {
   @ApiProperty({ example: 1, description: 'Sub-service this pricing applies to' })
   sub_service_id: number;
 
-  @ApiProperty({ example: 1800, description: 'Base price the vendor charges', nullable: true })
-  fix_price: number | null;
+  @ApiPropertyOptional({ example: 1800, description: 'Vendor base price' })
+  base_price: number | null;
 
-  @ApiProperty({ example: 22, description: 'Rate per extra km', nullable: true })
-  extra_price: number | null;
+  @ApiPropertyOptional({ example: 22, description: 'Vendor per-km extra rate' })
+  extra_distance_price: number | null;
 
   @ApiProperty({ nullable: true })
   updated_at: Date | null;
@@ -23,17 +23,15 @@ export class VendorPricingDto {
 
 /** Vendor pricing row enriched with the location ceiling for comparison. */
 export class VendorPricingWithCeilingDto extends VendorPricingDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 2000,
-    nullable: true,
-    description: 'Location ceiling for fix_price — vendor cannot exceed this',
+    description: 'Location ceiling for base_price — vendor cannot exceed this',
   })
-  ceiling_fix_price: number | null;
+  ceiling_base_price: number | null;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 25,
-    nullable: true,
-    description: 'Location ceiling for extra_price — vendor cannot exceed this',
+    description: 'Location ceiling for extra_distance_price — vendor cannot exceed this',
   })
-  ceiling_extra_price: number | null;
+  ceiling_extra_distance_price: number | null;
 }

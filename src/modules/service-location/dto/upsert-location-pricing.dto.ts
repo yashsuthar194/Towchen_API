@@ -18,25 +18,25 @@ export class UpsertLocationPricingDto {
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  fix_distance: number;
+  base_distance: number;
 
   @ApiProperty({
     example: 2000,
-    description: 'Maximum base price the vendor can charge (ceiling) for trips within fix_distance',
+    description: 'Maximum base price the vendor can charge (ceiling) for trips within base_distance',
   })
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  fix_price: number;
+  base_price: number;
 
   @ApiProperty({
     example: 25,
-    description: 'Maximum price per km the vendor can charge beyond fix_distance',
+    description: 'Maximum price per km the vendor can charge beyond base_distance',
   })
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  extra_price: number;
+  extra_distance_price: number;
 }

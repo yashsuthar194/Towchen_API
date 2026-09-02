@@ -26,7 +26,13 @@ export class ServiceLocationService {
   async findAllAsync(): Promise<ServiceLocationDto[]> {
     const locations = await this.prisma.location.findMany({
       where: { category: LocationCategory.ServiceArea },
-      include: { location_pricings: true },
+      include: {
+        location_pricings: {
+          include: {
+            sub_service: true,
+          },
+        },
+      },
       orderBy: { id: 'asc' },
     });
 
@@ -40,7 +46,13 @@ export class ServiceLocationService {
   async findOneAsync(id: number): Promise<ServiceLocationDto> {
     const location = await this.prisma.location.findFirst({
       where: { id, category: LocationCategory.ServiceArea },
-      include: { location_pricings: true },
+      include: {
+        location_pricings: {
+          include: {
+            sub_service: true,
+          },
+        },
+      },
     });
 
     if (!location) {
@@ -78,7 +90,13 @@ export class ServiceLocationService {
         latitude: resolved.latitude,
         longitude: resolved.longitude,
       },
-      include: { location_pricings: true },
+      include: {
+        location_pricings: {
+          include: {
+            sub_service: true,
+          },
+        },
+      },
     });
 
     return this.toDto(location);
@@ -97,7 +115,13 @@ export class ServiceLocationService {
     const updated = await this.prisma.location.update({
       where: { id },
       data: { description: name },
-      include: { location_pricings: true },
+      include: {
+        location_pricings: {
+          include: {
+            sub_service: true,
+          },
+        },
+      },
     });
 
     return this.toDto(updated);
@@ -161,14 +185,14 @@ export class ServiceLocationService {
       create: {
         location_id: locationId,
         sub_service_id: dto.sub_service_id,
-        fix_distance: dto.fix_distance,
-        fix_price: dto.fix_price,
-        extra_price: dto.extra_price,
+        base_distance: dto.base_distance,
+        base_price: dto.base_price,
+        extra_distance_price: dto.extra_distance_price,
       },
       update: {
-        fix_distance: dto.fix_distance,
-        fix_price: dto.fix_price,
-        extra_price: dto.extra_price,
+        base_distance: dto.base_distance,
+        base_price: dto.base_price,
+        extra_distance_price: dto.extra_distance_price,
       },
     });
   }
@@ -224,7 +248,17 @@ export class ServiceLocationService {
       pincode: location.pincode,
       latitude: location.latitude,
       longitude: location.longitude,
-      location_pricings: location.location_pricings,
+      location_pricings: location.location_pricings?.map((lp: any) => ({
+        id: lp.id,
+        location_id: lp.location_id,
+        sub_service_id: lp.sub_service_id,
+        sub_service_name: lp.sub_service?.name,
+        base_distance: lp.base_distance,
+        base_price: lp.base_price,
+        extra_distance_price: lp.extra_distance_price,
+        created_at: lp.created_at,
+        updated_at: lp.updated_at,
+      })),
       created_at: location.created_at,
     };
   }

@@ -451,9 +451,9 @@ model sub_service {
   updated_at DateTime @default(now()) @updatedAt
 
   // Global default pricing — used as the final fallback when no vendor/location pricing exists
-  fix_distance Float @default(0)
-  fix_price    Float @default(0)
-  extra_price  Float @default(0)
+  base_distance Float @default(0)
+  base_price    Float @default(0)
+  extra_distance_price  Float @default(0)
   ton          Float @default(0)
 
   image_url    String?
@@ -865,9 +865,9 @@ model location_pricing {
   id          Int      @id @default(autoincrement())
   location_id Int
   sub_service_id Int
-  fix_distance Float  @default(0) // Included km in the base price
-  fix_price    Float  @default(0) // Maximum base price vendor can charge
-  extra_price  Float  @default(0) // Maximum price per extra km vendor can charge
+  base_distance Float  @default(0) // Included km in the base price
+  base_price    Float  @default(0) // Maximum base price vendor can charge
+  extra_distance_price  Float  @default(0) // Maximum price per extra km vendor can charge
   created_at   DateTime @default(now())
   updated_at   DateTime @default(now()) @updatedAt
 
@@ -890,8 +890,8 @@ model vendor_pricing {
   vendor_id      Int
   location_id    Int
   sub_service_id Int
-  fix_price      Float    @default(0)
-  extra_price    Float    @default(0)
+  base_price      Float    @default(0)
+  extra_distance_price    Float    @default(0)
   created_at     DateTime @default(now())
   updated_at     DateTime @default(now()) @updatedAt
 

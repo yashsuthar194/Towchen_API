@@ -14,21 +14,21 @@ export class UpdateVendorPricingDto {
   location_id: number;
   @ApiProperty({
     example: 1800,
-    description: 'Base price for trips within fix_distance (cannot exceed location ceiling)',
+    description: 'Base price for trips within base_distance (cannot exceed location ceiling)',
   })
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  fix_price: number;
+  base_price: number;
 
   @ApiProperty({
     example: 22,
-    description: 'Rate per extra km beyond fix_distance (cannot exceed location ceiling)',
+    description: 'Rate per extra km beyond base_distance (cannot exceed location ceiling)',
   })
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
   @Type(() => Number)
-  extra_price: number;
+  extra_distance_price: number;
 }

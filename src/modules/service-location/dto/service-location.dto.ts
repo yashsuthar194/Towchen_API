@@ -11,14 +11,17 @@ export class LocationPricingDto {
   @ApiProperty({ example: 2, description: 'ID of the sub-service this ceiling applies to' })
   sub_service_id: number;
 
+  @ApiPropertyOptional({ example: 'Towing', description: 'Name of the sub-service' })
+  sub_service_name?: string;
+
   @ApiProperty({ example: 20, description: 'Km included in the base price (no extra charge below this)' })
-  fix_distance: number;
+  base_distance: number;
 
   @ApiProperty({ example: 2000, description: 'Maximum base price vendor can charge for this sub-service' })
-  fix_price: number;
+  base_price: number;
 
-  @ApiProperty({ example: 25, description: 'Maximum per-km rate vendor can charge beyond fix_distance' })
-  extra_price: number;
+  @ApiProperty({ example: 25, description: 'Maximum per-km rate vendor can charge beyond base_distance' })
+  extra_distance_price: number;
 
   @ApiProperty()
   created_at: Date;
