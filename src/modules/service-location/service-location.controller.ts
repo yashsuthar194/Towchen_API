@@ -102,17 +102,32 @@ export class ServiceLocationController {
 
   @Post(':id/pricing')
   @ApiOperation({
-    summary: 'Set or update the price ceiling for a sub-service in a location',
+    summary: 'Set the price ceiling for a sub-service in a location',
     description:
       'Vendors linked to this location cannot set prices above these values.',
   })
   @ApiResponseDtoNull()
-  async upsertPricing(
+  async createPricing(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpsertLocationPricingDto,
   ): Promise<ResponseDto<null>> {
-    await this._serviceLocationService.upsertPricingAsync(id, dto);
-    return ResponseDto.updated('Pricing ceiling saved', null);
+    await this._serviceLocationService.createPricingAsync(id, dto);
+    return ResponseDto.created('Pricing ceiling created', null);
+  }
+
+  @Put(':id/pricing')
+  @ApiOperation({
+    summary: 'Update the price ceiling for a sub-service in a location',
+    description:
+      'Vendors linked to this location cannot set prices above these values.',
+  })
+  @ApiResponseDtoNull()
+  async updatePricing(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpsertLocationPricingDto,
+  ): Promise<ResponseDto<null>> {
+    await this._serviceLocationService.updatePricingAsync(id, dto);
+    return ResponseDto.updated('Pricing ceiling updated', null);
   }
 
   @Delete(':id/pricing/:subServiceId')

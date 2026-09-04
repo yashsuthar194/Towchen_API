@@ -29,9 +29,9 @@ export class UpdateDriverProfileDto {
   @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ description: 'ID of the driver location (used for both start and end locations)' })
+  @ApiPropertyOptional({ description: 'ID of the Admin-configured Service Area the driver operates in' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  location_spot?: number | null;
+  service_location_id?: number | null;
 }

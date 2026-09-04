@@ -154,10 +154,9 @@ export class ServiceLocationService {
   }
 
   /**
-   * Admin sets or updates the price ceiling for a specific sub-service in a location.
-   * Uses upsert — creates if missing, updates if already exists.
+   * Admin sets the price ceiling for a specific sub-service in a location.
    */
-  async upsertPricingAsync(
+  async createPricingAsync(
     locationId: number,
     dto: UpsertLocationPricingDto,
   ): Promise<void> {
@@ -174,22 +173,58 @@ export class ServiceLocationService {
       );
     }
 
-    // Upsert — safe to call repeatedly without duplicating rows
-    await this.prisma.location_pricing.upsert({
+    const existing = await this.prisma.location_pricing.findUnique({
       where: {
         location_id_sub_service_id: {
           location_id: locationId,
           sub_service_id: dto.sub_service_id,
         },
       },
-      create: {
+    });
+
+    if (existing) {
+      throw new BadRequestException('Pricing ceiling already exists for this sub-service in this location');
+    }
+
+    await this.prisma.location_pricing.create({
+      data: {
         location_id: locationId,
         sub_service_id: dto.sub_service_id,
         base_distance: dto.base_distance,
         base_price: dto.base_price,
         extra_distance_price: dto.extra_distance_price,
       },
-      update: {
+    });
+  }
+
+  /**
+   * Admin updates the price ceiling for a specific sub-service in a location.
+   */
+  async updatePricingAsync(
+    locationId: number,
+    dto: UpsertLocationPricingDto,
+  ): Promise<void> {
+    const existing = await this.prisma.location_pricing.findUnique({
+      where: {
+        location_id_sub_service_id: {
+          location_id: locationId,
+          sub_service_id: dto.sub_service_id,
+        },
+      },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Pricing ceiling not found for this sub-service in this location');
+    }
+
+    await this.prisma.location_pricing.update({
+      where: {
+        location_id_sub_service_id: {
+          location_id: locationId,
+          sub_service_id: dto.sub_service_id,
+        },
+      },
+      data: {
         base_distance: dto.base_distance,
         base_price: dto.base_price,
         extra_distance_price: dto.extra_distance_price,
