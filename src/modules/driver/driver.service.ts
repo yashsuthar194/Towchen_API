@@ -102,6 +102,7 @@ export class DriverService {
       },
       include: {
         vehicle: true,
+        serviceLocation: true,
       },
     });
     if (!driver) {
@@ -177,6 +178,7 @@ export class DriverService {
       },
       include: {
         vehicle: true,
+        serviceLocation: true,
       },
     });
 
@@ -207,6 +209,7 @@ export class DriverService {
           },
         },
         vehicle: true,
+        serviceLocation: true,
       },
     });
 
@@ -270,6 +273,7 @@ export class DriverService {
           },
         },
         vehicle: true,
+        serviceLocation: true,
       },
     });
 
@@ -328,6 +332,7 @@ export class DriverService {
       },
       include: {
         vehicle: true,
+        serviceLocation: true,
       },
     });
 
@@ -369,6 +374,7 @@ export class DriverService {
         data: { vehicle_id: null },
         include: {
           vehicle: true,
+          serviceLocation: true,
         },
       });
 
@@ -391,6 +397,7 @@ export class DriverService {
       data: { vehicle_id: vehicle_id },
       include: {
         vehicle: true,
+        serviceLocation: true,
       },
     });
 
@@ -416,6 +423,7 @@ export class DriverService {
       data: { status: DriverStatus.Banned },
       include: {
         vehicle: true,
+        serviceLocation: true,
       },
     });
 
@@ -442,6 +450,7 @@ export class DriverService {
       },
       include: {
         vehicle: true,
+        serviceLocation: true,
       },
     });
 
@@ -586,6 +595,7 @@ export class DriverService {
       data: { status: DriverStatus.UnderApproval },
       include: {
         vehicle: true,
+        serviceLocation: true,
       },
     });
 
@@ -795,7 +805,7 @@ export class DriverService {
   private _mapToDetailDto(driver: any, allSubServices: any[] = []): DriverDetailDto {
     const {
       password,
-      service_location_id,
+      serviceLocation, // Destructure Prisma relation
       ...rest
     } = driver;
  
@@ -831,6 +841,7 @@ export class DriverService {
       total_reviews: totReviews,
       total_stars: Math.round(avgRating * totReviews),
       vehicle: mappedVehicle,
+      service_location: serviceLocation,
 
       is_documents_uploaded,
       sub_service: subService ? subService.name : null,

@@ -1,5 +1,7 @@
 import { driver, DriverStatus, AvailabilityStatus } from '@prisma/client';
 import { SubServiceDto } from '../../vendor/dto/service.dto';
+import { ServiceLocationDto } from '../../service-location/dto/service-location.dto';
+import { VehicleDetailDto } from '../../vehicle/dto/vehicle-detail.dto';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class DriverDetailDto {
@@ -45,8 +47,11 @@ export class DriverDetailDto {
   @ApiProperty({ description: 'URL to Driver Profile Image', nullable: true })
   driver_image_url: string | null;
 
-  @ApiProperty({ description: 'Location details (Unified start/end location)', required: false })
-  location_spot?: any;
+  @ApiProperty({ description: 'ID of the service area location the driver operates in', nullable: true })
+  service_location_id: number | null;
+
+  @ApiProperty({ description: 'Service location details', required: false, type: () => ServiceLocationDto })
+  service_location?: ServiceLocationDto;
 
   @ApiProperty({ enum: DriverStatus, description: 'Current status of the driver' })
   status: DriverStatus;
@@ -72,11 +77,11 @@ export class DriverDetailDto {
   @ApiProperty({ description: 'Record last update timestamp' })
   updated_at: Date;
 
-  @ApiProperty({ description: 'Assigned vehicle details', required: false })
-  vehicle?: any;
+  @ApiProperty({ description: 'Assigned vehicle details', required: false, type: () => VehicleDetailDto })
+  vehicle?: VehicleDetailDto;
 
   @ApiProperty({ description: 'Vendor details', required: false })
-  vendor?: any;
+  vendor?: { id: number; formated_id: string; vendor_name: string };
 
   @ApiProperty({ description: 'ID of the user who deleted this record', nullable: true, required: false })
   is_deleted_by?: number | null | undefined;
