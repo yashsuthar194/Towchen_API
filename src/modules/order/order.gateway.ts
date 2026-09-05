@@ -127,17 +127,17 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      // 5. Join the vendor room — all drivers of the same vendor share one room.
-      //    The server broadcasts to this room without tracking individual socket IDs.
+      // 5. Join the vendor room and driver specific room.
       const room = `vendor:${driver.vendor_id}`;
-      await socket.join(room);
+      const driverRoom = `driver:${driverId}`;
+      await socket.join([room, driverRoom]);
 
       // Store on socket for use in disconnect log
       socket.data.driverId = driverId;
       socket.data.vendorId = driver.vendor_id;
 
       this.logger.log(
-        `Driver ${driverId} connected → room "${room}" (socketId=${socket.id})`,
+        `Driver ${driverId} connected → room "${room}", "${driverRoom}" (socketId=${socket.id})`,
       );
     } catch (error) {
       this.logger.warn(
@@ -174,6 +174,22 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(room).emit('new-order', payload);
     this.logger.log(
       `"new-order" emitted → room "${room}" (orderId=${payload.orderId}, expiresAt=${payload.expiresAt})`,
+    );
+  }
+
+  /**
+   * Emits a "new-order" event to a SPECIFIC driver.
+   *
+   * Used for booked leads where the driver/vehicle is already known.
+   *
+   * @param driverId - The driver to notify
+   * @param payload  - Order summary
+   */
+  notifySpecificDriver(driverId: number, payload: any): void {
+    const room = `driver:${driverId}`;
+    this.server.to(room).emit('new-order', payload);
+    this.logger.log(
+      `"new-order" emitted specifically → room "${room}" (orderId=${payload.orderId})`,
     );
   }
 }

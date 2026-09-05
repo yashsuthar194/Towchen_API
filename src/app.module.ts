@@ -28,6 +28,7 @@ import { ReviewModule } from './modules/review/review.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ServiceLocationModule } from './modules/service-location/service-location.module';
 import { LeadModule } from './modules/lead/lead.module';
+import { CustomerLeadModule } from './modules/customer-lead/customer-lead.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { LeadModule } from './modules/lead/lead.module';
     AdminModule,
     ServiceLocationModule,
     LeadModule,
+    CustomerLeadModule,
 ],
   controllers: [AppController],
   providers: [AppService],

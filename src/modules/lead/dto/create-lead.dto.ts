@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, IsOptional, IsEnum, IsArray } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional, IsEnum, IsArray, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LeadDispatchType } from '@prisma/client';
 
@@ -19,16 +19,17 @@ export class CreateLeadDto {
   dispatch_type: LeadDispatchType;
 
   @ApiPropertyOptional({ description: 'Activation time if scheduled' })
-  @IsOptional()
+  @ValidateIf((o) => o.dispatch_type === LeadDispatchType.Scheduled)
+  @IsNotEmpty()
   @IsString()
   activation_time?: string;
 
-  @ApiProperty({ description: 'Start location full address', example: '123 Main St, Ahmedabad, Gujarat 380001' })
+  @ApiProperty({ description: 'Start location place_id', example: 'ChIJxT1...place_id' })
   @IsNotEmpty()
   @IsString()
   start_location: string;
 
-  @ApiProperty({ description: 'End location full address', example: '456 Highway, Himmatnagar, Gujarat 383001' })
+  @ApiProperty({ description: 'End location place_id', example: 'ChIJ...place_id' })
   @IsNotEmpty()
   @IsString()
   end_location: string;
@@ -39,16 +40,15 @@ export class CreateLeadDto {
   @IsString({ each: true })
   tag_locations?: string[];
 
-  @ApiPropertyOptional({ description: 'Distance string', example: '140 Km' })
-  @IsOptional()
+  @ApiProperty({ description: 'Distance string', example: '140 Km' })
+  @IsNotEmpty()
   @IsString()
-  distance?: string;
+  distance: string;
 
-  @ApiPropertyOptional({ description: 'Time string', example: '10 Hr 40 Mins' })
-  @IsOptional()
+  @ApiProperty({ description: 'Time string', example: '10 Hr 40 Mins' })
+  @IsNotEmpty()
   @IsString()
-  time?: string;
-
+  time: string;
   @ApiProperty({ description: 'Computed lead amount', example: 1950.00 })
   @IsNotEmpty()
   @IsNumber()

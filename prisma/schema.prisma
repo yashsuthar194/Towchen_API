@@ -294,6 +294,7 @@ model order {
   service_id          Int
   sub_service_id      Int?
   fleet_type          Int
+  type                OrderType   @default(Standard)
   status              OrderStatus @default(New)
   assign_time         DateTime?
   start_time          DateTime?
@@ -321,6 +322,7 @@ model order {
   discount_amount    Float  @default(0.0)
   final_amount       Float? // Net billing price after discount
   scheduled_order_id Int? // Populated when promoted from a scheduled booking
+  lead_id            Int?   @unique
 
   customer         customer          @relation(fields: [customer_id], references: [id])
   customer_vehicle customer_vehicle? @relation(fields: [customer_vehicle_id], references: [id])
@@ -336,7 +338,8 @@ model order {
   pickup_evcrf     pickup_evcrf?
   dropoff_evcrf    dropoff_evcrf?
   dispatches       order_dispatch[]
-  reviews           review[]
+  reviews          review[]
+  lead             lead?             @relation(fields: [lead_id], references: [id])
 
   @@index([customer_id])
   @@index([driver_id])
@@ -707,6 +710,11 @@ enum OrderStatus {
   Closed
 }
 
+enum OrderType {
+  Standard
+  Lead
+}
+
 enum LocationType {
   Start
   Breakdown
@@ -920,8 +928,10 @@ model lead {
   dispatch_type   LeadDispatchType @default(Current)
   activation_time DateTime?
 
-  start_location  String    @db.Text
-  end_location    String    @db.Text
+  start_location      String    @db.Text
+  start_location_data Json?
+  end_location        String    @db.Text
+  end_location_data   Json?
 
   distance        String?   @db.VarChar(50)
   time            String?   @db.VarChar(50)
@@ -933,23 +943,11 @@ model lead {
   vendor          vendor      @relation(fields: [vendor_id], references: [id])
   vehicle         vehicle     @relation(fields: [vehicle_id], references: [id])
   sub_service     sub_service @relation(fields: [sub_service_id], references: [id])
-  tag_locations   lead_tag_location[]
+  tag_locations   String[]    @default([])
+  order           order?
 
   @@index([vendor_id])
   @@index([vehicle_id])
   @@index([sub_service_id])
 }
 
-model lead_tag_location {
-  id         Int    @id @default(autoincrement())
-  lead_id    Int
-  address    String @db.Text
-  order      Int    @default(1)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
-
-  lead       lead   @relation(fields: [lead_id], references: [id], onDelete: Cascade)
-
-  @@index([lead_id])
-}

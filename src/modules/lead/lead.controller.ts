@@ -2,6 +2,7 @@ import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { LeadService } from './lead.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
+import { CalculateRouteDto } from './dto/calculate-route.dto';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
@@ -21,5 +22,18 @@ export class LeadController {
     const vendorId = req.user.id;
     const lead = await this._leadService.create(vendorId, createLeadDto);
     return ResponseDto.created('Lead created successfully', lead);
+  }
+
+  @Post('calculate-route')
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Calculate distance and time for a lead' })
+  @ApiResponseDto(ResponseDto)
+  async calculateRoute(@Body() calculateRouteDto: CalculateRouteDto) {
+    const data = await this._leadService.calculateRoute(
+      calculateRouteDto.start_location,
+      calculateRouteDto.end_location,
+    );
+    return ResponseDto.success('Route calculated successfully', data);
   }
 }
