@@ -3,10 +3,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LeadDispatchType } from '@prisma/client';
 
 export class CreateLeadDto {
-  @ApiProperty({ description: 'ID of the vehicle assigned', example: 1 })
+  @ApiProperty({ description: 'ID of the driver assigned', example: 1 })
   @IsNotEmpty()
   @IsNumber()
-  vehicle_id: number;
+  driver_id: number;
 
   @ApiProperty({ description: 'ID of the sub-service', example: 1 })
   @IsNotEmpty()

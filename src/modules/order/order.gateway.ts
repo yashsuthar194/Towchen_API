@@ -178,18 +178,18 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * Emits a "new-order" event to a SPECIFIC driver.
+   * Emits a "new-lead" event to a SPECIFIC driver.
    *
    * Used for booked leads where the driver/vehicle is already known.
    *
    * @param driverId - The driver to notify
-   * @param payload  - Order summary
+   * @param payload  - Lead summary
    */
-  notifySpecificDriver(driverId: number, payload: any): void {
+  emitNewLeadToDriver(driverId: number, payload: any): void {
     const room = `driver:${driverId}`;
-    this.server.to(room).emit('new-order', payload);
+    this.server.to(room).emit('new-lead', payload);
     this.logger.log(
-      `"new-order" emitted specifically → room "${room}" (orderId=${payload.orderId})`,
+      `"new-lead" emitted specifically → room "${room}" (orderId=${payload.orderId})`,
     );
   }
 }

@@ -48,6 +48,7 @@ export class CustomerLeadService {
         formated_id: '', 
         customer_id: customerId,
         vendor_id: lead.vendor_id,
+        driver_id: lead.driver_id,
         vehicle_id: lead.vehicle_id,
         service_id: lead.sub_service.service_id,
         sub_service_id: lead.sub_service_id,
@@ -78,12 +79,8 @@ export class CustomerLeadService {
       },
     });
 
-    const driver = await this._prisma.driver.findFirst({
-      where: { vehicle_id: lead.vehicle_id },
-    });
-
-    if (driver) {
-      this._orderGateway.notifySpecificDriver(driver.id, {
+    if (lead.driver_id) {
+      this._orderGateway.emitNewLeadToDriver(lead.driver_id, {
         orderId: order.id,
         amount: order.final_amount,
         type: order.type,

@@ -32,7 +32,7 @@ export class LeadController {
   async calculateRoute(@Body() calculateRouteDto: CalculateRouteDto) {
     const data = await this._leadService.calculateRoute(
       calculateRouteDto.start_location,
-      calculateRouteDto.end_location,
+      calculateRouteDto.end_location
     );
     return ResponseDto.success('Route calculated successfully', data);
   }

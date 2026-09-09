@@ -144,6 +144,7 @@ model driver {
   serviceLocation         location?          @relation("DriverServiceLocation", fields: [service_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
   vendor                  vendor             @relation(fields: [vendor_id], references: [id])
+  lead                    lead[]
   orders                  order[]
 
   @@index([vendor_id])
@@ -923,6 +924,7 @@ model lead {
   id              Int       @id @default(autoincrement())
   vendor_id       Int
   vehicle_id      Int
+  driver_id       Int
   sub_service_id  Int
 
   dispatch_type   LeadDispatchType @default(Current)
@@ -942,12 +944,14 @@ model lead {
 
   vendor          vendor      @relation(fields: [vendor_id], references: [id])
   vehicle         vehicle     @relation(fields: [vehicle_id], references: [id])
+  driver          driver      @relation(fields: [driver_id], references: [id])
   sub_service     sub_service @relation(fields: [sub_service_id], references: [id])
   tag_locations   String[]    @default([])
   order           order?
 
   @@index([vendor_id])
   @@index([vehicle_id])
+  @@index([driver_id])
   @@index([sub_service_id])
 }
 

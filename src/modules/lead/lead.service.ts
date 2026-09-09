@@ -14,18 +14,24 @@ export class LeadService {
   async create(vendorId: number, createLeadDto: CreateLeadDto) {
     const { tag_locations, ...leadData } = createLeadDto;
 
-    // Verify the vehicle belongs to the vendor
-    const vehicle = await this._prismaService.vehicle.findFirst({
-      where: { id: leadData.vehicle_id, vendor_id: vendorId }
+    // Verify the driver belongs to the vendor
+    const driver = await this._prismaService.driver.findFirst({
+      where: { id: leadData.driver_id, vendor_id: vendorId }
     });
 
-    if (!vehicle) {
-      throw new BadRequestException('Selected vehicle does not belong to this vendor.');
+    if (!driver) {
+      throw new BadRequestException('Selected driver does not belong to this vendor.');
+    }
+
+    if (!driver.vehicle_id) {
+      throw new BadRequestException('Selected driver does not have an assigned vehicle.');
     }
 
     // Resolve location data using MapsService
     const startLocationData = await this._mapsService.resolveAddressByPlaceIdAsync(leadData.start_location);
     const endLocationData = await this._mapsService.resolveAddressByPlaceIdAsync(leadData.end_location);
+
+    // Removed tag_locations_data since tags are now just simple text array
 
     // Determine activation_time based on dispatch_type
     const activationTime =
@@ -38,6 +44,7 @@ export class LeadService {
       data: {
         ...leadData,
         vendor_id: vendorId,
+        vehicle_id: driver.vehicle_id,
         activation_time: activationTime,
         start_location_data: startLocationData as any,
         end_location_data: endLocationData as any,
