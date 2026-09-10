@@ -18,6 +18,9 @@ export class CustomerVehicleDetailDto {
 
   @ApiProperty({ example: 'Petrol' })
   fuel_type: string;
+
+  @ApiPropertyOptional({ example: 'TwoWheeler' })
+  vehicle_type?: string;
 }
 
 export class CustomerDetailDto {

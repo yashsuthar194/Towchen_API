@@ -49,6 +49,7 @@ export class CustomerService {
                             registration_number: dto.vehicle.registration_number,
                             class: dto.vehicle.class,
                             fuel_type: dto.vehicle.fuel_type,
+                            vehicle_type: dto.vehicle.vehicle_type,
                         },
                     },
                 },
@@ -118,6 +119,7 @@ export class CustomerService {
                     registration_number: dto.registration_number,
                     class: dto.class,
                     fuel_type: dto.fuel_type,
+                    vehicle_type: dto.vehicle_type,
                 },
             });
 
