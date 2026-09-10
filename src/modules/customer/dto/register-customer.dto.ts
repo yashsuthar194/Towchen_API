@@ -1,14 +1,15 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   ValidateNested,
 } from 'class-validator';
-import { FuelType } from '@prisma/client';
+import { FuelType, VehicleType } from '@prisma/client';
 
 export class RegisterCustomerVehicleDto {
   @ApiProperty({
@@ -52,6 +53,18 @@ export class RegisterCustomerVehicleDto {
     message: `fuel_type must be one of: ${Object.values(FuelType).join(', ')}`,
   })
   fuel_type: FuelType;
+
+  @ApiPropertyOptional({
+    example: VehicleType.TwoWheeler,
+    description: 'Type of vehicle',
+    enum: VehicleType,
+    enumName: 'VehicleType',
+  })
+  @IsOptional()
+  @IsEnum(VehicleType, {
+    message: `vehicle_type must be one of: ${Object.values(VehicleType).join(', ')}`,
+  })
+  vehicle_type?: VehicleType;
 }
 
 export class RegisterCustomerDto {

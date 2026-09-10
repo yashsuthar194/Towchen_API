@@ -220,9 +220,10 @@ model customer_vehicle {
   registration_number String   @db.VarChar(20)
   class               String   @db.VarChar(255)
   fuel_type           FuelType
-  is_deleted          Boolean  @default(false)
-  created_at          DateTime @default(now())
-  updated_at          DateTime @default(now()) @updatedAt
+  vehicle_type        VehicleType?
+  is_deleted          Boolean      @default(false)
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @default(now()) @updatedAt
   is_deleted_by       Int?
   customer            customer @relation(fields: [customer_id], references: [id])
   orders              order[]
@@ -738,6 +739,12 @@ enum VehicleStatus {
   Available
   UnderApproval
   Banned
+}
+
+enum VehicleType {
+  TwoWheeler   @map("two wheeler")
+  ThreeWheeler @map("three wheeler")
+  FourWheeler  @map("four wheeler")
 }
 
 model pickup_evcrf {
