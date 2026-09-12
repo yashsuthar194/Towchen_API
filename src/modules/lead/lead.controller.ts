@@ -9,6 +9,7 @@ import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 
 @ApiTags('Lead')
+@ApiBearerAuth('JWT-auth')
 @Controller('lead')
 export class LeadController {
   constructor(private readonly _leadService: LeadService) {}
