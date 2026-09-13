@@ -929,6 +929,7 @@ enum LeadDispatchType {
 
 model lead {
   id              Int       @id @default(autoincrement())
+  formated_id     String    @unique
   vendor_id       Int
   vehicle_id      Int
   driver_id       Int
@@ -944,7 +945,6 @@ model lead {
 
   distance        String?   @db.VarChar(50)
   time            String?   @db.VarChar(50)
-  lead_amount     Float
 
   created_at      DateTime  @default(now())
   updated_at      DateTime  @default(now()) @updatedAt
@@ -956,6 +956,7 @@ model lead {
   tag_locations   String[]    @default([])
   order           order?
 
+  @@index([id, formated_id])
   @@index([vendor_id])
   @@index([vehicle_id])
   @@index([driver_id])

@@ -30,7 +30,7 @@ export class CustomerLeadService {
   async bookLead(customerId: number, leadId: number) {
     const lead = await this._prisma.lead.findUnique({
       where: { id: leadId },
-      include: { sub_service: true },
+      include: { sub_service: { include: { service: true } } },
     });
 
     if (!lead) throw new NotFoundException('Lead not found');
@@ -56,7 +56,6 @@ export class CustomerLeadService {
         type: OrderType.Lead,
         status: OrderStatus.Assigned,
         lead_id: lead.id,
-        final_amount: lead.lead_amount,
         start_time: lead.activation_time,
         locations: {
           create: [
@@ -81,9 +80,14 @@ export class CustomerLeadService {
 
     if (lead.driver_id) {
       this._orderGateway.emitNewLeadToDriver(lead.driver_id, {
-        orderId: order.id,
-        amount: order.final_amount,
-        type: order.type,
+        lead_id: lead.id,
+        lead_formatted_id: lead.formated_id,
+        order_formatted_id: order.formated_id,
+        order_id: order.id,
+        start_location: startLocationData,
+        end_location: endLocationData,
+        service_name: lead.sub_service.service.name,
+        sub_service_name: lead.sub_service.name,
       });
     }
 

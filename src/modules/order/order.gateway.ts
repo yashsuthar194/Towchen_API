@@ -10,6 +10,19 @@ import { JwtService } from 'src/services/jwt/jwt.service';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { Role } from '@prisma/client';
 
+// ─── Payload sent to driver apps on a new lead booked ──────────────────────────
+
+export interface NewLeadPayload {
+  lead_id: number;
+  order_id: number;
+  lead_formatted_id: string;
+  order_formatted_id: string;
+  start_location: Record<string, any>;
+  end_location: Record<string, any>;
+  service_name: string;
+  sub_service_name: string;
+}
+
 // ─── Payload sent to driver apps on a new dispatch round ────────────────────
 
 export interface NewOrderPayload {
@@ -185,11 +198,11 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
    * @param driverId - The driver to notify
    * @param payload  - Lead summary
    */
-  emitNewLeadToDriver(driverId: number, payload: any): void {
+  emitNewLeadToDriver(driverId: number, payload: NewLeadPayload): void {
     const room = `driver:${driverId}`;
     this.server.to(room).emit('new-lead', payload);
     this.logger.log(
-      `"new-lead" emitted specifically → room "${room}" (orderId=${payload.orderId})`, payload
+      `"new-lead" emitted specifically → room "${room}" (orderId=${payload.order_id})`, payload
     );
   }
 }

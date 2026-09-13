@@ -49,8 +49,4 @@ export class CreateLeadDto {
   @IsNotEmpty()
   @IsString()
   time: string;
-  @ApiProperty({ description: 'Computed lead amount', example: 1950.00 })
-  @IsNotEmpty()
-  @IsNumber()
-  lead_amount: number;
 }
