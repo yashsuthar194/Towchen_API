@@ -10,7 +10,7 @@ import { FilterLeadDto } from './dto/filter-lead.dto';
 @ApiTags('Customer Lead')
 @Controller('customer/lead')
 @UseGuards(JwtAuthGuard, CustomerGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('JWT-auth')
 export class CustomerLeadController {
   constructor(private readonly _customerLeadService: CustomerLeadService) {}
 
