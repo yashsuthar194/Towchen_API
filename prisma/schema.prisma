@@ -207,9 +207,11 @@ model customer {
   customer_vehicles  customer_vehicle[]
   orders             order[]
   customer_addresses customer_address[]
-  created_vouchers   voucher[]          @relation("VoucherCreator")
-  redeemed_vouchers  voucher[]          @relation("VoucherRedeemer")
-  scheduled_orders   scheduled_order[]
+  created_vouchers       voucher[]                        @relation("VoucherCreator")
+  redeemed_vouchers      voucher[]                        @relation("VoucherRedeemer")
+  scheduled_orders       scheduled_order[]
+  subscription_purchases customer_subscription_purchase[]
+  vehicle_subscriptions  customer_vehicle_subscription[]
 }
 
 model customer_vehicle {
@@ -225,8 +227,9 @@ model customer_vehicle {
   created_at          DateTime     @default(now())
   updated_at          DateTime     @default(now()) @updatedAt
   is_deleted_by       Int?
-  customer            customer @relation(fields: [customer_id], references: [id])
-  orders              order[]
+  customer      customer                        @relation(fields: [customer_id], references: [id])
+  orders        order[]
+  subscriptions customer_vehicle_subscription[]
 
   @@index([customer_id])
 }
@@ -339,9 +342,10 @@ model order {
   scheduled_order  scheduled_order?  @relation(fields: [scheduled_order_id], references: [id])
   pickup_evcrf     pickup_evcrf?
   dropoff_evcrf    dropoff_evcrf?
-  dispatches       order_dispatch[]
-  reviews          review[]
-  lead             lead?             @relation(fields: [lead_id], references: [id])
+  dispatches                  order_dispatch[]
+  reviews                     review[]
+  lead                        lead?                         @relation(fields: [lead_id], references: [id])
+  subscription_incident_usages subscription_incident_usage[]
 
   @@index([customer_id])
   @@index([driver_id])
@@ -961,5 +965,98 @@ model lead {
   @@index([vehicle_id])
   @@index([driver_id])
   @@index([sub_service_id])
+}
+
+model subscription_plan {
+  id                 Int         @id @default(autoincrement())
+  name               String      @db.VarChar(255)
+  pricing            Float       @default(0.0)
+  plan_period_months Int
+  incidents          Int
+  distance_km        Float
+  vehicle_type       VehicleType
+
+  is_active             Boolean                         @default(true)
+  activation_delay_days Int                             @default(3)
+  created_at            DateTime                        @default(now())
+  updated_at            DateTime                        @updatedAt
+
+  customer_vehicle_subscriptions customer_vehicle_subscription[]
+}
+
+enum PurchaseStatus {
+  Pending
+  Completed
+  Failed
+}
+
+enum SubscriptionStatus {
+  PendingActivation
+  Active
+  Expired
+  Cancelled
+}
+
+model customer_subscription_purchase {
+  id           Int            @id @default(autoincrement())
+  customer_id  Int
+  total_amount Float          @default(0.0)
+  status       PurchaseStatus @default(Pending)
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+
+  customer              customer                        @relation(fields: [customer_id], references: [id])
+  vehicle_subscriptions customer_vehicle_subscription[]
+
+  @@index([customer_id])
+}
+
+model customer_vehicle_subscription {
+  id                   Int    @id @default(autoincrement())
+  purchase_id          Int
+  customer_id          Int
+  customer_vehicle_id  Int
+  subscription_plan_id Int
+  rc_book_url          String @db.Text
+
+  // Snapshot Data
+  plan_name               String
+  plan_pricing            Float
+  plan_period_months      Int
+  total_incidents_allowed Int
+  distance_km_allowed     Float
+  vehicle_type            VehicleType
+
+  starts_at DateTime
+  expires_at DateTime
+  status     SubscriptionStatus @default(PendingActivation)
+  is_active  Boolean            @default(true)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  purchase          customer_subscription_purchase @relation(fields: [purchase_id], references: [id])
+  customer          customer                       @relation(fields: [customer_id], references: [id])
+  customer_vehicle  customer_vehicle               @relation(fields: [customer_vehicle_id], references: [id])
+  subscription_plan subscription_plan              @relation(fields: [subscription_plan_id], references: [id])
+  incident_usages   subscription_incident_usage[]
+
+  @@index([purchase_id])
+  @@index([customer_id])
+  @@index([customer_vehicle_id])
+  @@index([subscription_plan_id])
+}
+
+model subscription_incident_usage {
+  id                               Int      @id @default(autoincrement())
+  customer_vehicle_subscription_id Int
+  order_id                         Int
+  created_at                       DateTime @default(now())
+
+  subscription customer_vehicle_subscription @relation(fields: [customer_vehicle_subscription_id], references: [id])
+  order        order                         @relation(fields: [order_id], references: [id])
+
+  @@index([customer_vehicle_subscription_id])
+  @@index([order_id])
 }
 

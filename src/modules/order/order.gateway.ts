@@ -202,7 +202,7 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = `driver:${driverId}`;
     this.server.to(room).emit('new-lead', payload);
     this.logger.log(
-      `"new-lead" emitted specifically → room "${room}" (orderId=${payload.order_id})`, payload
+      `"new-lead" emitted specifically → room "${room}" (orderId=${payload.order_id})`
     );
   }
 }
