@@ -29,7 +29,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { ServiceLocationModule } from './modules/service-location/service-location.module';
 import { LeadModule } from './modules/lead/lead.module';
 import { CustomerLeadModule } from './modules/customer-lead/customer-lead.module';
-
+import { SubscriptionPlanModule } from './modules/subscription-plan/subscription-plan.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Global scheduler — must be here, not in feature modules
@@ -60,6 +60,7 @@ import { CustomerLeadModule } from './modules/customer-lead/customer-lead.module
     ServiceLocationModule,
     LeadModule,
     CustomerLeadModule,
+    SubscriptionPlanModule,
 ],
   controllers: [AppController],
   providers: [AppService],

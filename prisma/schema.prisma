@@ -21,48 +21,48 @@ model admin {
 }
 
 model vendor {
-  id                           Int                 @id @default(autoincrement())
-  formated_id                  String              @unique
-  email                        String              @db.VarChar(255)
-  password                     String              @db.VarChar(255)
-  is_email_verified            Boolean             @default(true)
+  id                           Int              @id @default(autoincrement())
+  formated_id                  String           @unique
+  email                        String           @db.VarChar(255)
+  password                     String           @db.VarChar(255)
+  is_email_verified            Boolean          @default(true)
   pan_card_url                 String
-  gst_number                   String?             @db.VarChar(15)
+  gst_number                   String?          @db.VarChar(15)
   gst_certificate_url          String
   approved_by                  Int?
-  is_deleted                   Boolean             @default(false)
-  status                       VendorStatus        @default(Pending)
-  created_at                   DateTime            @default(now())
-  updated_at                   DateTime            @default(now()) @updatedAt
+  is_deleted                   Boolean          @default(false)
+  status                       VendorStatus     @default(Pending)
+  created_at                   DateTime         @default(now())
+  updated_at                   DateTime         @default(now()) @updatedAt
   is_deleted_by                Int?
-  is_gst_vendor                Boolean             @default(false)
-  is_number_verified           Boolean             @default(true)
-  agreement_status             Boolean             @default(false)
+  is_gst_vendor                Boolean          @default(false)
+  is_number_verified           Boolean          @default(true)
+  agreement_status             Boolean          @default(false)
   signature_url                String?
-  alternate_number             String              @db.VarChar(20)
+  alternate_number             String           @db.VarChar(20)
   aadhar_card_url              String
-  mobile_number                String              @db.VarChar(20)
+  mobile_number                String           @db.VarChar(20)
   organization_certificate_url String
-  organization_name            String              @db.VarChar(255)
+  organization_name            String           @db.VarChar(255)
   organization_type            OrganizationType
-  pan_number                   String              @db.VarChar(100)
-  representative_designation   String              @db.VarChar(100)
-  representative_name          String              @db.VarChar(255)
+  pan_number                   String           @db.VarChar(100)
+  representative_designation   String           @db.VarChar(100)
+  representative_name          String           @db.VarChar(255)
   signature_type               SignatureType
-  vendor_name                  String              @db.VarChar(255)
+  vendor_name                  String           @db.VarChar(255)
   vendor_profile_image_url     String
   service_ids                  Int[]
 
-  vendor_location              vendor_location?
+  vendor_location vendor_location?
 
-  bank_detail                  vendor_bank_detail?
-  drivers                      driver[]
-  vehicles                     vehicle[]
-  orders                       order[]
-  leads                        lead[]
-  services                     service[]
-  dispatches                   order_dispatch[]
-  vendor_pricings              vendor_pricing[]     // vendor's own per-sub-service pricing
+  bank_detail     vendor_bank_detail?
+  drivers         driver[]
+  vehicles        vehicle[]
+  orders          order[]
+  leads           lead[]
+  services        service[]
+  dispatches      order_dispatch[]
+  vendor_pricings vendor_pricing[] // vendor's own per-sub-service pricing
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -70,22 +70,22 @@ model vendor {
 }
 
 model vendor_location {
-  id           Int      @id @default(autoincrement())
-  vendor_id    Int      @unique
-  address      String?
-  street       String?
-  area         String?
-  city         String?
-  state        String?
-  pincode      String?
-  country      String?  @default("India")
-  latitude     Float
-  longitude    Float
-  landmark     String?
-  place_id     String?
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  vendor       vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
+  id         Int      @id @default(autoincrement())
+  vendor_id  Int      @unique
+  address    String?
+  street     String?
+  area       String?
+  city       String?
+  state      String?
+  pincode    String?
+  country    String?  @default("India")
+  latitude   Float
+  longitude  Float
+  landmark   String?
+  place_id   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  vendor     vendor   @relation(fields: [vendor_id], references: [id], onDelete: Cascade)
 }
 
 model vendor_bank_detail {
@@ -213,41 +213,41 @@ model customer {
 }
 
 model customer_vehicle {
-  id                  Int      @id @default(autoincrement())
+  id                  Int          @id @default(autoincrement())
   customer_id         Int
-  make                String   @db.VarChar(255)
-  model               String   @db.VarChar(255)
-  registration_number String   @db.VarChar(20)
-  class               String   @db.VarChar(255)
+  make                String       @db.VarChar(255)
+  model               String       @db.VarChar(255)
+  registration_number String       @db.VarChar(20)
+  class               String       @db.VarChar(255)
   fuel_type           FuelType
   vehicle_type        VehicleType?
   is_deleted          Boolean      @default(false)
   created_at          DateTime     @default(now())
   updated_at          DateTime     @default(now()) @updatedAt
   is_deleted_by       Int?
-  customer            customer @relation(fields: [customer_id], references: [id])
+  customer            customer     @relation(fields: [customer_id], references: [id])
   orders              order[]
 
   @@index([customer_id])
 }
 
 model location {
-  id           Int              @id @default(autoincrement())
-  address      String?
-  street       String?
-  area         String?
-  city         String?
-  state        String?
-  pincode      String?
-  country      String?
-  latitude     Float
-  longitude    Float
-  landmark     String?
-  description  String?          // Used as the human-readable name for ServiceArea locations
-  place_id     String
-  category     LocationCategory @default(Driver)
-  created_at     DateTime         @default(now())
-  serviceDrivers driver[]         @relation("DriverServiceLocation")
+  id                Int                @id @default(autoincrement())
+  address           String?
+  street            String?
+  area              String?
+  city              String?
+  state             String?
+  pincode           String?
+  country           String?
+  latitude          Float
+  longitude         Float
+  landmark          String?
+  description       String? // Used as the human-readable name for ServiceArea locations
+  place_id          String
+  category          LocationCategory   @default(Driver)
+  created_at        DateTime           @default(now())
+  serviceDrivers    driver[]           @relation("DriverServiceLocation")
   location_pricings location_pricing[]
   vendor_pricings   vendor_pricing[]
 
@@ -456,10 +456,10 @@ model sub_service {
   updated_at DateTime @default(now()) @updatedAt
 
   // Global default pricing — used as the final fallback when no vendor/location pricing exists
-  base_distance Float @default(0)
-  base_price    Float @default(0)
-  extra_distance_price  Float @default(0)
-  ton          Float @default(0)
+  base_distance        Float @default(0)
+  base_price           Float @default(0)
+  extra_distance_price Float @default(0)
+  ton                  Float @default(0)
 
   image_url    String?
   journey_type JourneyType @default(FourWay)
@@ -469,8 +469,8 @@ model sub_service {
   leads   lead[]
 
   conditions        sub_service_condtion[]
-  location_pricings location_pricing[]     // admin-configured ceilings per location
-  vendor_pricings   vendor_pricing[]       // individual vendor pricing rows
+  location_pricings location_pricing[] // admin-configured ceilings per location
+  vendor_pricings   vendor_pricing[] // individual vendor pricing rows
 
   @@unique([name, service_id])
 }
@@ -878,14 +878,14 @@ enum ReviewUserType {
  * Vendors in this area cannot set prices higher than these values.
  */
 model location_pricing {
-  id          Int      @id @default(autoincrement())
-  location_id Int
-  sub_service_id Int
-  base_distance Float  @default(0) // Included km in the base price
-  base_price    Float  @default(0) // Maximum base price vendor can charge
-  extra_distance_price  Float  @default(0) // Maximum price per extra km vendor can charge
-  created_at   DateTime @default(now())
-  updated_at   DateTime @default(now()) @updatedAt
+  id                   Int      @id @default(autoincrement())
+  location_id          Int
+  sub_service_id       Int
+  base_distance        Float    @default(0) // Included km in the base price
+  base_price           Float    @default(0) // Maximum base price vendor can charge
+  extra_distance_price Float    @default(0) // Maximum price per extra km vendor can charge
+  created_at           DateTime @default(now())
+  updated_at           DateTime @default(now()) @updatedAt
 
   location    location    @relation(fields: [location_id], references: [id])
   sub_service sub_service @relation(fields: [sub_service_id], references: [id])
@@ -902,14 +902,14 @@ model location_pricing {
  * Vendor can update values downward (cannot exceed location ceiling).
  */
 model vendor_pricing {
-  id             Int      @id @default(autoincrement())
-  vendor_id      Int
-  location_id    Int
-  sub_service_id Int
-  base_price      Float    @default(0)
-  extra_distance_price    Float    @default(0)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @default(now()) @updatedAt
+  id                   Int      @id @default(autoincrement())
+  vendor_id            Int
+  location_id          Int
+  sub_service_id       Int
+  base_price           Float    @default(0)
+  extra_distance_price Float    @default(0)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @default(now()) @updatedAt
 
   vendor      vendor      @relation(fields: [vendor_id], references: [id])
   location    location    @relation(fields: [location_id], references: [id])
@@ -928,33 +928,33 @@ enum LeadDispatchType {
 }
 
 model lead {
-  id              Int       @id @default(autoincrement())
-  formated_id     String    @unique
-  vendor_id       Int
-  vehicle_id      Int
-  driver_id       Int
-  sub_service_id  Int
+  id             Int    @id @default(autoincrement())
+  formated_id    String @unique
+  vendor_id      Int
+  vehicle_id     Int
+  driver_id      Int
+  sub_service_id Int
 
   dispatch_type   LeadDispatchType @default(Current)
   activation_time DateTime?
 
-  start_location      String    @db.Text
+  start_location      String @db.Text
   start_location_data Json?
-  end_location        String    @db.Text
+  end_location        String @db.Text
   end_location_data   Json?
 
-  distance        String?   @db.VarChar(50)
-  time            String?   @db.VarChar(50)
+  distance String? @db.VarChar(50)
+  time     String? @db.VarChar(50)
 
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @default(now()) @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
 
-  vendor          vendor      @relation(fields: [vendor_id], references: [id])
-  vehicle         vehicle     @relation(fields: [vehicle_id], references: [id])
-  driver          driver      @relation(fields: [driver_id], references: [id])
-  sub_service     sub_service @relation(fields: [sub_service_id], references: [id])
-  tag_locations   String[]    @default([])
-  order           order?
+  vendor        vendor      @relation(fields: [vendor_id], references: [id])
+  vehicle       vehicle     @relation(fields: [vehicle_id], references: [id])
+  driver        driver      @relation(fields: [driver_id], references: [id])
+  sub_service   sub_service @relation(fields: [sub_service_id], references: [id])
+  tag_locations String[]    @default([])
+  order         order?
 
   @@index([id, formated_id])
   @@index([vendor_id])
@@ -963,3 +963,16 @@ model lead {
   @@index([sub_service_id])
 }
 
+model subscription_plan {
+  id                 Int         @id @default(autoincrement())
+  name               String      @db.VarChar(255)
+  pricing            Float       @default(0.0)
+  plan_period_months Int
+  incidents          Int
+  distance_km        Float
+  vehicle_type       VehicleType
+
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
