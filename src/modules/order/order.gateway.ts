@@ -14,9 +14,9 @@ import { Role } from '@prisma/client';
 
 export interface NewLeadPayload {
   lead_id: number;
-  order_id: number;
+  lead_order_id: number;
   lead_formatted_id: string;
-  order_formatted_id: string;
+  lead_order_formatted_id: string;
   start_location: Record<string, any>;
   end_location: Record<string, any>;
   service_name: string;
@@ -202,7 +202,7 @@ export class OrderGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = `driver:${driverId}`;
     this.server.to(room).emit('new-lead', payload);
     this.logger.log(
-      `"new-lead" emitted specifically → room "${room}" (orderId=${payload.order_id})`
+      `"new-lead" emitted specifically → room "${room}" (leadOrderId=${payload.lead_order_id})`
     );
   }
 }

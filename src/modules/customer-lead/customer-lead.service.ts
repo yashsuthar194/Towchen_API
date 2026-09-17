@@ -1,14 +1,17 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { OrderGateway } from '../order/order.gateway';
-import { OrderStatus, OrderType, LocationType } from '@prisma/client';
+import { LeadStatus } from '@prisma/client';
 import { FilterLeadDto } from './dto/filter-lead.dto';
+
+import { LeadOrderService } from '../lead-order/lead-order.service';
 
 @Injectable()
 export class CustomerLeadService {
   constructor(
     private readonly _prisma: PrismaService,
     private readonly _orderGateway: OrderGateway,
+    private readonly _leadOrderService: LeadOrderService,
   ) {}
 
   async getAvailableLeads(filterLeadDto: FilterLeadDto) {
@@ -16,7 +19,7 @@ export class CustomerLeadService {
     const { start_location, end_location } = filterLeadDto;
 
     return this._prisma.lead.findMany({
-      where: { order: null },
+      where: { status: LeadStatus.New },
       include: {
         vendor: {
           select: { vendor_name: true, organization_name: true },
@@ -35,55 +38,21 @@ export class CustomerLeadService {
 
     if (!lead) throw new NotFoundException('Lead not found');
 
-    const existingOrder = await this._prisma.order.findUnique({
-      where: { lead_id: leadId },
-    });
-    if (existingOrder) throw new BadRequestException('This lead has already been booked.');
+    if (lead.status !== LeadStatus.New) {
+      throw new BadRequestException('This lead has already been booked.');
+    }
+
+    const leadOrder = await this._leadOrderService.createLeadOrder(customerId, lead.id);
 
     const startLocationData = lead.start_location_data as any;
     const endLocationData = lead.end_location_data as any;
-
-    const order = await this._prisma.order.create({
-      data: {
-        formated_id: '', 
-        customer_id: customerId,
-        vendor_id: lead.vendor_id,
-        driver_id: lead.driver_id,
-        vehicle_id: lead.vehicle_id,
-        service_id: lead.sub_service.service_id,
-        sub_service_id: lead.sub_service_id,
-        fleet_type: lead.sub_service_id,
-        type: OrderType.Lead,
-        status: OrderStatus.Assigned,
-        lead_id: lead.id,
-        start_time: lead.activation_time,
-        locations: {
-          create: [
-            {
-              type: LocationType.Start,
-              address: startLocationData.address || startLocationData.formatted_address,
-              latitude: startLocationData.latitude || startLocationData.geometry?.location?.lat,
-              longitude: startLocationData.longitude || startLocationData.geometry?.location?.lng,
-              place_id: lead.start_location,
-            },
-            {
-              type: LocationType.Drop,
-              address: endLocationData.address || endLocationData.formatted_address,
-              latitude: endLocationData.latitude || endLocationData.geometry?.location?.lat,
-              longitude: endLocationData.longitude || endLocationData.geometry?.location?.lng,
-              place_id: lead.end_location,
-            },
-          ],
-        },
-      },
-    });
 
     if (lead.driver_id) {
       this._orderGateway.emitNewLeadToDriver(lead.driver_id, {
         lead_id: lead.id,
         lead_formatted_id: lead.formated_id,
-        order_formatted_id: order.formated_id,
-        order_id: order.id,
+        lead_order_formatted_id: leadOrder.formated_id,
+        lead_order_id: leadOrder.id,
         start_location: startLocationData,
         end_location: endLocationData,
         service_name: lead.sub_service.service.name,
@@ -91,6 +60,22 @@ export class CustomerLeadService {
       });
     }
 
+    return leadOrder;
+  }
+
+  async getLeadOrdersForCustomer(customerId: number) {
+    return this._leadOrderService.getLeadOrdersForCustomer(customerId);
+  }
+
+  async getLeadOrderById(orderId: number, customerId: number) {
+    const order = await this._leadOrderService.getLeadOrderById(orderId);
+    if (order.customer_id !== customerId) {
+      throw new BadRequestException('You do not have permission to view this lead order');
+    }
     return order;
+  }
+
+  async getLeadOrderOtpsAsync(orderId: number, customerId: number) {
+    return this._leadOrderService.getLeadOrderOtpsForCustomerAsync(orderId, customerId);
   }
 }

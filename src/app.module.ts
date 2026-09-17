@@ -31,6 +31,7 @@ import { LeadModule } from './modules/lead/lead.module';
 import { CustomerLeadModule } from './modules/customer-lead/customer-lead.module';
 import { SubscriptionPlanModule } from './modules/subscription-plan/subscription-plan.module';
 import { CustomerSubscriptionModule } from './modules/customer-subscription/customer-subscription.module';
+import { LeadOrderModule } from './modules/lead-order/lead-order.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Global scheduler — must be here, not in feature modules
@@ -60,6 +61,7 @@ import { CustomerSubscriptionModule } from './modules/customer-subscription/cust
     AdminModule,
     ServiceLocationModule,
     LeadModule,
+    LeadOrderModule,
     CustomerLeadModule,
     SubscriptionPlanModule,
     CustomerSubscriptionModule,

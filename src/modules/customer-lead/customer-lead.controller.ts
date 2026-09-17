@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Param, UseGuards, Req, ParseIntPipe, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { CustomerLeadService } from './customer-lead.service';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { CustomerGuard } from 'src/services/jwt/guards/customer.guard';
@@ -29,5 +29,34 @@ export class CustomerLeadController {
     const customerId = req.user.id;
     const order = await this._customerLeadService.bookLead(customerId, id);
     return ResponseDto.success('Lead booked successfully', order);
+  }
+
+  @Get('orders')
+  @ApiOperation({ summary: 'Get all booked lead orders for the current customer' })
+  @ApiResponseDto(ResponseDto)
+  async getCustomerLeadOrders(@Req() req) {
+    const customerId = req.user.id;
+    const orders = await this._customerLeadService.getLeadOrdersForCustomer(customerId);
+    return ResponseDto.success('Customer lead orders retrieved successfully', orders);
+  }
+
+  @Get('orders/:id')
+  @ApiOperation({ summary: 'Get details of a specific lead order for customer' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the lead order', example: 1 })
+  @ApiResponseDto(ResponseDto)
+  async getCustomerLeadOrderById(@Req() req, @Param('id', ParseIntPipe) id: number) {
+    const customerId = req.user.id;
+    const order = await this._customerLeadService.getLeadOrderById(id, customerId);
+    return ResponseDto.success('Lead order details retrieved successfully', order);
+  }
+
+  @Get('orders/:id/otp')
+  @ApiOperation({ summary: 'Get OTPs for a lead order (Customer only)' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the lead order', example: 1 })
+  @ApiResponseDto(ResponseDto)
+  async getLeadOrderOtps(@Req() req, @Param('id', ParseIntPipe) id: number) {
+    const customerId = req.user.id;
+    const otps = await this._customerLeadService.getLeadOrderOtpsAsync(id, customerId);
+    return ResponseDto.success('Lead order OTPs retrieved successfully', otps);
   }
 }

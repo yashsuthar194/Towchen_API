@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "subscription_plan" (
+CREATE TABLE IF NOT EXISTS "subscription_plan" (
     "id" SERIAL NOT NULL,
     "name" VARCHAR(255) NOT NULL,
     "pricing" DOUBLE PRECISION NOT NULL DEFAULT 0.0,

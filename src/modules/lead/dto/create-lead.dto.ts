@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsNumber, IsString, IsOptional, IsEnum, IsArray, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LeadDispatchType } from '@prisma/client';
+
 
 export class CreateLeadDto {
   @ApiProperty({ description: 'ID of the driver assigned', example: 1 })
@@ -13,16 +13,12 @@ export class CreateLeadDto {
   @IsNumber()
   sub_service_id: number;
 
-  @ApiProperty({ description: 'Type of dispatch', enum: LeadDispatchType, example: LeadDispatchType.Current })
+  @ApiProperty({ description: 'Lead amount', example: 100 })
   @IsNotEmpty()
-  @IsEnum(LeadDispatchType)
-  dispatch_type: LeadDispatchType;
+  @IsNumber()
+  lead_amount: number;
 
-  @ApiPropertyOptional({ description: 'Activation time if scheduled' })
-  @ValidateIf((o) => o.dispatch_type === LeadDispatchType.Scheduled)
-  @IsNotEmpty()
-  @IsString()
-  activation_time?: string;
+
 
   @ApiProperty({ description: 'Start location place_id', example: 'ChIJxT1...place_id' })
   @IsNotEmpty()
