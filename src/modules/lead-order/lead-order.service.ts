@@ -29,60 +29,61 @@ export class LeadOrderService {
       throw new BadRequestException('Lead is already booked or cancelled');
     }
 
-    return await this.prisma.$transaction(async (prisma) => {
-      // 1. Mark lead as Booked
-      await prisma.lead.update({
-        where: { id: lead.id },
-        data: { status: LeadStatus.Booked },
-      });
+    const orderFormattedId = `LDO${String(lead.id).padStart(7, '0')}`;
 
-      // 2. Create the LeadOrder
-      const leadOrder = await prisma.lead_order.create({
-        data: {
-          formated_id: '', // PostgreSQL Trigger will fill this
-          lead_id: lead.id,
-          customer_id: customerId,
-          vendor_id: lead.vendor_id,
-          driver_id: lead.driver_id,
-          vehicle_id: lead.vehicle_id,
-          sub_service_id: lead.sub_service_id,
-          status: OrderStatus.Assigned,
-          assign_time: new Date(),
-        },
-      });
-
-      return leadOrder;
-    });
-  }
-
-  async getLeadOrderById(id: number) {
-    const leadOrder = await this.prisma.lead_order.findUnique({
-      where: { id },
+    return await this.prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        status: LeadStatus.Booked,
+        order_status: OrderStatus.Assigned,
+        customer_id: customerId,
+        order_formated_id: orderFormattedId,
+        assign_time: new Date(),
+      },
       include: {
-        lead: true,
         vendor: true,
         driver: true,
         customer: true,
         vehicle: true,
+        sub_service: true,
+      },
+    });
+  }
+
+  async getLeadOrderById(id: number) {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id },
+      include: {
+        vendor: true,
+        driver: true,
+        customer: true,
+        vehicle: true,
+        sub_service: true,
+        locations: true,
+        otps: true,
+        pickup_evcrf: { include: { damages: true } },
+        dropoff_evcrf: true,
+        reviews: true,
       },
     });
 
-    if (!leadOrder) {
+    if (!lead) {
       throw new NotFoundException('Lead order not found');
     }
 
-    return leadOrder;
+    return lead;
   }
+
   async getLeadOrdersForDriver(driverId: number) {
-    const leadOrders = await this.prisma.lead_order.findMany({
+    const leads = await this.prisma.lead.findMany({
       where: {
         driver_id: driverId,
-        status: {
+        customer_id: { not: null },
+        order_status: {
           notIn: [OrderStatus.Completed, OrderStatus.Closed],
         },
       },
       include: {
-        lead: true,
         customer: {
           select: { full_name: true, number: true },
         },
@@ -95,14 +96,15 @@ export class LeadOrderService {
       orderBy: { created_at: 'desc' },
     });
 
-    return leadOrders;
+    return leads;
   }
+
   async sendOrderOtpAsync(
     orderId: number,
     type: OrderOtpType,
     driverId: number,
   ): Promise<{ message: string }> {
-    const order = await this.prisma.lead_order.findUnique({
+    const order = await this.prisma.lead.findUnique({
       where: { id: orderId },
       include: { customer: true },
     });
@@ -120,8 +122,8 @@ export class LeadOrderService {
 
     await this.prisma.lead_order_otp.upsert({
       where: {
-        lead_order_id_type: {
-          lead_order_id: orderId,
+        lead_id_type: {
+          lead_id: orderId,
           type: type,
         },
       },
@@ -133,16 +135,16 @@ export class LeadOrderService {
         attempts: 0,
       },
       create: {
-        lead_order_id: orderId,
+        lead_id: orderId,
         type: type,
         otp: otpCode,
         expires_at: expiresAt,
       },
     });
 
-    await this.prisma.lead_order.update({
+    await this.prisma.lead.update({
       where: { id: orderId },
-      data: { status: OrderStatus.OtpPending },
+      data: { order_status: OrderStatus.OtpPending },
     });
 
     return { message: 'OTP generated successfully' };
@@ -154,7 +156,7 @@ export class LeadOrderService {
     otp: string,
     driverId: number,
   ): Promise<{ message: string }> {
-    const order = await this.prisma.lead_order.findUnique({
+    const order = await this.prisma.lead.findUnique({
       where: { id: orderId },
     });
 
@@ -168,8 +170,8 @@ export class LeadOrderService {
 
     const otpRecord = await this.prisma.lead_order_otp.findUnique({
       where: {
-        lead_order_id_type: {
-          lead_order_id: orderId,
+        lead_id_type: {
+          lead_id: orderId,
           type: type,
         },
       },
@@ -198,12 +200,13 @@ export class LeadOrderService {
     }
 
     const updateData: any = {
-      status: type === OrderOtpType.BREAKDOWN ? OrderStatus.InProgress : OrderStatus.Completed,
+      order_status: type === OrderOtpType.BREAKDOWN ? OrderStatus.InProgress : OrderStatus.Completed,
     };
     if (type === OrderOtpType.BREAKDOWN) {
       updateData.start_time = new Date();
     } else {
       updateData.completion_time = new Date();
+      updateData.status = LeadStatus.Completed;
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -215,17 +218,10 @@ export class LeadOrderService {
         },
       });
 
-      await tx.lead_order.update({
+      await tx.lead.update({
         where: { id: orderId },
         data: updateData,
       });
-
-      if (type !== OrderOtpType.BREAKDOWN) {
-        await tx.lead.update({
-          where: { id: order.lead_id },
-          data: { status: LeadStatus.Completed },
-        });
-      }
     });
 
     return { message: 'OTP verified successfully.' };
@@ -237,7 +233,7 @@ export class LeadOrderService {
     type: 'pre_pickup' | 'post_pickup' | 'dropoff',
     files: Express.Multer.File[],
   ): Promise<{ urls: string[] }> {
-    const order = await this.prisma.lead_order.findUnique({
+    const order = await this.prisma.lead.findUnique({
       where: { id: orderId },
     });
 
@@ -281,7 +277,7 @@ export class LeadOrderService {
     };
     const fieldName = fieldNameMap[type];
 
-    await this.prisma.lead_order.update({
+    await this.prisma.lead.update({
       where: { id: orderId },
       data: {
         [fieldName]: urls,
@@ -297,7 +293,7 @@ export class LeadOrderService {
     type: 'pickup' | 'dropoff',
     file: Express.Multer.File,
   ): Promise<{ url: string }> {
-    const order = await this.prisma.lead_order.findUnique({
+    const order = await this.prisma.lead.findUnique({
       where: { id: orderId },
     });
 
@@ -337,15 +333,15 @@ export class LeadOrderService {
     await this.prisma.$transaction(async (tx) => {
       if (type === 'pickup') {
         await tx.lead_pickup_evcrf.deleteMany({
-          where: { lead_order_id: orderId },
+          where: { lead_id: orderId },
         });
       } else {
         await tx.lead_dropoff_evcrf.deleteMany({
-          where: { lead_order_id: orderId },
+          where: { lead_id: orderId },
         });
       }
 
-      await tx.lead_order.update({
+      await tx.lead.update({
         where: { id: orderId },
         data: {
           [fieldName]: res.url,
@@ -360,10 +356,9 @@ export class LeadOrderService {
   }
 
   async getLeadOrdersForCustomer(customerId: number) {
-    return this.prisma.lead_order.findMany({
+    return this.prisma.lead.findMany({
       where: { customer_id: customerId },
       include: {
-        lead: true,
         driver: {
           select: {
             id: true,
@@ -384,7 +379,7 @@ export class LeadOrderService {
   }
 
   async getLeadOrderOtpsForCustomerAsync(orderId: number, customerId: number) {
-    const order = await this.prisma.lead_order.findUnique({
+    const order = await this.prisma.lead.findUnique({
       where: { id: orderId },
       include: { otps: true },
     });

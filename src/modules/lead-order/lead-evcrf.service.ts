@@ -25,7 +25,7 @@ export class LeadEvcrfService {
       driver_sign?: Express.Multer.File[];
     }
   ) {
-    const leadOrder = await this._prisma.lead_order.findUnique({
+    const leadOrder = await this._prisma.lead.findUnique({
       where: { id: leadOrderId },
       include: { 
         vehicle: true,
@@ -142,17 +142,17 @@ export class LeadEvcrfService {
 
       // Upsert: create if not exists, update if exists — single DB round-trip
       const evcrf = await tx.lead_pickup_evcrf.upsert({
-        where: { lead_order_id: leadOrderId },
+        where: { lead_id: leadOrderId },
         create: {
-          lead_order_id: leadOrderId,
+          lead_id: leadOrderId,
           ...dataFields,
         },
         update: dataFields,
         include: { damages: true },
       });
 
-      // Update leadOrder physical VCRF flag to false
-      await tx.lead_order.update({
+      // Update lead physical VCRF flag to false
+      await tx.lead.update({
         where: { id: leadOrderId },
         data: {
           is_physical_vcrf_for_pickup: false,
@@ -172,7 +172,7 @@ export class LeadEvcrfService {
       handover_signature?: Express.Multer.File[];
     }
   ) {
-    const leadOrder = await this._prisma.lead_order.findUnique({
+    const leadOrder = await this._prisma.lead.findUnique({
       where: { id: leadOrderId },
     });
 
@@ -209,7 +209,7 @@ export class LeadEvcrfService {
     return await this._prisma.$transaction(async (tx) => {
       const existing = await tx.lead_dropoff_evcrf.findUnique({
         where: {
-          lead_order_id: leadOrderId,
+          lead_id: leadOrderId,
         },
       });
 
@@ -231,7 +231,7 @@ export class LeadEvcrfService {
 
       const evcrf = await tx.lead_dropoff_evcrf.create({
         data: {
-          lead_order_id: leadOrderId,
+          lead_id: leadOrderId,
           remarks: dto.remarks,
           handover_name: dto.handover_name,
           drop_location: dto.drop_location,
@@ -244,7 +244,7 @@ export class LeadEvcrfService {
         },
       });
 
-      await tx.lead_order.update({
+      await tx.lead.update({
         where: { id: leadOrderId },
         data: {
           is_physical_vcrf_for_dropoff: false,
@@ -260,7 +260,7 @@ export class LeadEvcrfService {
   async getPickupEvcrfAsync(leadOrderId: number) {
     const evcrf = await this._prisma.lead_pickup_evcrf.findUnique({
       where: {
-        lead_order_id: leadOrderId,
+        lead_id: leadOrderId,
       },
       include: { damages: true },
     });
@@ -275,7 +275,7 @@ export class LeadEvcrfService {
   async getDropoffEvcrfAsync(leadOrderId: number) {
     const evcrf = await this._prisma.lead_dropoff_evcrf.findUnique({
       where: {
-        lead_order_id: leadOrderId,
+        lead_id: leadOrderId,
       },
     });
 
@@ -302,7 +302,7 @@ export class LeadEvcrfService {
   }
 
   async getEvcrfConfigurationAsync(leadOrderId: number) {
-    const leadOrder = await this._prisma.lead_order.findUnique({
+    const leadOrder = await this._prisma.lead.findUnique({
       where: { id: leadOrderId },
       include: { 
         vehicle: true,
@@ -341,7 +341,7 @@ export class LeadEvcrfService {
       // Order pre-fill data array
       prefill_details: this.mapEvcrfFilledDetailsArray({
         date_time: leadOrder.created_at.toISOString(),
-        lead_order_id: leadOrder.formated_id,
+        lead_order_id: leadOrder.order_formated_id || leadOrder.formated_id,
         service_type: leadOrder.sub_service?.name || '-',
         vehicle_brand: leadOrder.vehicle?.make || '-',
         vehicle_model: leadOrder.vehicle?.model || '-',
@@ -410,7 +410,7 @@ export class LeadEvcrfService {
   }
 
   async getEvcrfPrefillDataAsync(leadOrderId: number) {
-    const leadOrder = await this._prisma.lead_order.findUnique({
+    const leadOrder = await this._prisma.lead.findUnique({
       where: { id: leadOrderId },
       include: { 
         vehicle: true,
@@ -430,7 +430,7 @@ export class LeadEvcrfService {
     return {
       prefill_details: this.mapEvcrfFilledDetailsArray({
         date_time: leadOrder.created_at.toISOString(),
-        lead_order_id: leadOrder.formated_id,
+        lead_order_id: leadOrder.order_formated_id || leadOrder.formated_id,
         service_type: leadOrder.sub_service?.name || '-',
         vehicle_brand: leadOrder.vehicle?.make || '-',
         vehicle_model: leadOrder.vehicle?.model || '-',
@@ -446,7 +446,7 @@ export class LeadEvcrfService {
   }
 
   async getDropoffEvcrfPrefillDataAsync(leadOrderId: number) {
-    const leadOrder = await this._prisma.lead_order.findUnique({
+    const leadOrder = await this._prisma.lead.findUnique({
       where: { id: leadOrderId },
       include: { 
         customer: true,
@@ -486,7 +486,7 @@ export class LeadEvcrfService {
       throw new BadRequestException('damage_image file is required');
     }
 
-    const folder = `evcrf/${evcrf.lead_order_id}/pickup/damages`;
+    const folder = `evcrf/${evcrf.lead_id}/pickup/damages`;
 
     const upload = await this._storageService.uploadFileAsync({
       buffer: file.buffer,

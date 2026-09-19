@@ -52,7 +52,7 @@ export class LeadReviewService {
       throw new ForbiddenException('Only customers and drivers can submit reviews');
     }
 
-    const leadOrder = await this._prisma.lead_order.findUnique({
+    const leadOrder = await this._prisma.lead.findUnique({
       where: { id: dto.leadOrderId },
     });
 
@@ -60,7 +60,7 @@ export class LeadReviewService {
       throw new NotFoundException(`Lead order with ID ${dto.leadOrderId} not found`);
     }
 
-    if (leadOrder.status !== OrderStatus.Completed && leadOrder.status !== OrderStatus.Closed) {
+    if (leadOrder.order_status !== OrderStatus.Completed && leadOrder.order_status !== OrderStatus.Closed) {
       throw new BadRequestException('Reviews can only be submitted for completed or closed lead orders');
     }
 
@@ -91,8 +91,8 @@ export class LeadReviewService {
 
     const existingReview = await this._prisma.lead_review.findUnique({
       where: {
-        lead_order_id_reviewer_type_reviewer_id: {
-          lead_order_id: dto.leadOrderId,
+        lead_id_reviewer_type_reviewer_id: {
+          lead_id: dto.leadOrderId,
           reviewer_type: reviewerType,
           reviewer_id: userId,
         },
@@ -118,7 +118,7 @@ export class LeadReviewService {
     const review = await this._prisma.$transaction(async (tx) => {
       const newReview = await tx.lead_review.create({
         data: {
-          lead_order_id: dto.leadOrderId,
+          lead_id: dto.leadOrderId,
           reviewer_type: reviewerType,
           reviewer_id: userId,
           reviewee_type: revieweeType,
@@ -192,9 +192,9 @@ export class LeadReviewService {
    * Returns whether the customer and driver have submitted reviews for a given lead order.
    */
   async getReviewStatusAsync(leadOrderId: number): Promise<ReviewStatusDto> {
-    const order = await this._prisma.lead_order.findUnique({
+    const order = await this._prisma.lead.findUnique({
       where: { id: leadOrderId },
-      select: { id: true, customer_id: true, driver_id: true, status: true },
+      select: { id: true, customer_id: true, driver_id: true, order_status: true },
     });
 
     if (!order) {
@@ -202,7 +202,7 @@ export class LeadReviewService {
     }
 
     const reviews = await this._prisma.lead_review.findMany({
-      where: { lead_order_id: leadOrderId },
+      where: { lead_id: leadOrderId },
       select: { reviewer_type: true },
     });
 

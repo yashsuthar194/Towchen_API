@@ -63,7 +63,6 @@ model vendor {
   services        service[]
   dispatches      order_dispatch[]
   vendor_pricings vendor_pricing[] // vendor's own per-sub-service pricing
-  leadOrders      lead_order[]
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -145,9 +144,8 @@ model driver {
   serviceLocation         location?          @relation("DriverServiceLocation", fields: [service_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
   vendor                  vendor             @relation(fields: [vendor_id], references: [id])
-  lead                    lead[]
   orders                  order[]
-  leadOrders              lead_order[]
+  leads                   lead[]
 
   @@index([vendor_id])
   @@index([vehicle_id])
@@ -188,7 +186,6 @@ model vehicle {
   vendor              vendor             @relation(fields: [vendor_id], references: [id])
   orders              order[]
   leads               lead[]
-  leadOrders          lead_order[]
 
   @@index([id])
   @@index([vendor_id])
@@ -215,7 +212,7 @@ model customer {
   scheduled_orders       scheduled_order[]
   subscription_purchases customer_subscription_purchase[]
   vehicle_subscriptions  customer_vehicle_subscription[]
-  leadOrders             lead_order[]
+  leads                  lead[]
 }
 
 model customer_vehicle {
@@ -477,7 +474,6 @@ model sub_service {
   conditions        sub_service_condtion[]
   location_pricings location_pricing[] // admin-configured ceilings per location
   vendor_pricings   vendor_pricing[] // individual vendor pricing rows
-  leadOrders        lead_order[]
 
   @@unique([name, service_id])
 }
@@ -938,58 +934,31 @@ enum LeadStatus {
 }
 
 model lead {
-  id             Int    @id @default(autoincrement())
-  formated_id    String @unique
-  vendor_id      Int
-  vehicle_id     Int
-  driver_id      Int
-  sub_service_id Int
+  id                Int         @id @default(autoincrement())
+  formated_id       String      @unique
+  order_formated_id String?     @unique
+  vendor_id         Int
+  vehicle_id        Int
+  driver_id         Int
+  sub_service_id    Int
+  customer_id       Int?
 
   start_location      String @db.Text
   start_location_data Json?
   end_location        String @db.Text
   end_location_data   Json?
 
-  distance    String?    @db.VarChar(50)
-  time        String?    @db.VarChar(50)
-  lead_amount Float      @default(0.0)
-  status      LeadStatus @default(New)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
-
-  vendor        vendor      @relation(fields: [vendor_id], references: [id])
-  vehicle       vehicle     @relation(fields: [vehicle_id], references: [id])
-  driver        driver      @relation(fields: [driver_id], references: [id])
-  sub_service   sub_service @relation(fields: [sub_service_id], references: [id])
-  tag_locations String[]    @default([])
-  lead_order    lead_order?
-
-  @@index([id, formated_id])
-  @@index([vendor_id])
-  @@index([vehicle_id])
-  @@index([driver_id])
-  @@index([sub_service_id])
-}
-
-model lead_order {
-  id             Int         @id @default(autoincrement())
-  formated_id    String      @unique
-  lead_id        Int         @unique
-  customer_id    Int
-  vendor_id      Int
-  driver_id      Int
-  vehicle_id     Int
-  sub_service_id Int
-  status         OrderStatus @default(New)
+  distance    String?     @db.VarChar(50)
+  time        String?     @db.VarChar(50)
+  lead_amount Float       @default(0.0)
+  status      LeadStatus  @default(New)
+  order_status OrderStatus?
 
   assign_time     DateTime?
   start_time      DateTime?
   completion_time DateTime?
   remarks         String?
   cancel_reason   String?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @default(now()) @updatedAt
 
   meta_data Json?
 
@@ -1005,12 +974,15 @@ model lead_order {
   physical_pickup_vcrf_image   String?
   physical_dropoff_vcrf_image  String?
 
-  lead        lead        @relation(fields: [lead_id], references: [id])
-  customer    customer    @relation(fields: [customer_id], references: [id])
-  vendor      vendor      @relation(fields: [vendor_id], references: [id])
-  driver      driver      @relation(fields: [driver_id], references: [id])
-  vehicle     vehicle     @relation(fields: [vehicle_id], references: [id])
-  sub_service sub_service @relation(fields: [sub_service_id], references: [id])
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now()) @updatedAt
+
+  customer      customer?   @relation(fields: [customer_id], references: [id])
+  vendor        vendor      @relation(fields: [vendor_id], references: [id])
+  vehicle       vehicle     @relation(fields: [vehicle_id], references: [id])
+  driver        driver      @relation(fields: [driver_id], references: [id])
+  sub_service   sub_service @relation(fields: [sub_service_id], references: [id])
+  tag_locations String[]    @default([])
 
   locations     lead_order_location[]
   otps          lead_order_otp[]
@@ -1018,11 +990,12 @@ model lead_order {
   dropoff_evcrf lead_dropoff_evcrf?
   reviews       lead_review[]
 
-  @@index([lead_id])
+  @@index([id, formated_id])
   @@index([customer_id])
   @@index([vendor_id])
-  @@index([driver_id])
   @@index([vehicle_id])
+  @@index([driver_id])
+  @@index([sub_service_id])
 }
 
 model subscription_plan {
@@ -1120,7 +1093,7 @@ model subscription_incident_usage {
 
 model lead_pickup_evcrf {
   id                    Int     @id @default(autoincrement())
-  lead_order_id         Int     @unique
+  lead_id               Int     @unique
   fuel_amount           String? @db.VarChar(50)
   odometer_reading_text String? @db.VarChar(100)
   odometer_image        String? @db.Text
@@ -1147,11 +1120,11 @@ model lead_pickup_evcrf {
   created_at                     DateTime @default(now())
   updated_at                     DateTime @default(now()) @updatedAt
 
-  lead_order                  lead_order                   @relation(fields: [lead_order_id], references: [id], onDelete: Cascade)
+  lead                        lead                         @relation(fields: [lead_id], references: [id], onDelete: Cascade)
   vehicle_class_configuration vehicle_class_configuration? @relation(fields: [vehicle_class_configuration_id], references: [id])
   damages                     lead_pickup_evcrf_damage[]
 
-  @@index([lead_order_id])
+  @@index([lead_id])
   @@index([vehicle_class_configuration_id])
 }
 
@@ -1169,7 +1142,7 @@ model lead_pickup_evcrf_damage {
 
 model lead_dropoff_evcrf {
   id            Int     @id @default(autoincrement())
-  lead_order_id Int     @unique
+  lead_id       Int     @unique
   remarks       String? @db.Text
 
   handover_name          String? @db.VarChar(255)
@@ -1184,33 +1157,33 @@ model lead_dropoff_evcrf {
   created_at     DateTime @default(now())
   updated_at     DateTime @default(now()) @updatedAt
 
-  lead_order lead_order @relation(fields: [lead_order_id], references: [id], onDelete: Cascade)
+  lead lead @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
-  @@index([lead_order_id])
+  @@index([lead_id])
 }
 
 model lead_order_otp {
-  id            Int          @id @default(autoincrement())
-  lead_order_id Int
-  type          OrderOtpType @default(BREAKDOWN)
-  otp           String       @db.VarChar(6)
-  expires_at    DateTime
-  verified_at   DateTime?
-  is_verified   Boolean      @default(false)
-  attempts      Int          @default(0)
-  created_at    DateTime     @default(now())
-  updated_at    DateTime     @default(now()) @updatedAt
+  id          Int          @id @default(autoincrement())
+  lead_id     Int
+  type        OrderOtpType @default(BREAKDOWN)
+  otp         String       @db.VarChar(6)
+  expires_at  DateTime
+  verified_at DateTime?
+  is_verified Boolean      @default(false)
+  attempts    Int          @default(0)
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @default(now()) @updatedAt
 
-  lead_order lead_order @relation(fields: [lead_order_id], references: [id])
+  lead lead @relation(fields: [lead_id], references: [id])
 
-  @@unique([lead_order_id, type])
-  @@index([lead_order_id])
+  @@unique([lead_id, type])
+  @@index([lead_id])
 }
 
 model lead_order_location {
-  id            Int          @id @default(autoincrement())
-  lead_order_id Int
-  type          LocationType
+  id      Int          @id @default(autoincrement())
+  lead_id Int
+  type    LocationType
 
   address   String?
   street    String?
@@ -1229,16 +1202,16 @@ model lead_order_location {
 
   created_at DateTime @default(now())
 
-  lead_order lead_order @relation(fields: [lead_order_id], references: [id])
+  lead lead @relation(fields: [lead_id], references: [id])
 
-  @@unique([lead_order_id, type])
-  @@index([lead_order_id])
+  @@unique([lead_id, type])
+  @@index([lead_id])
   @@index([place_id])
 }
 
 model lead_review {
   id            Int            @id @default(autoincrement())
-  lead_order_id Int
+  lead_id       Int
   reviewer_type ReviewUserType
   reviewer_id   Int
   reviewee_type ReviewUserType
@@ -1251,9 +1224,9 @@ model lead_review {
   created_at    DateTime       @default(now())
   updated_at    DateTime       @updatedAt
 
-  lead_order lead_order @relation(fields: [lead_order_id], references: [id], onDelete: Cascade)
+  lead lead @relation(fields: [lead_id], references: [id], onDelete: Cascade)
 
-  @@unique([lead_order_id, reviewer_type, reviewer_id])
-  @@index([lead_order_id])
+  @@unique([lead_id, reviewer_type, reviewer_id])
+  @@index([lead_id])
   @@index([reviewee_type, reviewee_id])
 }

@@ -51,7 +51,7 @@ export class CustomerLeadService {
       this._orderGateway.emitNewLeadToDriver(lead.driver_id, {
         lead_id: lead.id,
         lead_formatted_id: lead.formated_id,
-        lead_order_formatted_id: leadOrder.formated_id,
+        lead_order_formatted_id: leadOrder.order_formated_id || leadOrder.formated_id,
         lead_order_id: leadOrder.id,
         start_location: startLocationData,
         end_location: endLocationData,

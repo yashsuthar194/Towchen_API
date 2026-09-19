@@ -17,7 +17,7 @@ import { DriverGuard } from 'src/services/jwt/guards/driver.guard';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { PrismaService } from 'src/core/prisma/prisma.service';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, LeadStatus } from '@prisma/client';
 
 import { LeadOrderService } from './lead-order.service';
 import { LeadEvcrfService } from './lead-evcrf.service';
@@ -61,10 +61,10 @@ export class DriverLeadOrderController {
   @Post(':id/accept')
   @ApiOperation({ summary: 'Accept a lead order' })
   async acceptLeadOrder(@Param('id', ParseIntPipe) id: number) {
-    const leadOrder = await this.prisma.lead_order.update({
+    const leadOrder = await this.prisma.lead.update({
       where: { id },
       data: {
-        status: OrderStatus.Assigned,
+        order_status: OrderStatus.Assigned,
         assign_time: new Date(),
       },
     });
@@ -77,18 +77,14 @@ export class DriverLeadOrderController {
     @Param('id', ParseIntPipe) id: number,
     @Body('reason') reason: string,
   ) {
-    const leadOrder = await this.prisma.lead_order.update({
+    const leadOrder = await this.prisma.lead.update({
       where: { id },
       data: {
-        status: OrderStatus.Closed,
+        order_status: OrderStatus.Closed,
+        status: LeadStatus.Cancelled,
         cancel_reason: reason,
         completion_time: new Date(),
       },
-    });
-
-    await this.prisma.lead.update({
-      where: { id: leadOrder.lead_id },
-      data: { status: 'Cancelled' },
     });
 
     return new ResponseDto(true, 200, 'Lead order cancelled', leadOrder);
