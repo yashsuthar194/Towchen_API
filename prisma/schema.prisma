@@ -984,8 +984,8 @@ model lead {
   sub_service   sub_service @relation(fields: [sub_service_id], references: [id])
   tag_locations String[]    @default([])
 
-  locations     lead_order_location[]
-  otps          lead_order_otp[]
+  locations     lead_location[]
+  otps          lead_otp[]
   pickup_evcrf  lead_pickup_evcrf?
   dropoff_evcrf lead_dropoff_evcrf?
   reviews       lead_review[]
@@ -1162,7 +1162,7 @@ model lead_dropoff_evcrf {
   @@index([lead_id])
 }
 
-model lead_order_otp {
+model lead_otp {
   id          Int          @id @default(autoincrement())
   lead_id     Int
   type        OrderOtpType @default(BREAKDOWN)
@@ -1180,7 +1180,7 @@ model lead_order_otp {
   @@index([lead_id])
 }
 
-model lead_order_location {
+model lead_location {
   id      Int          @id @default(autoincrement())
   lead_id Int
   type    LocationType

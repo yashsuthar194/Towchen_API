@@ -17,7 +17,7 @@ describe('LeadOrderService', () => {
         findMany: jest.fn(),
         update: jest.fn(),
       },
-      lead_order_otp: {
+      lead_otp: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
         update: jest.fn(),
@@ -128,13 +128,13 @@ describe('LeadOrderService', () => {
   describe('sendOrderOtpAsync', () => {
     it('should generate OTP and update lead order_status to OtpPending', async () => {
       prisma.lead.findUnique.mockResolvedValue({ id: 1, driver_id: 5 });
-      prisma.lead_order_otp.upsert.mockResolvedValue({});
+      prisma.lead_otp.upsert.mockResolvedValue({});
       prisma.lead.update.mockResolvedValue({});
 
       const result = await service.sendOrderOtpAsync(1, OrderOtpType.BREAKDOWN, 5);
 
       expect(result.message).toBe('OTP generated successfully');
-      expect(prisma.lead_order_otp.upsert).toHaveBeenCalled();
+      expect(prisma.lead_otp.upsert).toHaveBeenCalled();
       expect(prisma.lead.update).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { order_status: OrderStatus.OtpPending },
@@ -152,7 +152,7 @@ describe('LeadOrderService', () => {
   describe('verifyOrderOtpAsync', () => {
     it('should verify OTP and update order_status', async () => {
       prisma.lead.findUnique.mockResolvedValue({ id: 1, driver_id: 5 });
-      prisma.lead_order_otp.findUnique.mockResolvedValue({
+      prisma.lead_otp.findUnique.mockResolvedValue({
         id: 100,
         otp: '123456',
         is_verified: false,
@@ -162,7 +162,7 @@ describe('LeadOrderService', () => {
       const result = await service.verifyOrderOtpAsync(1, OrderOtpType.BREAKDOWN, '123456', 5);
 
       expect(result.message).toBe('OTP verified successfully.');
-      expect(prisma.lead_order_otp.update).toHaveBeenCalledWith({
+      expect(prisma.lead_otp.update).toHaveBeenCalledWith({
         where: { id: 100 },
         data: expect.objectContaining({ is_verified: true }),
       });

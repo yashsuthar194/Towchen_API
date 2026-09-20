@@ -1,10 +1,12 @@
-import { IsNotEmpty, IsEnum, IsString, Length } from 'class-validator';
+import { IsNotEmpty, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { OrderOtpType } from '@prisma/client';
 
-export class SendLeadOrderOtpDto {
+export class SendLeadOtpDto {
   @ApiProperty({ enum: OrderOtpType, example: 'BREAKDOWN' })
   @IsNotEmpty()
   @IsEnum(OrderOtpType)
   type: OrderOtpType;
 }
+
+export class SendLeadOrderOtpDto extends SendLeadOtpDto {}

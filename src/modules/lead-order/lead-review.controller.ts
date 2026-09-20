@@ -15,7 +15,7 @@ import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 
-@ApiTags('Lead Order Review')
+@ApiTags('Lead Review')
 @Controller()
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
@@ -23,20 +23,20 @@ export class LeadReviewController {
   constructor(private readonly _leadReviewService: LeadReviewService) {}
 
   /**
-   * Submit a review for a completed lead order.
+   * Submit a review for a completed lead.
    */
-  @Post(['lead-orders/reviews', 'lead-reviews'])
+  @Post(['lead/reviews', 'leads/reviews', 'lead/review', 'leads/review', 'lead-reviews', 'lead-orders/reviews'])
   @ApiOperation({
-    summary: 'Submit a review for a completed lead order',
+    summary: 'Submit a review for a completed lead',
     description:
-      'Creates a review for a completed or closed lead order.\n\n' +
+      'Creates a review for a completed or closed lead.\n\n' +
       '**Reviewer** is determined from the authenticated JWT user.\n\n' +
-      '**Reviewee** is automatically derived from the lead order:\n' +
+      '**Reviewee** is automatically derived from the lead:\n' +
       '- Customer → reviews the assigned Driver\n' +
       '- Driver → reviews the Customer\n\n' +
       'Constraints:\n' +
-      '- Lead Order must be in `Completed` or `Closed` status\n' +
-      '- Only one review per reviewer per lead order\n' +
+      '- Lead must be in `Completed` or `Closed` order_status\n' +
+      '- Only one review per reviewer per lead\n' +
       '- Rating must be between 1 and 5\n' +
       '- Tags must be from the allowed set for the reviewer type',
   })
@@ -47,15 +47,15 @@ export class LeadReviewController {
   }
 
   /**
-   * Get review status for a specific lead order.
+   * Get review status for a specific lead.
    */
-  @Get('lead-orders/:id/review-status')
+  @Get(['lead/:id/review-status', 'leads/:id/review-status', 'lead-orders/:id/review-status'])
   @ApiOperation({
-    summary: 'Get review status for a lead order',
+    summary: 'Get review status for a lead',
     description:
-      'Returns whether the customer and driver have submitted their reviews for a specific lead order.',
+      'Returns whether the customer and driver have submitted their reviews for a specific lead.',
   })
-  @ApiParam({ name: 'id', description: 'Numeric ID of the lead order', example: 1 })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
   @ApiResponseDto(ReviewStatusDto, false, 200)
   async getReviewStatus(
     @Param('id', ParseIntPipe) id: number,

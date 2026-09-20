@@ -120,7 +120,7 @@ export class LeadOrderService {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date('9999-12-31'); 
 
-    await this.prisma.lead_order_otp.upsert({
+    await this.prisma.lead_otp.upsert({
       where: {
         lead_id_type: {
           lead_id: orderId,
@@ -168,7 +168,7 @@ export class LeadOrderService {
       throw new BadRequestException('You are not the assigned driver for this order');
     }
 
-    const otpRecord = await this.prisma.lead_order_otp.findUnique({
+    const otpRecord = await this.prisma.lead_otp.findUnique({
       where: {
         lead_id_type: {
           lead_id: orderId,
@@ -191,7 +191,7 @@ export class LeadOrderService {
       }
 
       if (otpRecord.otp !== otp) {
-        await this.prisma.lead_order_otp.update({
+        await this.prisma.lead_otp.update({
           where: { id: otpRecord.id },
           data: { attempts: { increment: 1 } },
         });
@@ -210,7 +210,7 @@ export class LeadOrderService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.lead_order_otp.update({
+      await tx.lead_otp.update({
         where: { id: otpRecord.id },
         data: {
           is_verified: true,

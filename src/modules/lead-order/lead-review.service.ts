@@ -52,12 +52,17 @@ export class LeadReviewService {
       throw new ForbiddenException('Only customers and drivers can submit reviews');
     }
 
+    const targetLeadId = dto.leadId ?? dto.lead_id ?? dto.orderId ?? dto.leadOrderId;
+    if (!targetLeadId) {
+      throw new BadRequestException('leadId is required');
+    }
+
     const leadOrder = await this._prisma.lead.findUnique({
-      where: { id: dto.leadOrderId },
+      where: { id: targetLeadId },
     });
 
     if (!leadOrder) {
-      throw new NotFoundException(`Lead order with ID ${dto.leadOrderId} not found`);
+      throw new NotFoundException(`Lead with ID ${targetLeadId} not found`);
     }
 
     if (leadOrder.order_status !== OrderStatus.Completed && leadOrder.order_status !== OrderStatus.Closed) {
@@ -92,7 +97,7 @@ export class LeadReviewService {
     const existingReview = await this._prisma.lead_review.findUnique({
       where: {
         lead_id_reviewer_type_reviewer_id: {
-          lead_id: dto.leadOrderId,
+          lead_id: targetLeadId,
           reviewer_type: reviewerType,
           reviewer_id: userId,
         },
@@ -100,7 +105,7 @@ export class LeadReviewService {
     });
 
     if (existingReview) {
-      throw new BadRequestException('You have already submitted a review for this lead order');
+      throw new BadRequestException('You have already submitted a review for this lead');
     }
 
     if (dto.tags && dto.tags.length > 0) {
@@ -118,7 +123,7 @@ export class LeadReviewService {
     const review = await this._prisma.$transaction(async (tx) => {
       const newReview = await tx.lead_review.create({
         data: {
-          lead_id: dto.leadOrderId,
+          lead_id: targetLeadId,
           reviewer_type: reviewerType,
           reviewer_id: userId,
           reviewee_type: revieweeType,

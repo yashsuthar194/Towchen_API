@@ -1,5 +1,5 @@
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Get, Body, Param, UseGuards, Req, ParseIntPipe } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { LeadService } from './lead.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { CalculateRouteDto } from './dto/calculate-route.dto';
@@ -36,5 +36,25 @@ export class LeadController {
       calculateRouteDto.end_location
     );
     return ResponseDto.success('Route calculated successfully', data);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get lead details by ID' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
+  @ApiResponseDto(ResponseDto)
+  async getById(@Param('id', ParseIntPipe) id: number) {
+    const lead = await this._leadService.getByIdAsync(id);
+    return ResponseDto.retrieved('Lead details fetched successfully', lead);
+  }
+
+  @Get(':id/otp')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get OTPs for a lead by ID' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
+  @ApiResponseDto(ResponseDto)
+  async getOtps(@Param('id', ParseIntPipe) id: number) {
+    const otps = await this._leadService.getLeadOtpsAsync(id);
+    return ResponseDto.retrieved('Lead OTPs fetched successfully', otps);
   }
 }

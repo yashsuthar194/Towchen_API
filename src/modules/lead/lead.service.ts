@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { MapsService } from '../../services/maps/maps.service';
@@ -58,5 +58,42 @@ export class LeadService {
       distance: distanceMatrix.distance.formatted,
       time: distanceMatrix.travel_time.formatted,
     };
+  }
+
+  async getByIdAsync(id: number) {
+    const lead = await this._prismaService.lead.findUnique({
+      where: { id },
+      include: {
+        vendor: true,
+        driver: true,
+        customer: true,
+        vehicle: true,
+        sub_service: { include: { service: true } },
+        locations: true,
+        otps: true,
+        pickup_evcrf: { include: { damages: true } },
+        dropoff_evcrf: true,
+        reviews: true,
+      },
+    });
+
+    if (!lead) {
+      throw new NotFoundException(`Lead with ID ${id} not found`);
+    }
+
+    return lead;
+  }
+
+  async getLeadOtpsAsync(id: number) {
+    const lead = await this._prismaService.lead.findUnique({
+      where: { id },
+      include: { otps: true },
+    });
+
+    if (!lead) {
+      throw new NotFoundException(`Lead with ID ${id} not found`);
+    }
+
+    return lead.otps;
   }
 }

@@ -8,22 +8,24 @@ import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.de
 import { FilterLeadDto } from './dto/filter-lead.dto';
 
 @ApiTags('Customer Lead')
-@Controller('customer/lead')
+@Controller(['customer/lead', 'customer/leads'])
 @UseGuards(JwtAuthGuard, CustomerGuard)
 @ApiBearerAuth('JWT-auth')
 export class CustomerLeadController {
   constructor(private readonly _customerLeadService: CustomerLeadService) {}
 
+  @Get('available')
   @Post()
   @ApiOperation({ summary: 'List all available leads with optional filtering' })
   @ApiResponseDto(ResponseDto)
-  async listAvailableLeads(@Body() filterLeadDto: FilterLeadDto) {
-    const leads = await this._customerLeadService.getAvailableLeads(filterLeadDto);
+  async listAvailableLeads(@Body() filterLeadDto?: FilterLeadDto) {
+    const leads = await this._customerLeadService.getAvailableLeads(filterLeadDto || {});
     return ResponseDto.success('Available leads retrieved successfully', leads);
   }
 
   @Post(':id/book')
   @ApiOperation({ summary: 'Book a specific lead' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
   @ApiResponseDto(ResponseDto)
   async bookLead(@Req() req, @Param('id', ParseIntPipe) id: number) {
     const customerId = req.user.id;
@@ -31,32 +33,32 @@ export class CustomerLeadController {
     return ResponseDto.success('Lead booked successfully', order);
   }
 
-  @Get('orders')
-  @ApiOperation({ summary: 'Get all booked lead orders for the current customer' })
+  @Get(['booked', 'orders'])
+  @ApiOperation({ summary: 'Get all booked leads for the current customer' })
   @ApiResponseDto(ResponseDto)
   async getCustomerLeadOrders(@Req() req) {
     const customerId = req.user.id;
     const orders = await this._customerLeadService.getLeadOrdersForCustomer(customerId);
-    return ResponseDto.success('Customer lead orders retrieved successfully', orders);
+    return ResponseDto.success('Customer booked leads retrieved successfully', orders);
   }
 
-  @Get('orders/:id')
-  @ApiOperation({ summary: 'Get details of a specific lead order for customer' })
-  @ApiParam({ name: 'id', description: 'Numeric ID of the lead order', example: 1 })
+  @Get([':id', 'booked/:id', 'orders/:id'])
+  @ApiOperation({ summary: 'Get details of a specific booked lead for customer' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
   @ApiResponseDto(ResponseDto)
   async getCustomerLeadOrderById(@Req() req, @Param('id', ParseIntPipe) id: number) {
     const customerId = req.user.id;
     const order = await this._customerLeadService.getLeadOrderById(id, customerId);
-    return ResponseDto.success('Lead order details retrieved successfully', order);
+    return ResponseDto.success('Booked lead details retrieved successfully', order);
   }
 
-  @Get('orders/:id/otp')
-  @ApiOperation({ summary: 'Get OTPs for a lead order (Customer only)' })
-  @ApiParam({ name: 'id', description: 'Numeric ID of the lead order', example: 1 })
+  @Get([':id/otp', 'booked/:id/otp', 'orders/:id/otp'])
+  @ApiOperation({ summary: 'Get OTPs for a booked lead (Customer only)' })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
   @ApiResponseDto(ResponseDto)
   async getLeadOrderOtps(@Req() req, @Param('id', ParseIntPipe) id: number) {
     const customerId = req.user.id;
     const otps = await this._customerLeadService.getLeadOrderOtpsAsync(id, customerId);
-    return ResponseDto.success('Lead order OTPs retrieved successfully', otps);
+    return ResponseDto.success('Booked lead OTPs retrieved successfully', otps);
   }
 }
