@@ -90,17 +90,9 @@ export class LeadOrderService {
       ? 'VCRF'
       : null;
 
-    const dropoffJobCardType = lead.dropoff_evcrf
-      ? 'EVCRF'
-      : lead.physical_dropoff_vcrf_image
-      ? 'VCRF'
-      : null;
-
     return {
       ...lead,
       job_card_type: pickupJobCardType,
-      pickup_job_card_type: pickupJobCardType,
-      dropoff_job_card_type: dropoffJobCardType,
     };
   }
 
@@ -185,7 +177,7 @@ export class LeadOrderService {
     type: OrderOtpType,
     otp: string,
     driverId: number,
-  ): Promise<{ message: string; job_card_type?: string | null; pickup_job_card_type?: string | null }> {
+  ): Promise<{ message: string; job_card_type?: string | null }> {
     const order = await this.prisma.lead.findUnique({
       where: { id: orderId },
     });
@@ -267,7 +259,6 @@ export class LeadOrderService {
     return {
       message: 'OTP verified successfully.',
       job_card_type: pickupJobCardType,
-      pickup_job_card_type: pickupJobCardType,
     };
   }
 

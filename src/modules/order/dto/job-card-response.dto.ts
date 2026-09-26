@@ -26,9 +26,6 @@ export class VerifyOtpResponseDto {
   @ApiProperty({ description: 'Verification message', example: 'OTP verified successfully.' })
   message: string;
 
-  @ApiPropertyOptional({ description: 'Job card type determined from pickup (if completed)', example: 'VCRF', nullable: true })
+  @ApiPropertyOptional({ description: 'Job card type (VCRF or EVCRF)', example: 'VCRF', enum: ['VCRF', 'EVCRF'], nullable: true })
   job_card_type?: string | null;
-
-  @ApiPropertyOptional({ description: 'Job card type used at pickup', example: 'VCRF', nullable: true })
-  pickup_job_card_type?: string | null;
 }

@@ -120,12 +120,6 @@ export class OrderDetailDto {
   @ApiPropertyOptional({ type: () => OrderLocationDetailDto })
   dropoff_location?: OrderLocationDetailDto;
 
-  @ApiPropertyOptional({ description: 'Job card type used at pickup', example: 'VCRF', enum: ['VCRF', 'EVCRF'], nullable: true })
+  @ApiPropertyOptional({ description: 'Job card type for this order (VCRF or EVCRF)', example: 'VCRF', enum: ['VCRF', 'EVCRF'], nullable: true })
   job_card_type?: string | null;
-
-  @ApiPropertyOptional({ description: 'Job card type used at pickup', example: 'VCRF', enum: ['VCRF', 'EVCRF'], nullable: true })
-  pickup_job_card_type?: string | null;
-
-  @ApiPropertyOptional({ description: 'Job card type used at dropoff', example: 'VCRF', enum: ['VCRF', 'EVCRF'], nullable: true })
-  dropoff_job_card_type?: string | null;
 }

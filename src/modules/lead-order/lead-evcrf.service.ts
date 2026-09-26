@@ -464,15 +464,8 @@ export class LeadEvcrfService {
     const handoverName = leadOrder.customer?.full_name || '-';
     const droppingDateTime = new Date().toISOString(); 
 
-    const pickupJobCardType = leadOrder.pickup_evcrf
-      ? 'EVCRF'
-      : leadOrder.physical_pickup_vcrf_image
-      ? 'VCRF'
-      : null;
-
     return {
       job_card_type: 'EVCRF',
-      pickup_job_card_type: pickupJobCardType,
       prefill_details: [
         { Label: "Handover's Name", Value: handoverName },
         { Label: 'Drop Location', Value: dropLocation },

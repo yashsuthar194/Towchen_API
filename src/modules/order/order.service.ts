@@ -102,7 +102,7 @@ export class OrderService {
     orderId: number,
     type: OrderOtpType,
     otp: string,
-  ): Promise<{ message: string; job_card_type?: string | null; pickup_job_card_type?: string | null }> {
+  ): Promise<{ message: string; job_card_type?: string | null }> {
     if (!this._callerService.isDriver()) {
       throw new BadRequestException('Only drivers can verify order OTPs');
     }
@@ -211,7 +211,6 @@ export class OrderService {
     return {
       message: 'OTP verified successfully.',
       job_card_type: pickupJobCardType,
-      pickup_job_card_type: pickupJobCardType,
     };
   }
 
@@ -611,15 +610,7 @@ export class OrderService {
       ? 'VCRF'
       : null;
 
-    const dropoffJobCardType = (order as any).dropoff_evcrf
-      ? 'EVCRF'
-      : order.physical_dropoff_vcrf_image
-      ? 'VCRF'
-      : null;
-
     order['job_card_type'] = pickupJobCardType;
-    order['pickup_job_card_type'] = pickupJobCardType;
-    order['dropoff_job_card_type'] = dropoffJobCardType;
 
     // (a) Assigned driver can always view their own order
     if (order.driver_id === driverId) {
