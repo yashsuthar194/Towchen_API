@@ -34,11 +34,16 @@ import { UploadOrderImagesDto } from '../order/dto/upload-order-images.dto';
 import { UploadPhysicalVcrfDto } from '../order/dto/upload-physical-vcrf.dto';
 import { AddDamageDto } from '../evcrf/dto/add-damage.dto';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
+import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
+import { LeadOrderDetailDto } from './dto/lead-order-detail.dto';
+import { PhysicalVcrfResponseDto, EvcrfSubmissionResponseDto, VerifyOtpResponseDto } from '../order/dto/job-card-response.dto';
+import { EvcrfConfigResponseDto } from '../evcrf/dto/evcrf-config-response.dto';
+import { EvcrfPrefillResponseDto, DropoffEvcrfPrefillResponseDto } from '../evcrf/dto/evcrf-prefill-response.dto';
 
 @ApiTags('Driver Lead')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard, DriverGuard)
-@Controller(['driver/lead', 'driver/leads', 'driver/lead-orders'])
+@Controller('driver/lead')
 export class DriverLeadOrderController {
   constructor(
     private readonly prisma: PrismaService,
@@ -58,13 +63,13 @@ export class DriverLeadOrderController {
   @Get(':id')
   @ApiOperation({ summary: 'Get lead details by ID (Driver only)' })
   @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
+  @ApiResponseDto(LeadOrderDetailDto, false, 200)
   async getById(@Param('id', ParseIntPipe) id: number) {
     const lead = await this.leadOrderService.getLeadOrderById(id);
     return ResponseDto.retrieved('Lead details fetched successfully', lead);
   }
 
   @Put(':id/accept')
-  @Post(':id/accept')
   @ApiOperation({ summary: 'Accept a lead (Driver only)' })
   @ApiParam({ name: 'id', description: 'ID of the lead to accept', example: 1 })
   async acceptLead(
@@ -94,7 +99,6 @@ export class DriverLeadOrderController {
   }
 
   @Put(':id/cancel')
-  @Post(':id/cancel')
   @ApiOperation({ summary: 'Cancel a lead (Driver only)' })
   @ApiParam({ name: 'id', description: 'ID of the lead to cancel', example: 1 })
   async cancelLead(
@@ -143,6 +147,7 @@ export class DriverLeadOrderController {
     summary: 'Verify a lead OTP and update status (Driver only)',
   })
   @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
+  @ApiResponseDto(VerifyOtpResponseDto, false, 200)
   async verifyOtp(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: VerifyLeadOtpDto,
@@ -154,7 +159,6 @@ export class DriverLeadOrderController {
   }
 
   @Put(':id/pre-pickup-images')
-  @Post(':id/pre-pickup-images')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadOrderImagesDto })
   @ApiOperation({ summary: 'Upload pre-pickup images for a lead (Driver only)' })
@@ -170,7 +174,6 @@ export class DriverLeadOrderController {
   }
 
   @Put(':id/post-pickup-images')
-  @Post(':id/post-pickup-images')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadOrderImagesDto })
   @ApiOperation({ summary: 'Upload post-pickup images for a lead (Driver only)' })
@@ -186,7 +189,6 @@ export class DriverLeadOrderController {
   }
 
   @Put(':id/dropoff-images')
-  @Post(':id/dropoff-images')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadOrderImagesDto })
   @ApiOperation({ summary: 'Upload dropoff images for a lead (Driver only)' })
@@ -202,10 +204,10 @@ export class DriverLeadOrderController {
   }
 
   @Put(':id/physical-pickup-vcrf')
-  @Post(':id/physical-pickup-vcrf')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadPhysicalVcrfDto })
   @ApiOperation({ summary: 'Upload physical pickup VCRF image for a lead (Driver only)' })
+  @ApiResponseDto(PhysicalVcrfResponseDto, false, 200)
   @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.imageFilter }))
   async uploadPhysicalPickupVcrf(
     @Param('id', ParseIntPipe) id: number,
@@ -214,14 +216,14 @@ export class DriverLeadOrderController {
   ) {
     const driverId = req.user.id;
     const result = await this.leadOrderService.uploadPhysicalVcrfImageAsync(id, driverId, 'pickup', file);
-    return ResponseDto.updated('Physical pickup VCRF image uploaded successfully', { ...result, filled_in: 'vcrf' });
+    return ResponseDto.updated('Physical pickup VCRF image uploaded successfully', { ...result, filled_in: 'vcrf', job_card_type: 'VCRF' });
   }
 
   @Put(':id/physical-dropoff-vcrf')
-  @Post(':id/physical-dropoff-vcrf')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadPhysicalVcrfDto })
   @ApiOperation({ summary: 'Upload physical dropoff VCRF image for a lead (Driver only)' })
+  @ApiResponseDto(PhysicalVcrfResponseDto, false, 200)
   @UseInterceptors(FileInterceptor('file', { fileFilter: FileHelper.imageFilter }))
   async uploadPhysicalDropoffVcrf(
     @Param('id', ParseIntPipe) id: number,
@@ -230,7 +232,7 @@ export class DriverLeadOrderController {
   ) {
     const driverId = req.user.id;
     const result = await this.leadOrderService.uploadPhysicalVcrfImageAsync(id, driverId, 'dropoff', file);
-    return ResponseDto.updated('Physical dropoff VCRF image uploaded successfully', { ...result, filled_in: 'vcrf' });
+    return ResponseDto.updated('Physical dropoff VCRF image uploaded successfully', { ...result, filled_in: 'vcrf', job_card_type: 'VCRF' });
   }
 
   @Post(':id/evcrf/pickup')
@@ -238,6 +240,7 @@ export class DriverLeadOrderController {
   @ApiOperation({
     summary: 'Submit EVCRF for lead pickup (Driver only)',
   })
+  @ApiResponseDto(EvcrfSubmissionResponseDto, false, 201)
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'odometer_image', maxCount: 1 },
@@ -257,7 +260,7 @@ export class DriverLeadOrderController {
   ) {
     const driverId = req.user.id;
     const result = await this.leadEvcrfService.submitPickupEvcrfAsync(id, driverId, dto, files);
-    return ResponseDto.created('Pickup EVCRF submitted successfully', { ...result, filled_in: 'evcrf' });
+    return ResponseDto.created('Pickup EVCRF submitted successfully', { ...result, filled_in: 'evcrf', job_card_type: 'EVCRF' });
   }
 
   @Get(':id/evcrf/pickup')
@@ -270,6 +273,7 @@ export class DriverLeadOrderController {
   @Post(':id/evcrf/dropoff')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Submit EVCRF for lead dropoff' })
+  @ApiResponseDto(EvcrfSubmissionResponseDto, false, 201)
   @UseInterceptors(
     FileFieldsInterceptor([
       { name: 'handover_image', maxCount: 1 },
@@ -287,7 +291,7 @@ export class DriverLeadOrderController {
   ) {
     const driverId = req.user.id;
     const result = await this.leadEvcrfService.submitDropoffEvcrfAsync(id, driverId, dto, files);
-    return ResponseDto.created('Dropoff EVCRF submitted successfully', { ...result, filled_in: 'evcrf' });
+    return ResponseDto.created('Dropoff EVCRF submitted successfully', { ...result, filled_in: 'evcrf', job_card_type: 'EVCRF' });
   }
 
   @Get(':id/evcrf/dropoff')
@@ -299,6 +303,7 @@ export class DriverLeadOrderController {
 
   @Get(':id/evcrf/config')
   @ApiOperation({ summary: 'Get EVCRF configuration for lead (Driver only)' })
+  @ApiResponseDto(EvcrfConfigResponseDto, false, 200)
   async getEvcrfConfiguration(@Param('id', ParseIntPipe) id: number) {
     const result = await this.leadEvcrfService.getEvcrfConfigurationAsync(id);
     return ResponseDto.retrieved('EVCRF configuration retrieved successfully', result);
@@ -306,6 +311,7 @@ export class DriverLeadOrderController {
 
   @Get(':id/evcrf/prefill-data')
   @ApiOperation({ summary: 'Get EVCRF pre-fill data for lead (Driver only)' })
+  @ApiResponseDto(EvcrfPrefillResponseDto, false, 200)
   async getEvcrfPrefillData(@Param('id', ParseIntPipe) id: number) {
     const result = await this.leadEvcrfService.getEvcrfPrefillDataAsync(id);
     return ResponseDto.retrieved('EVCRF prefill data retrieved successfully', result);
@@ -313,6 +319,7 @@ export class DriverLeadOrderController {
 
   @Get(':id/evcrf/dropoff/prefill-data')
   @ApiOperation({ summary: 'Get EVCRF dropoff pre-fill data for lead (Driver only)' })
+  @ApiResponseDto(DropoffEvcrfPrefillResponseDto, false, 200)
   async getDropoffEvcrfPrefillData(@Param('id', ParseIntPipe) id: number) {
     const result = await this.leadEvcrfService.getDropoffEvcrfPrefillDataAsync(id);
     return ResponseDto.retrieved('Dropoff EVCRF prefill data retrieved successfully', result);

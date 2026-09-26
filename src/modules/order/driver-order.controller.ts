@@ -35,7 +35,8 @@ import { EVCRFService } from '../evcrf/evcrf.service';
 import { SubmitPickupEvcrfDto } from '../evcrf/dto/submit-pickup-evcrf.dto';
 import { SubmitDropoffEvcrfDto } from '../evcrf/dto/submit-dropoff-evcrf.dto';
 import { EvcrfConfigResponseDto } from '../evcrf/dto/evcrf-config-response.dto';
-import { EvcrfPrefillResponseDto } from '../evcrf/dto/evcrf-prefill-response.dto';
+import { EvcrfPrefillResponseDto, DropoffEvcrfPrefillResponseDto } from '../evcrf/dto/evcrf-prefill-response.dto';
+import { PhysicalVcrfResponseDto, EvcrfSubmissionResponseDto, VerifyOtpResponseDto } from './dto/job-card-response.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 import { AddDamageDto } from '../evcrf/dto/add-damage.dto';
@@ -183,11 +184,13 @@ export class DriverOrderController {
       '⚠️ Only the assigned driver for this order can call this endpoint.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @ApiResponseDto(VerifyOtpResponseDto, false, 200)
   async verifyOtp(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: VerifyOrderOtpDto,
-  ): Promise<{ message: string }> {
-    return await this._orderService.verifyOrderOtpAsync(id, dto.type, dto.otp);
+  ): Promise<ResponseDto<VerifyOtpResponseDto>> {
+    const result = await this._orderService.verifyOrderOtpAsync(id, dto.type, dto.otp);
+    return ResponseDto.success(result.message, result);
   }
 
   /**
@@ -318,13 +321,14 @@ export class DriverOrderController {
       'Allows the assigned driver to upload a physical VCRF image via formdata when e-VCRF is false.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @ApiResponseDto(PhysicalVcrfResponseDto, false, 200)
   @UseInterceptors(
     FileInterceptor('file', { fileFilter: FileHelper.imageFilter }),
   )
   async uploadPhysicalPickupVcrf(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<ResponseDto<{ url: string }>> {
+  ): Promise<ResponseDto<PhysicalVcrfResponseDto>> {
     const result = await this._orderService.uploadPhysicalVcrfImageAsync(
       id,
       'pickup',
@@ -332,7 +336,7 @@ export class DriverOrderController {
     );
     return ResponseDto.updated(
       'Physical pickup VCRF image uploaded successfully',
-      { ...result, filled_in: 'vcrf' },
+      { ...result, filled_in: 'vcrf', job_card_type: 'VCRF' },
     );
   }
 
@@ -349,13 +353,14 @@ export class DriverOrderController {
       'Allows the assigned driver to upload a physical VCRF image via formdata when e-VCRF is false.',
   })
   @ApiParam({ name: 'id', description: 'ID of the order', example: 1 })
+  @ApiResponseDto(PhysicalVcrfResponseDto, false, 200)
   @UseInterceptors(
     FileInterceptor('file', { fileFilter: FileHelper.imageFilter }),
   )
   async uploadPhysicalDropoffVcrf(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
-  ): Promise<ResponseDto<{ url: string }>> {
+  ): Promise<ResponseDto<PhysicalVcrfResponseDto>> {
     const result = await this._orderService.uploadPhysicalVcrfImageAsync(
       id,
       'dropoff',
@@ -363,7 +368,7 @@ export class DriverOrderController {
     );
     return ResponseDto.updated(
       'Physical dropoff VCRF image uploaded successfully',
-      { ...result, filled_in: 'vcrf' },
+      { ...result, filled_in: 'vcrf', job_card_type: 'VCRF' },
     );
   }
 
@@ -383,6 +388,7 @@ export class DriverOrderController {
       { name: 'driver_sign', maxCount: 1 },
     ], { fileFilter: FileHelper.imageFilter })
   )
+  @ApiResponseDto(EvcrfSubmissionResponseDto, false, 201)
   async submitPickupEvcrf(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SubmitPickupEvcrfDto,
@@ -394,7 +400,7 @@ export class DriverOrderController {
   ) {
     const driverId = this._callerService.getUserId();
     const result = await this._evcrfService.submitPickupEvcrfAsync(id, driverId, dto, files);
-    return ResponseDto.created('Pickup EVCRF submitted successfully', { ...result, filled_in: 'evcrf' });
+    return ResponseDto.created('Pickup EVCRF submitted successfully', { ...result, filled_in: 'evcrf', job_card_type: 'EVCRF' });
   }
 
   /**
@@ -425,6 +431,7 @@ export class DriverOrderController {
       { name: 'handover_signature', maxCount: 1 },
     ], { fileFilter: FileHelper.imageFilter })
   )
+  @ApiResponseDto(EvcrfSubmissionResponseDto, false, 201)
   async submitDropoffEvcrf(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SubmitDropoffEvcrfDto,
@@ -435,7 +442,7 @@ export class DriverOrderController {
   ) {
     const driverId = this._callerService.getUserId();
     const result = await this._evcrfService.submitDropoffEvcrfAsync(id, driverId, dto, files);
-    return ResponseDto.created('Dropoff EVCRF submitted successfully', { ...result, filled_in: 'evcrf' });
+    return ResponseDto.created('Dropoff EVCRF submitted successfully', { ...result, filled_in: 'evcrf', job_card_type: 'EVCRF' });
   }
 
   /**
@@ -484,7 +491,7 @@ export class DriverOrderController {
     summary: 'Get EVCRF dropoff pre-fill data for order (Driver only)',
     description: 'Retrieves specific order details to pre-fill the dropoff EVCRF form fields.',
   })
-  @ApiResponseDto(EvcrfPrefillResponseDto, false, 200)
+  @ApiResponseDto(DropoffEvcrfPrefillResponseDto, false, 200)
   async getDropoffEvcrfPrefillData(@Param('id', ParseIntPipe) id: number) {
     const result = await this._evcrfService.getDropoffEvcrfPrefillDataAsync(id);
     return ResponseDto.retrieved('Dropoff EVCRF prefill data retrieved successfully', result);

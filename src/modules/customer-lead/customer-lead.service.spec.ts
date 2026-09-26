@@ -18,6 +18,9 @@ describe('CustomerLeadService', () => {
         findMany: jest.fn(),
         findUnique: jest.fn(),
       },
+      customer_vehicle: {
+        findFirst: jest.fn(),
+      },
     };
 
     gateway = {
@@ -67,7 +70,7 @@ describe('CustomerLeadService', () => {
       await expect(service.bookLead(1, 99)).rejects.toThrow(BadRequestException);
     });
 
-    it('should book lead and emit new-lead socket event to driver', async () => {
+    it('should book lead and emit new-lead socket event with customerVehicle to driver', async () => {
       const mockLead = {
         id: 5,
         formated_id: 'LED0000005',
@@ -88,12 +91,28 @@ describe('CustomerLeadService', () => {
         status: LeadStatus.Booked,
       };
 
+      const mockCustomerVehicle = {
+        id: 10,
+        customer_id: 1,
+        make: 'Hyundai',
+        model: 'Creta',
+        registration_number: 'MH 12 AB 1234',
+        class: 'SUV',
+        fuel_type: 'Petrol',
+        vehicle_type: 'FourWheeler',
+      };
+
       prisma.lead.findUnique.mockResolvedValue(mockLead);
+      prisma.customer_vehicle.findFirst.mockResolvedValue(mockCustomerVehicle);
       leadOrderService.createLeadOrder.mockResolvedValue(mockBookedLead);
 
       const result = await service.bookLead(1, 5);
 
-      expect(leadOrderService.createLeadOrder).toHaveBeenCalledWith(1, 5);
+      expect(prisma.customer_vehicle.findFirst).toHaveBeenCalledWith({
+        where: { customer_id: 1, is_deleted: false },
+        orderBy: { id: 'desc' },
+      });
+      expect(leadOrderService.createLeadOrder).toHaveBeenCalledWith(1, 5, 10);
       expect(gateway.emitNewLeadToDriver).toHaveBeenCalledWith(12, {
         lead_id: 5,
         lead_formatted_id: 'LED0000005',
@@ -103,6 +122,14 @@ describe('CustomerLeadService', () => {
         end_location: mockLead.end_location_data,
         service_name: 'Emergency',
         sub_service_name: 'Towing',
+        customerVehicle: {
+          make: 'Hyundai',
+          model: 'Creta',
+          registrationNumber: 'MH 12 AB 1234',
+          class: 'SUV',
+          fuelType: 'Petrol',
+          vehicleType: 'FourWheeler',
+        },
       });
       expect(result).toEqual(mockBookedLead);
     });

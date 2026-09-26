@@ -12,7 +12,7 @@ export class LeadOrderService {
     private readonly _storageService: StorageService,
   ) {}
 
-  async createLeadOrder(customerId: number, leadId: number) {
+  async createLeadOrder(customerId: number, leadId: number, customerVehicleId?: number) {
     const lead = await this.prisma.lead.findUnique({
       where: { id: leadId },
       include: {
@@ -31,15 +31,28 @@ export class LeadOrderService {
 
     const orderFormattedId = `LDO${String(lead.id).padStart(7, '0')}`;
 
+    const updateData: Record<string, any> = {
+      status: LeadStatus.Booked,
+      order_status: OrderStatus.Assigned,
+      customer_id: customerId,
+      order_formated_id: orderFormattedId,
+      assign_time: new Date(),
+    };
+
+    if (customerVehicleId) {
+      const existingMeta =
+        typeof lead.meta_data === 'object' && lead.meta_data !== null && !Array.isArray(lead.meta_data)
+          ? (lead.meta_data as Record<string, any>)
+          : {};
+      updateData.meta_data = {
+        ...existingMeta,
+        customer_vehicle_id: customerVehicleId,
+      };
+    }
+
     return await this.prisma.lead.update({
       where: { id: lead.id },
-      data: {
-        status: LeadStatus.Booked,
-        order_status: OrderStatus.Assigned,
-        customer_id: customerId,
-        order_formated_id: orderFormattedId,
-        assign_time: new Date(),
-      },
+      data: updateData as any,
       include: {
         vendor: true,
         driver: true,
@@ -71,7 +84,24 @@ export class LeadOrderService {
       throw new NotFoundException('Lead order not found');
     }
 
-    return lead;
+    const pickupJobCardType = lead.pickup_evcrf
+      ? 'EVCRF'
+      : lead.physical_pickup_vcrf_image
+      ? 'VCRF'
+      : null;
+
+    const dropoffJobCardType = lead.dropoff_evcrf
+      ? 'EVCRF'
+      : lead.physical_dropoff_vcrf_image
+      ? 'VCRF'
+      : null;
+
+    return {
+      ...lead,
+      job_card_type: pickupJobCardType,
+      pickup_job_card_type: pickupJobCardType,
+      dropoff_job_card_type: dropoffJobCardType,
+    };
   }
 
   async getLeadOrdersForDriver(driverId: number) {
@@ -155,7 +185,7 @@ export class LeadOrderService {
     type: OrderOtpType,
     otp: string,
     driverId: number,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; job_card_type?: string | null; pickup_job_card_type?: string | null }> {
     const order = await this.prisma.lead.findUnique({
       where: { id: orderId },
     });
@@ -224,7 +254,21 @@ export class LeadOrderService {
       });
     });
 
-    return { message: 'OTP verified successfully.' };
+    const updatedLead = await this.prisma.lead.findUnique({
+      where: { id: orderId },
+      include: { pickup_evcrf: true },
+    });
+    const pickupJobCardType = updatedLead?.pickup_evcrf
+      ? 'EVCRF'
+      : updatedLead?.physical_pickup_vcrf_image
+      ? 'VCRF'
+      : null;
+
+    return {
+      message: 'OTP verified successfully.',
+      job_card_type: pickupJobCardType,
+      pickup_job_card_type: pickupJobCardType,
+    };
   }
 
   async uploadLeadOrderImagesAsync(

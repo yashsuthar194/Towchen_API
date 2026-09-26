@@ -6,6 +6,7 @@ import { CustomerGuard } from 'src/services/jwt/guards/customer.guard';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { FilterLeadDto } from './dto/filter-lead.dto';
+import { BookLeadDto } from './dto/book-lead.dto';
 
 @ApiTags('Customer Lead')
 @Controller(['customer/lead', 'customer/leads'])
@@ -27,9 +28,13 @@ export class CustomerLeadController {
   @ApiOperation({ summary: 'Book a specific lead' })
   @ApiParam({ name: 'id', description: 'Numeric ID of the lead', example: 1 })
   @ApiResponseDto(ResponseDto)
-  async bookLead(@Req() req, @Param('id', ParseIntPipe) id: number) {
+  async bookLead(
+    @Req() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto?: BookLeadDto,
+  ) {
     const customerId = req.user.id;
-    const order = await this._customerLeadService.bookLead(customerId, id);
+    const order = await this._customerLeadService.bookLead(customerId, id, dto?.customer_vehicle_id);
     return ResponseDto.success('Lead booked successfully', order);
   }
 

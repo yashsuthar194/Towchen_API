@@ -102,7 +102,7 @@ export class OrderService {
     orderId: number,
     type: OrderOtpType,
     otp: string,
-  ): Promise<{ message: string }> {
+  ): Promise<{ message: string; job_card_type?: string | null; pickup_job_card_type?: string | null }> {
     if (!this._callerService.isDriver()) {
       throw new BadRequestException('Only drivers can verify order OTPs');
     }
@@ -198,7 +198,21 @@ export class OrderService {
       }
     });
 
-    return { message: 'OTP verified successfully.' };
+    const updatedOrder = await this._prisma.order.findUnique({
+      where: { id: orderId },
+      include: { pickup_evcrf: true },
+    });
+    const pickupJobCardType = updatedOrder?.pickup_evcrf
+      ? 'EVCRF'
+      : updatedOrder?.physical_pickup_vcrf_image
+      ? 'VCRF'
+      : null;
+
+    return {
+      message: 'OTP verified successfully.',
+      job_card_type: pickupJobCardType,
+      pickup_job_card_type: pickupJobCardType,
+    };
   }
 
   /**
@@ -580,6 +594,8 @@ export class OrderService {
         vendor: true,
         service: true,
         sub_service: true,
+        pickup_evcrf: true,
+        dropoff_evcrf: true,
       },
     });
 
@@ -588,6 +604,22 @@ export class OrderService {
     }
 
     this._formatOrderDriver(order);
+
+    const pickupJobCardType = (order as any).pickup_evcrf
+      ? 'EVCRF'
+      : order.physical_pickup_vcrf_image
+      ? 'VCRF'
+      : null;
+
+    const dropoffJobCardType = (order as any).dropoff_evcrf
+      ? 'EVCRF'
+      : order.physical_dropoff_vcrf_image
+      ? 'VCRF'
+      : null;
+
+    order['job_card_type'] = pickupJobCardType;
+    order['pickup_job_card_type'] = pickupJobCardType;
+    order['dropoff_job_card_type'] = dropoffJobCardType;
 
     // (a) Assigned driver can always view their own order
     if (order.driver_id === driverId) {

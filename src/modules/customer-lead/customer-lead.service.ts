@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { OrderGateway } from '../order/order.gateway';
-import { LeadStatus } from '@prisma/client';
+import { LeadStatus, customer_vehicle } from '@prisma/client';
 import { FilterLeadDto } from './dto/filter-lead.dto';
 
 import { LeadOrderService } from '../lead-order/lead-order.service';
@@ -30,7 +30,7 @@ export class CustomerLeadService {
     });
   }
 
-  async bookLead(customerId: number, leadId: number) {
+  async bookLead(customerId: number, leadId: number, customerVehicleId?: number) {
     const lead = await this._prisma.lead.findUnique({
       where: { id: leadId },
       include: { sub_service: { include: { service: true } } },
@@ -42,7 +42,22 @@ export class CustomerLeadService {
       throw new BadRequestException('This lead has already been booked.');
     }
 
-    const leadOrder = await this._leadOrderService.createLeadOrder(customerId, lead.id);
+    let customerVehicle: customer_vehicle | null = null;
+    if (customerVehicleId) {
+      customerVehicle = await this._prisma.customer_vehicle.findFirst({
+        where: { id: customerVehicleId, customer_id: customerId, is_deleted: false },
+      });
+      if (!customerVehicle) {
+        throw new NotFoundException(`Customer vehicle with ID ${customerVehicleId} not found`);
+      }
+    } else {
+      customerVehicle = await this._prisma.customer_vehicle.findFirst({
+        where: { customer_id: customerId, is_deleted: false },
+        orderBy: { id: 'desc' },
+      });
+    }
+
+    const leadOrder = await this._leadOrderService.createLeadOrder(customerId, lead.id, customerVehicle?.id);
 
     const startLocationData = lead.start_location_data as any;
     const endLocationData = lead.end_location_data as any;
@@ -57,6 +72,16 @@ export class CustomerLeadService {
         end_location: endLocationData,
         service_name: lead.sub_service.service.name,
         sub_service_name: lead.sub_service.name,
+        customerVehicle: customerVehicle
+          ? {
+              make: customerVehicle.make,
+              model: customerVehicle.model,
+              registrationNumber: customerVehicle.registration_number,
+              class: customerVehicle.class,
+              fuelType: customerVehicle.fuel_type,
+              vehicleType: customerVehicle.vehicle_type ? String(customerVehicle.vehicle_type) : '',
+            }
+          : null,
       });
     }
 

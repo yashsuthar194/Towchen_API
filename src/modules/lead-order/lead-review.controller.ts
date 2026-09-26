@@ -25,7 +25,7 @@ export class LeadReviewController {
   /**
    * Submit a review for a completed lead.
    */
-  @Post(['lead/reviews', 'leads/reviews', 'lead/review', 'leads/review', 'lead-reviews', 'lead-orders/reviews'])
+  @Post('lead/reviews')
   @ApiOperation({
     summary: 'Submit a review for a completed lead',
     description:
@@ -49,7 +49,7 @@ export class LeadReviewController {
   /**
    * Get review status for a specific lead.
    */
-  @Get(['lead/:id/review-status', 'leads/:id/review-status', 'lead-orders/:id/review-status'])
+  @Get('lead/:id/review-status')
   @ApiOperation({
     summary: 'Get review status for a lead',
     description:

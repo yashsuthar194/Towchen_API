@@ -4,6 +4,9 @@ import { EvcrfPrefillItemDto } from './evcrf-prefill-item.dto';
 import { AccessoryResponseDto, ConditionGroupResponseDto } from '../../vehicle-class-mapping/dto/config-response.dto';
 
 export class EvcrfConfigResponseDto {
+  @ApiProperty({ description: 'Job card type', example: 'EVCRF', enum: ['EVCRF'] })
+  job_card_type: string;
+
   @ApiProperty({ description: 'The mapped vehicle class', example: 'Car' })
   mapped_class: string;
 

@@ -167,6 +167,16 @@ export class OrderDispatchService {
       vehicleImages: order.pre_booked_images || [],
       vehicleMake: order.customer_vehicle?.make ?? 'Unknown',
       vehicleModel: order.customer_vehicle?.model ?? 'Unknown',
+      customerVehicle: order.customer_vehicle
+        ? {
+            make: order.customer_vehicle.make,
+            model: order.customer_vehicle.model,
+            registrationNumber: order.customer_vehicle.registration_number,
+            class: order.customer_vehicle.class,
+            fuelType: order.customer_vehicle.fuel_type,
+            vehicleType: order.customer_vehicle.vehicle_type ? String(order.customer_vehicle.vehicle_type) : '',
+          }
+        : null,
 
       totalAmount: order.final_amount ?? 0,
       paymentStatus: 'Unpaid',

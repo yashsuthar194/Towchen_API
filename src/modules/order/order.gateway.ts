@@ -10,6 +10,17 @@ import { JwtService } from 'src/services/jwt/jwt.service';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { Role } from '@prisma/client';
 
+// ─── Customer vehicle payload sent in real-time socket events ───────────────
+
+export interface CustomerVehiclePayload {
+  make: string;
+  model: string;
+  registrationNumber: string;
+  class: string;
+  fuelType: string;
+  vehicleType: string;
+}
+
 // ─── Payload sent to driver apps on a new lead booked ──────────────────────────
 
 export interface NewLeadPayload {
@@ -21,6 +32,7 @@ export interface NewLeadPayload {
   end_location: Record<string, any>;
   service_name: string;
   sub_service_name: string;
+  customerVehicle?: CustomerVehiclePayload | null;
 }
 
 // ─── Payload sent to driver apps on a new dispatch round ────────────────────
@@ -34,6 +46,7 @@ export interface NewOrderPayload {
   vehicleImages: string[];
   vehicleMake: string;
   vehicleModel: string;
+  customerVehicle?: CustomerVehiclePayload | null;
 
   totalAmount: number;
   paymentStatus: string;

@@ -332,6 +332,7 @@ export class LeadEvcrfService {
 
     return {
       // Configuration data
+      job_card_type: 'EVCRF',
       mapped_class: config?.mapped_class || resolvedClass,
       diagram_image_url: config?.diagram_image_url || '',
       total_damage_points: config?.total_damage_points || 0,
@@ -450,6 +451,7 @@ export class LeadEvcrfService {
       where: { id: leadOrderId },
       include: { 
         customer: true,
+        pickup_evcrf: true,
         locations: { where: { type: LocationType.Drop } }
       },
     });
@@ -462,7 +464,15 @@ export class LeadEvcrfService {
     const handoverName = leadOrder.customer?.full_name || '-';
     const droppingDateTime = new Date().toISOString(); 
 
+    const pickupJobCardType = leadOrder.pickup_evcrf
+      ? 'EVCRF'
+      : leadOrder.physical_pickup_vcrf_image
+      ? 'VCRF'
+      : null;
+
     return {
+      job_card_type: 'EVCRF',
+      pickup_job_card_type: pickupJobCardType,
       prefill_details: [
         { Label: "Handover's Name", Value: handoverName },
         { Label: 'Drop Location', Value: dropLocation },
