@@ -333,6 +333,7 @@ export class EVCRFService {
     return {
       // Configuration data
       job_card_type: 'EVCRF',
+      vehicle_class_configuration_id: config?.id ?? null,
       mapped_class: config?.mapped_class || resolvedClass,
       diagram_image_url: config?.diagram_image_url || '',
       total_damage_points: config?.total_damage_points || 0,

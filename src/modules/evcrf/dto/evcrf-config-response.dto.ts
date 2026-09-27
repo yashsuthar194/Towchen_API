@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { EvcrfPrefillItemDto } from './evcrf-prefill-item.dto';
 
 import { AccessoryResponseDto, ConditionGroupResponseDto } from '../../vehicle-class-mapping/dto/config-response.dto';
@@ -6,6 +6,9 @@ import { AccessoryResponseDto, ConditionGroupResponseDto } from '../../vehicle-c
 export class EvcrfConfigResponseDto {
   @ApiProperty({ description: 'Job card type', example: 'EVCRF', enum: ['EVCRF'] })
   job_card_type: string;
+
+  @ApiPropertyOptional({ description: 'Vehicle Class Configuration ID', example: 1, nullable: true })
+  vehicle_class_configuration_id?: number | null;
 
   @ApiProperty({ description: 'The mapped vehicle class', example: 'Car' })
   mapped_class: string;
