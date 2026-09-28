@@ -4,9 +4,6 @@ export class AccessoryResponseDto {
   @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({ example: 1 })
-  vehicle_class_configuration_id: number;
-
   @ApiProperty({ example: 'Hub Caps' })
   name: string;
 }
@@ -39,6 +36,9 @@ export class ConditionGroupResponseDto {
 export class VehicleClassConfigResponseDto {
   @ApiProperty({ example: 1 })
   id: number;
+
+  @ApiProperty({ example: 1, description: 'Vehicle Class Configuration ID' })
+  vehicle_class_configuration_id: number;
 
   @ApiProperty({ example: 'Car' })
   mapped_class: string;

@@ -337,7 +337,9 @@ export class EVCRFService {
       mapped_class: config?.mapped_class || resolvedClass,
       diagram_image_url: config?.diagram_image_url || '',
       total_damage_points: config?.total_damage_points || 0,
-      accessories: config?.accessories || [],
+      accessories: config?.accessories
+        ? config.accessories.map(({ vehicle_class_configuration_id, ...acc }) => acc)
+        : [],
       vehicle_state: config?.vehicle_states || [],
 
       // Order pre-fill data array

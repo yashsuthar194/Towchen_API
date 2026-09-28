@@ -10,6 +10,23 @@ export class VehicleClassMappingService {
 
 
 
+  private _formatConfig(config: any) {
+    if (!config) return null;
+    const { id, mapped_class, sub_classes, vehicle_states, accessories, ...rest } = config;
+    const formattedAccessories = (accessories || []).map(
+      ({ vehicle_class_configuration_id, ...acc }: any) => acc,
+    );
+    return {
+      id,
+      vehicle_class_configuration_id: id,
+      mapped_class,
+      sub_classes,
+      ...rest,
+      accessories: formattedAccessories,
+      vehicle_state: vehicle_states,
+    };
+  }
+
   async getConfigBySubClassAsync(subClass: string) {
     if (!subClass) {
       throw new BadRequestException('subClass is required');
@@ -28,8 +45,7 @@ export class VehicleClassMappingService {
     });
 
     if (config) {
-      const { vehicle_states, ...rest } = config;
-      return { ...rest, vehicle_state: vehicle_states };
+      return this._formatConfig(config);
     }
 
     // Default hardcoded fallbacks
@@ -49,17 +65,18 @@ export class VehicleClassMappingService {
 
     if (!fallbackConfig) {
       return {
+        id: null,
+        vehicle_class_configuration_id: null,
         mapped_class: mappedClass,
+        sub_classes: [],
         diagram_image_url: '',
         total_damage_points: 0,
         accessories: [],
-        sub_classes: [],
         vehicle_state: [],
       };
     }
 
-    const { vehicle_states, ...rest } = fallbackConfig;
-    return { ...rest, vehicle_state: vehicle_states };
+    return this._formatConfig(fallbackConfig);
   }
 
   async resolveMappedClass(sourceClass?: string | null): Promise<string> {
@@ -201,10 +218,7 @@ export class VehicleClassMappingService {
       },
     });
     
-    return configs.map(config => {
-      const { vehicle_states, ...rest } = config;
-      return { ...rest, vehicle_state: vehicle_states };
-    });
+    return configs.map(config => this._formatConfig(config));
   }
 
   async getConfigByIdAsync(id: number) {
@@ -218,8 +232,7 @@ export class VehicleClassMappingService {
     if (!config) {
       throw new BadRequestException('Configuration not found');
     }
-    const { vehicle_states, ...rest } = config;
-    return { ...rest, vehicle_state: vehicle_states };
+    return this._formatConfig(config);
   }
 
   async updateConfigByIdAsync(id: number, dto: UpdateVehicleClassConfigDto, diagramImageUrl?: string) {
