@@ -289,6 +289,20 @@ model customer_address {
   @@index([place_id])
 }
 
+model dealer {
+  id            Int      @id @default(autoincrement())
+  formated_id   String   @unique
+  email         String   @db.VarChar(255)
+  password      String   @db.VarChar(255)
+  is_deleted    Boolean  @default(false)
+  is_deleted_by Int?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @default(now()) @updatedAt
+
+  @@index([id, formated_id])
+  @@index([email, is_deleted])
+}
+
 model order {
   id                  Int         @id @default(autoincrement())
   formated_id         String      @unique
@@ -685,6 +699,7 @@ enum Role {
   Vendor
   Driver
   Customer
+  Dealer
 }
 
 enum OrganizationType {

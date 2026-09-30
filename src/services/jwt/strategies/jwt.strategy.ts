@@ -75,6 +75,14 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       if (!admin || admin.is_deleted) {
         throw new UnauthorizedException('Admin not found or has been disabled');
       }
+    } else if (payload.type === Role.Dealer) {
+      const dealer = await this.prisma.dealer.findUnique({
+        where: { id: payload.id },
+      });
+
+      if (!dealer || dealer.is_deleted) {
+        throw new UnauthorizedException('Dealer not found or has been disabled');
+      }
     }
 
     return payload;

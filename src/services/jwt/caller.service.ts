@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
+import { Role } from '@prisma/client';
 import { JwtService } from './jwt.service';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
@@ -251,7 +252,7 @@ export class CallerService {
    */
   isVendor(): boolean {
     const caller = this.getCallerOrNull();
-    return caller?.type === 'Vendor';
+    return caller?.type === Role.Vendor;
   }
 
   /**
@@ -268,7 +269,7 @@ export class CallerService {
    */
   isDriver(): boolean {
     const caller = this.getCallerOrNull();
-    return caller?.type === 'Driver';
+    return caller?.type === Role.Driver;
   }
 
   /**
@@ -278,7 +279,17 @@ export class CallerService {
    */
   isCustomer(): boolean {
     const caller = this.getCallerOrNull();
-    return caller?.type === 'Customer';
+    return caller?.type === Role.Customer;
+  }
+
+  /**
+   * Checks if the current user is a dealer
+   *
+   * @returns True if authenticated and user type is Dealer
+   */
+  isDealer(): boolean {
+    const caller = this.getCallerOrNull();
+    return caller?.type === Role.Dealer;
   }
 
   /**
