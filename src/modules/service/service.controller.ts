@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiConsumes, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiConsumes, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ServiceService } from './service.service';
 import { CreateServiceDto } from './dto/create-service.dto';
@@ -20,12 +20,26 @@ export class ServiceController {
   constructor(private readonly _serviceService: ServiceService) { }
 
   @Get()
-  @ApiOperation({ summary: 'Get all active services' })
+  @ApiOperation({ summary: 'Get all active services (optionally including sub-services)' })
+  @ApiQuery({ name: 'include_sub_services', required: false, type: Boolean })
   @ApiResponseDto(ServiceListDto, true)
-  async findAll(): Promise<ResponseDto<ServiceListDto[]>> {
+  async findAll(@Query('include_sub_services') includeSub?: string): Promise<ResponseDto<any[]>> {
+    if (includeSub === 'true' || includeSub === '1') {
+      const services = await this._serviceService.findAllWithSubServicesAsync();
+      return ResponseDto.retrieved('Services with sub-services retrieved successfully', services);
+    }
     const services = await this._serviceService.findAllAsync();
     return ResponseDto.retrieved('Services retrieved successfully', services);
   }
+
+  @Get('sub-services')
+  @ApiOperation({ summary: 'Get all active sub-services across all services (Public)' })
+  @ApiResponseDto(SubServiceDto, true)
+  async getPublicSubServices(): Promise<ResponseDto<SubServiceDto[]>> {
+    const subServices = await this._serviceService.findAllSubServicesAsync();
+    return ResponseDto.retrieved('All sub-services retrieved successfully', subServices);
+  }
+
 
   @Get('active')
   @ApiBearerAuth('JWT-auth')
@@ -91,8 +105,6 @@ export class ServiceController {
   // #region Sub-Service Endpoints
 
   @Get('sub-service/all')
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get all active sub-services across all services' })
   @ApiResponseDto(SubServiceDto, true)
   async getAllSubServices(): Promise<ResponseDto<SubServiceDto[]>> {
@@ -101,14 +113,13 @@ export class ServiceController {
   }
 
   @Get(':id/sub-service')
-  @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get active sub-services for a specific service' })
   @ApiResponseDto(SubServiceDto, true)
   async getSubServices(@Param('id') id: number): Promise<ResponseDto<SubServiceDto[]>> {
     const subServices = await this._serviceService.findSubServicesByServiceIdAsync(id);
     return ResponseDto.retrieved('Sub-services retrieved successfully', subServices);
   }
+
 
   @Post('sub-service')
   @ApiBearerAuth('JWT-auth')

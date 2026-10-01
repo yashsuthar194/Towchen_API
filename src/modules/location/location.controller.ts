@@ -32,6 +32,38 @@ export class LocationController {
     return await this.locationService.searchPredictionsAsync(query);
   }
 
+  @Get('resolve-address')
+  @ApiOperation({
+    summary: 'Step 2 — Resolve full address from Google place_id',
+    description: 'Accepts a Google Maps place_id and returns the complete structured address with lat/lng coordinates.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Full resolved address object',
+    type: LocationResponseDto,
+  })
+  async resolveAddress(@Query() query: ResolveAddressDto): Promise<LocationResponseDto> {
+    return await this.locationService.resolveAddressAsync(query);
+  }
+
+  @Get('reverse-geocode')
+  @ApiOperation({
+    summary: 'Reverse Geocode — Coordinates (lat/lng) to formatted address',
+    description: 'Accepts latitude and longitude and returns the accurate human-readable street address via Google Maps.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Accurate formatted address for current location coordinates',
+    type: LocationResponseDto,
+  })
+  async reverseGeocode(
+    @Query('lat') lat: number,
+    @Query('lng') lng: number,
+  ): Promise<LocationResponseDto> {
+    return await this.locationService.reverseGeocodeAsync(Number(lat), Number(lng));
+  }
+
+
   @Post('estimate')
   @ApiOperation({
     summary: 'Get order estimate — distance, travel time & sub-service pricing',

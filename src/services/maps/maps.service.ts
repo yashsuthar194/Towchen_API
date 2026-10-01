@@ -68,4 +68,12 @@ export class MapsService implements IMapsService {
   ): Promise<CoordinateDistanceResultDto[]> {
     return this.mapsProvider.getDistanceMatrixByCoordinatesAsync(origins, destinationLat, destinationLng);
   }
+
+  /**
+   * {@inheritDoc IMapsService.reverseGeocodeAsync}
+   */
+  async reverseGeocodeAsync(lat: number, lng: number): Promise<LocationResponseDto> {
+    return this.mapsProvider.reverseGeocodeAsync(lat, lng);
+  }
 }
+

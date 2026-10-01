@@ -37,6 +37,14 @@ export class LocationService {
   }
 
   /**
+   * Reverse geocodes latitude/longitude coordinates into a full formatted address object.
+   */
+  async reverseGeocodeAsync(lat: number, lng: number): Promise<LocationResponseDto> {
+    return await this.mapsService.reverseGeocodeAsync(lat, lng);
+  }
+
+
+  /**
    * Main entry point for getting an order estimate.
    * Broken down into discrete steps for clarity and maintainability.
    */

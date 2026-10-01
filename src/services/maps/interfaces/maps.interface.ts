@@ -77,4 +77,15 @@ export interface IMapsService {
     destinationLat: number,
     destinationLng: number,
   ): Promise<CoordinateDistanceResultDto[]>;
+
+  /**
+   * Reverse geocodes coordinates (lat/lng) into a structured formatted address.
+   *
+   * @param lat - Latitude
+   * @param lng - Longitude
+   * @returns LocationResponseDto with formatted address and components
+   */
+  reverseGeocodeAsync(lat: number, lng: number): Promise<LocationResponseDto>;
 }
+
+

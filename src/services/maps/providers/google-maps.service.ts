@@ -191,6 +191,66 @@ export class GoogleMapsService implements IMapsService {
   }
 
   /**
+   * {@inheritDoc IMapsService.reverseGeocodeAsync}
+   *
+   * @remarks
+   * Calls Google Geocoding API to convert latitude/longitude into a full formatted address.
+   */
+  async reverseGeocodeAsync(lat: number, lng: number): Promise<LocationResponseDto> {
+    try {
+      const response = await this.client.reverseGeocode({
+        params: {
+          latlng: { lat, lng },
+          key: this.geocodeApiKey,
+        },
+      });
+
+      if (response.data.status !== 'OK' || !response.data.results?.length) {
+        const errorMsg = response.data.error_message || response.data.status || 'No address found';
+        throw new Error(`Google Maps API error: ${errorMsg}`);
+      }
+
+      // Find the most descriptive result: prefer street_address, premise, or route
+      const bestResult =
+        response.data.results.find((r) =>
+          r.types.some((t) =>
+            ['street_address', 'premise', 'subpremise', 'route', 'point_of_interest'].includes(t),
+          ),
+        ) || response.data.results[0];
+
+      return this.parseAddressComponents(
+        bestResult.place_id,
+        bestResult.address_components || [],
+        bestResult.formatted_address,
+        lat,
+        lng,
+      );
+    } catch (error) {
+      const errorMsg =
+        error.response?.data?.error_message || error.message || 'Failed to reverse geocode coordinates';
+      this.logger.error(`Error reverse geocoding (${lat}, ${lng}): ${errorMsg}`);
+
+      if (this.isMapsFallbackError(errorMsg)) {
+        this.logger.warn(`Google Maps API failed. Using fallback for reverseGeocodeAsync(${lat}, ${lng})`);
+        return {
+          place_id: `geo_${lat}_${lng}`,
+          address: `${lat.toFixed(4)}, ${lng.toFixed(4)} (Detected Location)`,
+          street: '',
+          area: '',
+          city: '',
+          state: '',
+          pincode: '',
+          country: 'India',
+          latitude: lat,
+          longitude: lng,
+        };
+      }
+      throw new InternalServerErrorException(errorMsg);
+    }
+  }
+
+
+  /**
    * {@inheritDoc IMapsService.getDistanceMatrixAsync}
    *
    * @remarks
