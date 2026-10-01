@@ -13,12 +13,73 @@ import { DealerRegisterDto } from './dto/dealer-register.dto';
 import { DealerRefreshTokenDto } from './dto/dealer-refresh-token.dto';
 import { DealerLoginResponseDto, DealerProfileDto } from './dto/dealer-login-response.dto';
 
+const dealerAuthSelect = {
+  id: true,
+  formated_id: true,
+  name: true,
+  number: true,
+  alternative_number: true,
+  email: true,
+  residential_address: true,
+  bank_name: true,
+  ifsc_code: true,
+  account_number: true,
+  account_holder_name: true,
+  dealer_image: true,
+  aadhar_image: true,
+  pan_image: true,
+  bankdetails_image: true,
+  created_at: true,
+  updated_at: true,
+} as const;
+
 @Injectable()
 export class DealerAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
   ) {}
+
+  private mapToProfileDto(dealer: {
+    id: number;
+    formated_id: string;
+    name: string;
+    number: string;
+    alternative_number: string | null;
+    email: string;
+    residential_address: string | null;
+    bank_name: string | null;
+    ifsc_code: string;
+    account_number: string;
+    account_holder_name: string;
+    dealer_image: string | null;
+    aadhar_image: string;
+    pan_image: string;
+    bankdetails_image: string | null;
+    created_at: Date;
+    updated_at: Date;
+  }): DealerProfileDto {
+    return {
+      id: dealer.id,
+      formated_id: dealer.formated_id,
+      name: dealer.name,
+      number: dealer.number,
+      alternative_number: dealer.alternative_number,
+      email: dealer.email,
+      role: Role.Dealer,
+      residential_address: dealer.residential_address,
+      bank_name: dealer.bank_name,
+      ifsc_code: dealer.ifsc_code,
+      account_number: dealer.account_number,
+      account_holder_name: dealer.account_holder_name,
+      dealer_image: dealer.dealer_image,
+      aadhar_image: dealer.aadhar_image,
+      pan_image: dealer.pan_image,
+      bankdetails_image: dealer.bankdetails_image,
+      created_at: dealer.created_at,
+      updated_at: dealer.updated_at,
+    };
+  }
 
   /**
    * Registers a new dealer and returns JWT tokens with profile
@@ -39,17 +100,23 @@ export class DealerAuthService {
 
     const newDealer = await this.prisma.dealer.create({
       data: {
+        formated_id: '',
+        name: dto.name,
+        number: dto.number,
+        alternative_number: dto.alternative_number ?? null,
         email: dto.email,
         password: hashedPassword,
-        formated_id: '',
+        residential_address: dto.residential_address ?? null,
+        bank_name: dto.bank_name ?? null,
+        ifsc_code: dto.ifsc_code,
+        account_number: dto.account_number,
+        account_holder_name: dto.account_holder_name,
+        dealer_image: dto.dealer_image ?? null,
+        aadhar_image: dto.aadhar_image,
+        pan_image: dto.pan_image,
+        bankdetails_image: dto.bankdetails_image ?? null,
       },
-      select: {
-        id: true,
-        formated_id: true,
-        email: true,
-        created_at: true,
-        updated_at: true,
-      },
+      select: dealerAuthSelect,
     });
 
     const tokens = await this.jwtService.generateTokens({
@@ -61,14 +128,7 @@ export class DealerAuthService {
     return {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
-      dealer: {
-        id: newDealer.id,
-        formated_id: newDealer.formated_id,
-        email: newDealer.email,
-        role: Role.Dealer,
-        created_at: newDealer.created_at,
-        updated_at: newDealer.updated_at,
-      },
+      dealer: this.mapToProfileDto(newDealer),
     };
   }
 
@@ -80,6 +140,10 @@ export class DealerAuthService {
       where: {
         email: dto.email,
         is_deleted: false,
+      },
+      select: {
+        ...dealerAuthSelect,
+        password: true,
       },
     });
 
@@ -101,14 +165,7 @@ export class DealerAuthService {
     return {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
-      dealer: {
-        id: dealer.id,
-        formated_id: dealer.formated_id,
-        email: dealer.email,
-        role: Role.Dealer,
-        created_at: dealer.created_at,
-        updated_at: dealer.updated_at,
-      },
+      dealer: this.mapToProfileDto(dealer),
     };
   }
 
@@ -124,6 +181,7 @@ export class DealerAuthService {
         id: payload.id as number,
         is_deleted: false,
       },
+      select: dealerAuthSelect,
     });
 
     if (!dealer) {
@@ -133,14 +191,7 @@ export class DealerAuthService {
     return {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
-      dealer: {
-        id: dealer.id,
-        formated_id: dealer.formated_id,
-        email: dealer.email,
-        role: Role.Dealer,
-        created_at: dealer.created_at,
-        updated_at: dealer.updated_at,
-      },
+      dealer: this.mapToProfileDto(dealer),
     };
   }
 
@@ -153,26 +204,13 @@ export class DealerAuthService {
         id: dealerId,
         is_deleted: false,
       },
-      select: {
-        id: true,
-        formated_id: true,
-        email: true,
-        created_at: true,
-        updated_at: true,
-      },
+      select: dealerAuthSelect,
     });
 
     if (!dealer) {
       throw new NotFoundException('Dealer profile not found.');
     }
 
-    return {
-      id: dealer.id,
-      formated_id: dealer.formated_id,
-      email: dealer.email,
-      role: Role.Dealer,
-      created_at: dealer.created_at,
-      updated_at: dealer.updated_at,
-    };
+    return this.mapToProfileDto(dealer);
   }
 }

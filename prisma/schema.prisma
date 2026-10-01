@@ -290,17 +290,30 @@ model customer_address {
 }
 
 model dealer {
-  id            Int      @id @default(autoincrement())
-  formated_id   String   @unique
-  email         String   @db.VarChar(255)
-  password      String   @db.VarChar(255)
-  is_deleted    Boolean  @default(false)
-  is_deleted_by Int?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @default(now()) @updatedAt
+  id                  Int      @id @default(autoincrement())
+  formated_id         String   @unique
+  name                String   @db.VarChar(255)
+  number              String   @db.VarChar(20)
+  alternative_number  String?  @db.VarChar(20)
+  email               String   @db.VarChar(255)
+  password            String   @db.VarChar(255)
+  residential_address String?  @db.VarChar(255)
+  bank_name           String?  @db.VarChar(255)
+  ifsc_code           String   @db.VarChar(50)
+  account_number      String   @db.VarChar(50)
+  account_holder_name String   @db.VarChar(255)
+  dealer_image        String?
+  aadhar_image        String
+  pan_image           String
+  bankdetails_image   String?
+  is_deleted          Boolean  @default(false)
+  is_deleted_by       Int?
+  created_at          DateTime @default(now())
+  updated_at          DateTime @default(now()) @updatedAt
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
+  @@index([number, is_deleted])
 }
 
 model order {
