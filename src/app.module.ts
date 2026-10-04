@@ -35,6 +35,7 @@ import { LeadOrderModule } from './modules/lead-order/lead-order.module';
 import { DealerModule } from './modules/dealer/dealer.module';
 import { DealerPackagePlanModule } from './modules/dealer-package-plan/dealer-package-plan.module';
 import { DealerPackageOrderModule } from './modules/dealer-package-order/dealer-package-order.module';
+import { ConsentModule } from './modules/consent/consent.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Global scheduler — must be here, not in feature modules
@@ -71,6 +72,7 @@ import { DealerPackageOrderModule } from './modules/dealer-package-order/dealer-
     DealerModule,
     DealerPackagePlanModule,
     DealerPackageOrderModule,
+    ConsentModule,
 ],
   controllers: [AppController],
   providers: [AppService],

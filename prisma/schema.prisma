@@ -12,8 +12,9 @@ model admin {
   email      String   @unique @db.VarChar(255)
   password   String   @db.VarChar(255)
   name       String   @db.VarChar(255)
-  role       Role     @default(Admin)
-  is_deleted Boolean  @default(false)
+  role          Role          @default(Admin)
+  consent_roles ConsentRole[] @default([])
+  is_deleted    Boolean       @default(false)
   created_at DateTime @default(now())
   updated_at DateTime @default(now()) @updatedAt
 
@@ -1401,4 +1402,87 @@ model dealer_package_order {
   @@index([vehicle_id])
   @@index([order_number])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Consent Management Module
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum ConsentRole {
+  Approver
+  Verifier
+  Finalizer
+}
+
+enum ConsentStatus {
+  PendingApproval
+  PendingVerification
+  PendingFinalization
+  PermissionGranted
+  Terminated
+}
+
+enum ConsentStep {
+  Approval
+  Verification
+  Finalization
+}
+
+enum ConsentAction {
+  Submit
+  Approve
+  Verify
+  Finalize
+  Reject
+}
+
+enum ConsentEntityType {
+  OrderEdit
+  VendorOnboarding
+}
+
+model consent_request {
+  id               Int                @id @default(autoincrement())
+  entity_type      ConsentEntityType
+  entity_id        Int?
+  title            String             @db.VarChar(255)
+  description      String?            @db.Text
+  proposed_payload Json
+  original_payload Json?
+  status           ConsentStatus      @default(PendingApproval)
+  current_step     ConsentStep        @default(Approval)
+  created_by_id    Int
+  created_by_role  Role
+  finalized_at     DateTime?
+  terminated_at    DateTime?
+  created_at       DateTime           @default(now())
+  updated_at       DateTime           @updatedAt
+
+  audit_logs       consent_audit_log[]
+
+  @@index([entity_type, entity_id])
+  @@index([status])
+  @@index([current_step])
+  @@index([created_by_id, created_by_role])
+}
+
+model consent_audit_log {
+  id                 Int              @id @default(autoincrement())
+  consent_request_id Int
+  step               ConsentStep
+  action             ConsentAction
+  previous_status    ConsentStatus
+  new_status         ConsentStatus
+  performed_by_id    Int
+  performed_by_role  String           @db.VarChar(50)
+  actor_consent_role ConsentRole
+  remarks            String?          @db.Text
+  metadata           Json?
+  created_at         DateTime         @default(now())
+
+  consent_request    consent_request  @relation(fields: [consent_request_id], references: [id], onDelete: Cascade)
+
+  @@index([consent_request_id])
+  @@index([performed_by_id])
+}
+
 
