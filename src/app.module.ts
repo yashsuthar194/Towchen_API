@@ -33,6 +33,8 @@ import { SubscriptionPlanModule } from './modules/subscription-plan/subscription
 import { CustomerSubscriptionModule } from './modules/customer-subscription/customer-subscription.module';
 import { LeadOrderModule } from './modules/lead-order/lead-order.module';
 import { DealerModule } from './modules/dealer/dealer.module';
+import { DealerPackagePlanModule } from './modules/dealer-package-plan/dealer-package-plan.module';
+import { DealerPackageOrderModule } from './modules/dealer-package-order/dealer-package-order.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Global scheduler — must be here, not in feature modules
@@ -67,6 +69,8 @@ import { DealerModule } from './modules/dealer/dealer.module';
     SubscriptionPlanModule,
     CustomerSubscriptionModule,
     DealerModule,
+    DealerPackagePlanModule,
+    DealerPackageOrderModule,
 ],
   controllers: [AppController],
   providers: [AppService],

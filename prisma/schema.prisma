@@ -311,6 +311,9 @@ model dealer {
   created_at          DateTime @default(now())
   updated_at          DateTime @default(now()) @updatedAt
 
+  dealer_customers      dealer_customer[]
+  dealer_package_orders dealer_package_order[]
+
   @@index([id, formated_id])
   @@index([email, is_deleted])
   @@index([number, is_deleted])
@@ -1258,3 +1261,144 @@ model lead_review {
   @@index([lead_id])
   @@index([reviewee_type, reviewee_id])
 }
+
+enum CarSegment {
+  Basic
+  Standard
+  Premium
+}
+
+enum TransmissionType {
+  Manual
+  Automatic
+}
+
+enum PackagePaymentStatus {
+  PendingInternalSettlement
+  Completed
+  Waived
+}
+
+enum DealerPackageStatus {
+  Active
+  Expired
+  Cancelled
+}
+
+model dealer_package_plan {
+  id                  Int                    @id @default(autoincrement())
+  name                String                 @db.VarChar(255)
+  plan_period_months  Int
+  incidents           Int
+  distance_km         Float
+  hotel_accommodation Int                    @default(0)
+  cab_service         Int                    @default(0)
+  price_basic         Float                  @default(0.0)
+  price_standard      Float                  @default(0.0)
+  price_premium       Float                  @default(0.0)
+  is_active           Boolean                @default(true)
+  created_at          DateTime               @default(now())
+  updated_at          DateTime               @updatedAt
+
+  orders              dealer_package_order[]
+}
+
+model dealer_customer {
+  id                 Int                       @id @default(autoincrement())
+  dealer_id          Int
+  customer_name      String                    @db.VarChar(255)
+  customer_number    String                    @db.VarChar(20)
+  alternative_number String?                   @db.VarChar(20)
+  email_address      String                    @db.VarChar(255)
+  building           String?                   @db.VarChar(255)
+  block              String?                   @db.VarChar(100)
+  road               String?                   @db.VarChar(255)
+  city               String                    @db.VarChar(100)
+  state              String                    @db.VarChar(100)
+  pincode            String                    @db.VarChar(20)
+  gst_number         String?                   @db.VarChar(50)
+  created_at         DateTime                  @default(now())
+  updated_at         DateTime                  @updatedAt
+
+  dealer             dealer                    @relation(fields: [dealer_id], references: [id])
+  vehicles           dealer_customer_vehicle[]
+  package_orders     dealer_package_order[]
+
+  @@index([dealer_id])
+  @@index([customer_number])
+  @@index([email_address])
+}
+
+model dealer_customer_vehicle {
+  id                       Int                    @id @default(autoincrement())
+  dealer_customer_id       Int
+  vehicle_reg_number       String                 @db.VarChar(50)
+  vehicle_make             String                 @db.VarChar(100)
+  vehicle_model            String                 @db.VarChar(100)
+  vehicle_fuel_type        FuelType
+  transmission_type        TransmissionType
+  registration_year        Int
+  chassis_number           String                 @db.VarChar(100)
+  current_odometer_reading Float
+  car_segment              CarSegment
+
+  image_front              String                 @db.Text
+  image_rear               String                 @db.Text
+  image_left               String                 @db.Text
+  image_right              String                 @db.Text
+  vehicle_images_meta      Json?
+
+  odometer_image           String                 @db.Text
+  odometer_image_meta      Json?
+
+  created_at               DateTime               @default(now())
+  updated_at               DateTime               @updatedAt
+
+  customer                 dealer_customer        @relation(fields: [dealer_customer_id], references: [id], onDelete: Cascade)
+  package_orders           dealer_package_order[]
+
+  @@index([dealer_customer_id])
+  @@index([vehicle_reg_number])
+}
+
+model dealer_package_order {
+  id                           Int                  @id @default(autoincrement())
+  order_number                 String               @unique
+  dealer_id                    Int
+  dealer_customer_id           Int
+  vehicle_id                   Int
+  package_plan_id              Int
+
+  plan_name                    String               @db.VarChar(255)
+  car_segment                  CarSegment
+  amount                       Float
+  plan_period_months           Int
+  incidents_allowed            Int
+  incidents_used               Int                  @default(0)
+  distance_km_allowed          Float
+  hotel_accommodation_allowed  Int                  @default(0)
+  hotel_accommodation_used     Int                  @default(0)
+  cab_service_allowed          Int                  @default(0)
+  cab_service_used             Int                  @default(0)
+  admin_notes                  String?              @db.Text
+
+  start_date                   DateTime
+  expiry_date                  DateTime
+  status                       DealerPackageStatus  @default(Active)
+  payment_status               PackagePaymentStatus @default(PendingInternalSettlement)
+  package_pdf_url              String?              @db.Text
+
+  created_at                   DateTime             @default(now())
+  updated_at                   DateTime             @updatedAt
+
+  dealer                       dealer               @relation(fields: [dealer_id], references: [id])
+  customer                     dealer_customer      @relation(fields: [dealer_customer_id], references: [id])
+  vehicle                      dealer_customer_vehicle @relation(fields: [vehicle_id], references: [id])
+  package_plan                 dealer_package_plan  @relation(fields: [package_plan_id], references: [id])
+
+  @@index([dealer_id])
+  @@index([dealer_customer_id])
+  @@index([vehicle_id])
+  @@index([order_number])
+}
+
