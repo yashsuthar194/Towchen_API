@@ -142,11 +142,11 @@ export class ConsentTypeGroupDto {
 }
 
 export class GroupedConsentResponseDto {
-  @ApiProperty({ enum: ConsentEntityType, example: ConsentEntityType.Order })
-  entity_type: ConsentEntityType;
+  @ApiPropertyOptional({ enum: ConsentEntityType, example: ConsentEntityType.Order })
+  entity_type?: ConsentEntityType | null;
 
-  @ApiProperty({ example: 42 })
-  entity_id: number;
+  @ApiPropertyOptional({ example: 42 })
+  entity_id?: number | null;
 
   @ApiProperty({ example: 10 })
   total_consents: number;

@@ -452,7 +452,7 @@ describe('ConsentService', () => {
       expect(result.entity_type).toBe(ConsentEntityType.Order);
       expect(result.entity_id).toBe(10);
       expect(result.total_consents).toBe(2);
-      expect(result.groups).toHaveLength(5); // NewOrder, ManualOrderAssign, OrderEdit, OrderClosure, OrderFinance
+      expect(result.groups).toHaveLength(2); // Only groups that actually have created records: OrderEdit, NewOrder
 
       const editGroup = result.groups.find((g) => g.consent_type === ConsentType.OrderEdit);
       expect(editGroup).toBeDefined();
@@ -465,9 +465,39 @@ describe('ConsentService', () => {
       expect(newOrderGroup?.has_active).toBe(false);
       expect(newOrderGroup?.total_count).toBe(1);
 
+      // Uncreated consent types are not returned
       const closureGroup = result.groups.find((g) => g.consent_type === ConsentType.OrderClosure);
-      expect(closureGroup?.total_count).toBe(0);
-      expect(closureGroup?.has_active).toBe(false);
+      expect(closureGroup).toBeUndefined();
+    });
+
+    it('findGrouped should work when only entity_id is provided or when neither is provided', async () => {
+      const mockConsents = [
+        {
+          id: 5,
+          entity_type: ConsentEntityType.Vendor,
+          entity_id: 42,
+          consent_type: ConsentType.VendorRegistration,
+          status: ConsentStatus.PendingApproval,
+          current_step: ConsentStep.Approval,
+          created_at: new Date(),
+          audit_logs: [],
+        },
+      ];
+      prisma.consent_request.findMany.mockResolvedValue(mockConsents);
+
+      // Only entity_id passed
+      const resultById = await service.findGrouped(undefined, 42);
+      expect(resultById.entity_type).toBeNull();
+      expect(resultById.entity_id).toBe(42);
+      expect(resultById.total_consents).toBe(1);
+      expect(resultById.groups).toHaveLength(1);
+      expect(resultById.groups[0].consent_type).toBe(ConsentType.VendorRegistration);
+
+      // Neither passed
+      const resultAll = await service.findGrouped();
+      expect(resultAll.entity_type).toBeNull();
+      expect(resultAll.entity_id).toBeNull();
+      expect(resultAll.total_consents).toBe(1);
     });
   });
 });

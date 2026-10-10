@@ -57,6 +57,25 @@ export const ENTITY_CONSENT_TYPE_MAP: Record<
   ],
 };
 
+/**
+ * Precomputed Set of active consent statuses for O(1) membership checks.
+ */
+const ACTIVE_CONSENT_STATUS_SET = new Set<ConsentStatus>([
+  ConsentStatus.PendingApproval,
+  ConsentStatus.PendingVerification,
+  ConsentStatus.PendingFinalization,
+]);
+
+/**
+ * Precomputed Map of all known consent types to their display labels for O(1) lookup.
+ */
+const GLOBAL_CONSENT_LABEL_MAP = new Map<ConsentType, string>();
+for (const list of Object.values(ENTITY_CONSENT_TYPE_MAP)) {
+  for (const item of list) {
+    GLOBAL_CONSENT_LABEL_MAP.set(item.type, item.label);
+  }
+}
+
 @Injectable()
 export class ConsentService {
   private readonly logger = new Logger(ConsentService.name);
@@ -593,17 +612,21 @@ export class ConsentService {
   }
 
   /**
-   * Fetches all ongoing and past consents for an entity, grouped by consent_type.
-   * Mirrors the CMS tab list view shown in the Order/Entity details UI.
+   * Fetches all ongoing and past consents grouped by consent_type.
+   * Only groups that actually have created records are returned.
+   * If no consents exist for the filter, groups is an empty array [].
    */
-  async findGroupedByEntity(entityType: ConsentEntityType, entityId: number) {
-    const definedTypes = ENTITY_CONSENT_TYPE_MAP[entityType] || [];
+  async findGrouped(entityType?: ConsentEntityType, entityId?: number) {
+    const where: Prisma.consent_requestWhereInput = {};
+    if (entityType) where.entity_type = entityType;
+    if (entityId !== undefined && entityId !== null) where.entity_id = Number(entityId);
+
+    // Memory safeguard: if no filters are provided, cap at 100 to prevent unbounded memory growth
+    const take = !entityType && (entityId === undefined || entityId === null) ? 100 : undefined;
 
     const allConsents = await this.prisma.consent_request.findMany({
-      where: {
-        entity_type: entityType,
-        entity_id: entityId,
-      },
+      where,
+      take,
       orderBy: { created_at: 'desc' },
       include: {
         audit_logs: {
@@ -613,59 +636,65 @@ export class ConsentService {
       },
     });
 
-    // Active status filter
-    const activeStatuses: ConsentStatus[] = [
-      ConsentStatus.PendingApproval,
-      ConsentStatus.PendingVerification,
-      ConsentStatus.PendingFinalization,
-    ];
-
-    // Build the groups based on defined types for this entity
-    const groups = definedTypes.map((def) => {
-      const items = allConsents.filter((c) => c.consent_type === def.type);
-      const activeConsent = items.find((c) => activeStatuses.includes(c.status)) || null;
-
+    if (allConsents.length === 0) {
       return {
-        consent_type: def.type,
-        label: def.label,
-        total_count: items.length,
-        has_active: !!activeConsent,
-        active_consent: activeConsent,
-        items,
+        entity_type: entityType || null,
+        entity_id: entityId !== undefined && entityId !== null ? Number(entityId) : null,
+        total_consents: 0,
+        groups: [],
       };
-    });
+    }
 
-    // Check if there are any extra consents on this entity not in definedTypes
-    const handledTypes = new Set(definedTypes.map((d) => d.type));
-    const extraConsents = allConsents.filter((c) => !handledTypes.has(c.consent_type));
+    // Group only created consents by consent_type in a single pass
+    const groupsMap = new Map<
+      ConsentType,
+      {
+        consent_type: ConsentType;
+        label: string;
+        total_count: number;
+        has_active: boolean;
+        active_consent: (typeof allConsents)[0] | null;
+        items: typeof allConsents;
+      }
+    >();
 
-    if (extraConsents.length > 0) {
-      // Group any extra types dynamically
-      const extraMap = new Map<ConsentType, typeof extraConsents>();
-      for (const extra of extraConsents) {
-        const list = extraMap.get(extra.consent_type) || [];
-        list.push(extra);
-        extraMap.set(extra.consent_type, list);
+    for (let i = 0; i < allConsents.length; i++) {
+      const c = allConsents[i];
+      let group = groupsMap.get(c.consent_type);
+
+      if (!group) {
+        group = {
+          consent_type: c.consent_type,
+          label: GLOBAL_CONSENT_LABEL_MAP.get(c.consent_type) || c.consent_type,
+          total_count: 0,
+          has_active: false,
+          active_consent: null,
+          items: [],
+        };
+        groupsMap.set(c.consent_type, group);
       }
 
-      for (const [type, items] of extraMap.entries()) {
-        const activeConsent = items.find((c) => activeStatuses.includes(c.status)) || null;
-        groups.push({
-          consent_type: type,
-          label: type,
-          total_count: items.length,
-          has_active: !!activeConsent,
-          active_consent: activeConsent,
-          items,
-        });
+      group.items.push(c);
+      group.total_count++;
+
+      if (!group.active_consent && ACTIVE_CONSENT_STATUS_SET.has(c.status)) {
+        group.active_consent = c;
+        group.has_active = true;
       }
     }
 
     return {
-      entity_type: entityType,
-      entity_id: entityId,
+      entity_type: entityType || null,
+      entity_id: entityId !== undefined && entityId !== null ? Number(entityId) : null,
       total_consents: allConsents.length,
-      groups,
+      groups: Array.from(groupsMap.values()),
     };
+  }
+
+  /**
+   * Backwards compatible alias for findGrouped
+   */
+  async findGroupedByEntity(entityType: ConsentEntityType, entityId: number) {
+    return this.findGrouped(entityType, entityId);
   }
 }

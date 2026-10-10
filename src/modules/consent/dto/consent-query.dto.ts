@@ -78,22 +78,24 @@ export class ConsentQueryDto {
   entity_id?: number;
 }
 
-export class GroupedConsentQueryDto {
-  @ApiProperty({
+export class GroupedConsentDto {
+  @ApiPropertyOptional({
     enum: ConsentEntityType,
     description: 'Target parent entity type (Order, Vendor, Driver, Vehicle, Subscription, ManualPackage, ServiceLocation)',
     example: ConsentEntityType.Order,
   })
+  @IsOptional()
   @IsEnum(ConsentEntityType)
-  @IsNotEmpty()
-  entity_type: ConsentEntityType;
+  entity_type?: ConsentEntityType;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Target parent entity numeric ID (e.g. order_id, vendor_id)',
     example: 42,
   })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  @IsNotEmpty()
-  entity_id: number;
+  entity_id?: number;
 }
+
+export class GroupedConsentQueryDto extends GroupedConsentDto {}
