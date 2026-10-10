@@ -8,15 +8,15 @@ datasource db {
 }
 
 model admin {
-  id         Int      @id @default(autoincrement())
-  email      String   @unique @db.VarChar(255)
-  password   String   @db.VarChar(255)
-  name       String   @db.VarChar(255)
+  id            Int           @id @default(autoincrement())
+  email         String        @unique @db.VarChar(255)
+  password      String        @db.VarChar(255)
+  name          String        @db.VarChar(255)
   role          Role          @default(Admin)
   consent_roles ConsentRole[] @default([])
   is_deleted    Boolean       @default(false)
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now()) @updatedAt
+  created_at    DateTime      @default(now())
+  updated_at    DateTime      @default(now()) @updatedAt
 
   @@index([email, is_deleted])
 }
@@ -966,9 +966,9 @@ enum LeadStatus {
 }
 
 model lead {
-  id                Int         @id @default(autoincrement())
-  formated_id       String      @unique
-  order_formated_id String?     @unique
+  id                Int     @id @default(autoincrement())
+  formated_id       String  @unique
+  order_formated_id String? @unique
   vendor_id         Int
   vehicle_id        Int
   driver_id         Int
@@ -980,10 +980,10 @@ model lead {
   end_location        String @db.Text
   end_location_data   Json?
 
-  distance    String?     @db.VarChar(50)
-  time        String?     @db.VarChar(50)
-  lead_amount Float       @default(0.0)
-  status      LeadStatus  @default(New)
+  distance     String?      @db.VarChar(50)
+  time         String?      @db.VarChar(50)
+  lead_amount  Float        @default(0.0)
+  status       LeadStatus   @default(New)
   order_status OrderStatus?
 
   assign_time     DateTime?
@@ -1173,9 +1173,9 @@ model lead_pickup_evcrf_damage {
 }
 
 model lead_dropoff_evcrf {
-  id            Int     @id @default(autoincrement())
-  lead_id       Int     @unique
-  remarks       String? @db.Text
+  id      Int     @id @default(autoincrement())
+  lead_id Int     @unique
+  remarks String? @db.Text
 
   handover_name          String? @db.VarChar(255)
   drop_location          String? @db.VarChar(255)
@@ -1287,43 +1287,43 @@ enum DealerPackageStatus {
 }
 
 model dealer_package_plan {
-  id                  Int                    @id @default(autoincrement())
-  name                String                 @db.VarChar(255)
+  id                  Int      @id @default(autoincrement())
+  name                String   @db.VarChar(255)
   plan_period_months  Int
   incidents           Int
   distance_km         Float
-  hotel_accommodation Int                    @default(0)
-  cab_service         Int                    @default(0)
-  price_basic         Float                  @default(0.0)
-  price_standard      Float                  @default(0.0)
-  price_premium       Float                  @default(0.0)
-  is_active           Boolean                @default(true)
-  created_at          DateTime               @default(now())
-  updated_at          DateTime               @updatedAt
+  hotel_accommodation Int      @default(0)
+  cab_service         Int      @default(0)
+  price_basic         Float    @default(0.0)
+  price_standard      Float    @default(0.0)
+  price_premium       Float    @default(0.0)
+  is_active           Boolean  @default(true)
+  created_at          DateTime @default(now())
+  updated_at          DateTime @updatedAt
 
-  orders              dealer_package_order[]
+  orders dealer_package_order[]
 }
 
 model dealer_customer {
-  id                 Int                       @id @default(autoincrement())
+  id                 Int      @id @default(autoincrement())
   dealer_id          Int
-  customer_name      String                    @db.VarChar(255)
-  customer_number    String                    @db.VarChar(20)
-  alternative_number String?                   @db.VarChar(20)
-  email_address      String                    @db.VarChar(255)
-  building           String?                   @db.VarChar(255)
-  block              String?                   @db.VarChar(100)
-  road               String?                   @db.VarChar(255)
-  city               String                    @db.VarChar(100)
-  state              String                    @db.VarChar(100)
-  pincode            String                    @db.VarChar(20)
-  gst_number         String?                   @db.VarChar(50)
-  created_at         DateTime                  @default(now())
-  updated_at         DateTime                  @updatedAt
+  customer_name      String   @db.VarChar(255)
+  customer_number    String   @db.VarChar(20)
+  alternative_number String?  @db.VarChar(20)
+  email_address      String   @db.VarChar(255)
+  building           String?  @db.VarChar(255)
+  block              String?  @db.VarChar(100)
+  road               String?  @db.VarChar(255)
+  city               String   @db.VarChar(100)
+  state              String   @db.VarChar(100)
+  pincode            String   @db.VarChar(20)
+  gst_number         String?  @db.VarChar(50)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
-  dealer             dealer                    @relation(fields: [dealer_id], references: [id])
-  vehicles           dealer_customer_vehicle[]
-  package_orders     dealer_package_order[]
+  dealer         dealer                    @relation(fields: [dealer_id], references: [id])
+  vehicles       dealer_customer_vehicle[]
+  package_orders dealer_package_order[]
 
   @@index([dealer_id])
   @@index([customer_number])
@@ -1331,71 +1331,71 @@ model dealer_customer {
 }
 
 model dealer_customer_vehicle {
-  id                       Int                    @id @default(autoincrement())
+  id                       Int              @id @default(autoincrement())
   dealer_customer_id       Int
-  vehicle_reg_number       String                 @db.VarChar(50)
-  vehicle_make             String                 @db.VarChar(100)
-  vehicle_model            String                 @db.VarChar(100)
+  vehicle_reg_number       String           @db.VarChar(50)
+  vehicle_make             String           @db.VarChar(100)
+  vehicle_model            String           @db.VarChar(100)
   vehicle_fuel_type        FuelType
   transmission_type        TransmissionType
   registration_year        Int
-  chassis_number           String                 @db.VarChar(100)
+  chassis_number           String           @db.VarChar(100)
   current_odometer_reading Float
   car_segment              CarSegment
 
-  image_front              String                 @db.Text
-  image_rear               String                 @db.Text
-  image_left               String                 @db.Text
-  image_right              String                 @db.Text
-  vehicle_images_meta      Json?
+  image_front         String @db.Text
+  image_rear          String @db.Text
+  image_left          String @db.Text
+  image_right         String @db.Text
+  vehicle_images_meta Json?
 
-  odometer_image           String                 @db.Text
-  odometer_image_meta      Json?
+  odometer_image      String @db.Text
+  odometer_image_meta Json?
 
-  created_at               DateTime               @default(now())
-  updated_at               DateTime               @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  customer                 dealer_customer        @relation(fields: [dealer_customer_id], references: [id], onDelete: Cascade)
-  package_orders           dealer_package_order[]
+  customer       dealer_customer        @relation(fields: [dealer_customer_id], references: [id], onDelete: Cascade)
+  package_orders dealer_package_order[]
 
   @@index([dealer_customer_id])
   @@index([vehicle_reg_number])
 }
 
 model dealer_package_order {
-  id                           Int                  @id @default(autoincrement())
-  order_number                 String               @unique
-  dealer_id                    Int
-  dealer_customer_id           Int
-  vehicle_id                   Int
-  package_plan_id              Int
+  id                 Int    @id @default(autoincrement())
+  order_number       String @unique
+  dealer_id          Int
+  dealer_customer_id Int
+  vehicle_id         Int
+  package_plan_id    Int
 
-  plan_name                    String               @db.VarChar(255)
-  car_segment                  CarSegment
-  amount                       Float
-  plan_period_months           Int
-  incidents_allowed            Int
-  incidents_used               Int                  @default(0)
-  distance_km_allowed          Float
-  hotel_accommodation_allowed  Int                  @default(0)
-  hotel_accommodation_used     Int                  @default(0)
-  cab_service_allowed          Int                  @default(0)
-  cab_service_used             Int                  @default(0)
-  admin_notes                  String?              @db.Text
+  plan_name                   String     @db.VarChar(255)
+  car_segment                 CarSegment
+  amount                      Float
+  plan_period_months          Int
+  incidents_allowed           Int
+  incidents_used              Int        @default(0)
+  distance_km_allowed         Float
+  hotel_accommodation_allowed Int        @default(0)
+  hotel_accommodation_used    Int        @default(0)
+  cab_service_allowed         Int        @default(0)
+  cab_service_used            Int        @default(0)
+  admin_notes                 String?    @db.Text
 
-  start_date                   DateTime
-  expiry_date                  DateTime
-  status                       DealerPackageStatus  @default(Active)
-  payment_status               PackagePaymentStatus @default(PendingInternalSettlement)
-  package_pdf_url              String?              @db.Text
+  start_date      DateTime
+  expiry_date     DateTime
+  status          DealerPackageStatus  @default(Active)
+  payment_status  PackagePaymentStatus @default(PendingInternalSettlement)
+  package_pdf_url String?              @db.Text
 
-  created_at                   DateTime             @default(now())
-  updated_at                   DateTime             @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  dealer                       dealer               @relation(fields: [dealer_id], references: [id])
-  customer                     dealer_customer      @relation(fields: [dealer_customer_id], references: [id])
-  vehicle                      dealer_customer_vehicle @relation(fields: [vehicle_id], references: [id])
-  package_plan                 dealer_package_plan  @relation(fields: [package_plan_id], references: [id])
+  dealer       dealer                  @relation(fields: [dealer_id], references: [id])
+  customer     dealer_customer         @relation(fields: [dealer_customer_id], references: [id])
+  vehicle      dealer_customer_vehicle @relation(fields: [vehicle_id], references: [id])
+  package_plan dealer_package_plan     @relation(fields: [package_plan_id], references: [id])
 
   @@index([dealer_id])
   @@index([dealer_customer_id])
@@ -1436,53 +1436,73 @@ enum ConsentAction {
 }
 
 enum ConsentEntityType {
+  Order
+  Vendor
+  Driver
+  Vehicle
+  Subscription
+  ManualPackage
+  ServiceLocation
+}
+
+enum ConsentType {
+  NewOrder
+  ManualOrderAssign
   OrderEdit
-  VendorOnboarding
+  OrderClosure
+  OrderFinance
+  VendorRegistration
+  DriverRegistration
+  VehicleRegistration
+  SubscriptionPlanReview
+  ManualPackagePlanReview
+  ServiceLocation
+  VendorWalletSettlement
 }
 
 model consent_request {
-  id               Int                @id @default(autoincrement())
+  id               Int               @id @default(autoincrement())
   entity_type      ConsentEntityType
   entity_id        Int?
-  title            String             @db.VarChar(255)
-  description      String?            @db.Text
+  consent_type     ConsentType
+  title            String            @db.VarChar(255)
+  description      String?           @db.Text
   proposed_payload Json
   original_payload Json?
-  status           ConsentStatus      @default(PendingApproval)
-  current_step     ConsentStep        @default(Approval)
+  status           ConsentStatus     @default(PendingApproval)
+  current_step     ConsentStep       @default(Approval)
   created_by_id    Int
   created_by_role  Role
   finalized_at     DateTime?
   terminated_at    DateTime?
-  created_at       DateTime           @default(now())
-  updated_at       DateTime           @updatedAt
+  created_at       DateTime          @default(now())
+  updated_at       DateTime          @updatedAt
 
-  audit_logs       consent_audit_log[]
+  audit_logs consent_audit_log[]
 
   @@index([entity_type, entity_id])
+  @@index([consent_type])
   @@index([status])
   @@index([current_step])
   @@index([created_by_id, created_by_role])
 }
 
 model consent_audit_log {
-  id                 Int              @id @default(autoincrement())
+  id                 Int           @id @default(autoincrement())
   consent_request_id Int
   step               ConsentStep
   action             ConsentAction
   previous_status    ConsentStatus
   new_status         ConsentStatus
   performed_by_id    Int
-  performed_by_role  String           @db.VarChar(50)
+  performed_by_role  String        @db.VarChar(50)
   actor_consent_role ConsentRole
-  remarks            String?          @db.Text
+  remarks            String?       @db.Text
   metadata           Json?
-  created_at         DateTime         @default(now())
+  created_at         DateTime      @default(now())
 
-  consent_request    consent_request  @relation(fields: [consent_request_id], references: [id], onDelete: Cascade)
+  consent_request consent_request @relation(fields: [consent_request_id], references: [id], onDelete: Cascade)
 
   @@index([consent_request_id])
   @@index([performed_by_id])
 }
-
-

@@ -1,7 +1,7 @@
-import { ConsentEntityType, Prisma, consent_request } from '@prisma/client';
+import { ConsentType, Prisma, consent_request } from '@prisma/client';
 
 export interface IConsentActionHandler {
-  readonly entityType: ConsentEntityType;
+  readonly consentType: ConsentType;
 
   /**
    * Executes the committed action when consent reaches PERMISSION_GRANTED.

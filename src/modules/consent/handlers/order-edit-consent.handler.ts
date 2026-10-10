@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import {
-  ConsentEntityType,
+  ConsentType,
   Prisma,
   consent_request,
 } from '@prisma/client';
@@ -13,7 +13,7 @@ import { IConsentActionHandler } from './consent-action-handler.interface';
 
 @Injectable()
 export class OrderEditConsentHandler implements IConsentActionHandler {
-  readonly entityType = ConsentEntityType.OrderEdit;
+  readonly consentType = ConsentType.OrderEdit;
   private readonly logger = new Logger(OrderEditConsentHandler.name);
 
   async execute(

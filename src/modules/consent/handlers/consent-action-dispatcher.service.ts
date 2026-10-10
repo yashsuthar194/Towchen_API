@@ -4,7 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import {
-  ConsentEntityType,
+  ConsentType,
   Prisma,
   consent_request,
 } from '@prisma/client';
@@ -14,15 +14,15 @@ import { OrderEditConsentHandler } from './order-edit-consent.handler';
 @Injectable()
 export class ConsentActionDispatcherService {
   private readonly logger = new Logger(ConsentActionDispatcherService.name);
-  private readonly handlers = new Map<ConsentEntityType, IConsentActionHandler>();
+  private readonly handlers = new Map<ConsentType, IConsentActionHandler>();
 
   constructor(private readonly orderEditHandler: OrderEditConsentHandler) {
     this.registerHandler(this.orderEditHandler);
   }
 
   private registerHandler(handler: IConsentActionHandler): void {
-    this.handlers.set(handler.entityType, handler);
-    this.logger.log(`Registered consent handler for entity: ${handler.entityType}`);
+    this.handlers.set(handler.consentType, handler);
+    this.logger.log(`Registered consent handler for consent type: ${handler.consentType}`);
   }
 
   /**
@@ -32,11 +32,11 @@ export class ConsentActionDispatcherService {
     consent: consent_request,
     tx: Prisma.TransactionClient,
   ): Promise<void> {
-    const handler = this.handlers.get(consent.entity_type);
+    const handler = this.handlers.get(consent.consent_type);
 
     if (!handler) {
       throw new NotImplementedException(
-        `No execution handler registered for Consent Entity Type: '${consent.entity_type}'.`,
+        `No execution handler registered for Consent Type: '${consent.consent_type}'.`,
       );
     }
 

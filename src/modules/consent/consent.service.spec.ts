@@ -10,6 +10,7 @@ import {
   ConsentRole,
   ConsentStatus,
   ConsentStep,
+  ConsentType,
   Role,
 } from '@prisma/client';
 import { ConsentService } from './consent.service';
@@ -128,8 +129,9 @@ describe('ConsentService', () => {
       expect(prisma.consent_request.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            entity_type: ConsentEntityType.OrderEdit,
+            entity_type: ConsentEntityType.Order,
             entity_id: 10,
+            consent_type: ConsentType.OrderEdit,
             status: ConsentStatus.PendingApproval,
             current_step: ConsentStep.Approval,
             created_by_id: 2,
@@ -254,8 +256,9 @@ describe('ConsentService', () => {
     it('should transition to PermissionGranted and dispatch execution hook', async () => {
       const consent = {
         id: 1,
-        entity_type: ConsentEntityType.OrderEdit,
+        entity_type: ConsentEntityType.Order,
         entity_id: 10,
+        consent_type: ConsentType.OrderEdit,
         status: ConsentStatus.PendingFinalization,
         current_step: ConsentStep.Finalization,
         created_by_id: 5,
@@ -417,6 +420,54 @@ describe('ConsentService', () => {
         where: { consent_request_id: 1 },
         orderBy: { created_at: 'asc' },
       });
+    });
+
+    it('findGroupedByEntity should return structured groups for the entity with active status pointers', async () => {
+      const mockOrderConsents = [
+        {
+          id: 1,
+          entity_type: ConsentEntityType.Order,
+          entity_id: 10,
+          consent_type: ConsentType.OrderEdit,
+          status: ConsentStatus.PendingVerification,
+          current_step: ConsentStep.Verification,
+          created_at: new Date(),
+          audit_logs: [],
+        },
+        {
+          id: 2,
+          entity_type: ConsentEntityType.Order,
+          entity_id: 10,
+          consent_type: ConsentType.NewOrder,
+          status: ConsentStatus.PermissionGranted,
+          current_step: ConsentStep.Finalization,
+          created_at: new Date(),
+          audit_logs: [],
+        },
+      ];
+      prisma.consent_request.findMany.mockResolvedValue(mockOrderConsents);
+
+      const result = await service.findGroupedByEntity(ConsentEntityType.Order, 10);
+
+      expect(result.entity_type).toBe(ConsentEntityType.Order);
+      expect(result.entity_id).toBe(10);
+      expect(result.total_consents).toBe(2);
+      expect(result.groups).toHaveLength(5); // NewOrder, ManualOrderAssign, OrderEdit, OrderClosure, OrderFinance
+
+      const editGroup = result.groups.find((g) => g.consent_type === ConsentType.OrderEdit);
+      expect(editGroup).toBeDefined();
+      expect(editGroup?.has_active).toBe(true);
+      expect(editGroup?.active_consent?.id).toBe(1);
+      expect(editGroup?.total_count).toBe(1);
+
+      const newOrderGroup = result.groups.find((g) => g.consent_type === ConsentType.NewOrder);
+      expect(newOrderGroup).toBeDefined();
+      expect(newOrderGroup?.has_active).toBe(false);
+      expect(newOrderGroup?.total_count).toBe(1);
+
+      const closureGroup = result.groups.find((g) => g.consent_type === ConsentType.OrderClosure);
+      expect(closureGroup?.total_count).toBe(0);
+      expect(closureGroup?.has_active).toBe(false);
     });
   });
 });

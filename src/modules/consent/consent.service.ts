@@ -11,6 +11,7 @@ import {
   ConsentRole,
   ConsentStatus,
   ConsentStep,
+  ConsentType,
   Prisma,
   Role,
 } from '@prisma/client';
@@ -20,6 +21,41 @@ import { CreateOrderEditConsentDto } from './dto/create-order-edit-consent.dto';
 import { ConsentActionDto, ConsentRejectDto } from './dto/consent-action.dto';
 import { ConsentQueryDto } from './dto/consent-query.dto';
 import { ConsentActionDispatcherService } from './handlers/consent-action-dispatcher.service';
+
+/**
+ * Standard mapping of Parent Entities to their supported Consent Types and UI labels.
+ */
+export const ENTITY_CONSENT_TYPE_MAP: Record<
+  ConsentEntityType,
+  { type: ConsentType; label: string }[]
+> = {
+  [ConsentEntityType.Order]: [
+    { type: ConsentType.NewOrder, label: 'New Order' },
+    { type: ConsentType.ManualOrderAssign, label: 'Manual Order Assign Request' },
+    { type: ConsentType.OrderEdit, label: 'Edit Request' },
+    { type: ConsentType.OrderClosure, label: 'Closure Request' },
+    { type: ConsentType.OrderFinance, label: 'Finance Request' },
+  ],
+  [ConsentEntityType.Vendor]: [
+    { type: ConsentType.VendorRegistration, label: 'New Vendor Registration' },
+    { type: ConsentType.VendorWalletSettlement, label: 'Payment Settlement (Vendor Wallet)' },
+  ],
+  [ConsentEntityType.Driver]: [
+    { type: ConsentType.DriverRegistration, label: 'New Driver Registration' },
+  ],
+  [ConsentEntityType.Vehicle]: [
+    { type: ConsentType.VehicleRegistration, label: 'New Vehicle Registration' },
+  ],
+  [ConsentEntityType.Subscription]: [
+    { type: ConsentType.SubscriptionPlanReview, label: 'Subscription Plan Review' },
+  ],
+  [ConsentEntityType.ManualPackage]: [
+    { type: ConsentType.ManualPackagePlanReview, label: 'Manual Package Plan Review' },
+  ],
+  [ConsentEntityType.ServiceLocation]: [
+    { type: ConsentType.ServiceLocation, label: 'New Service Location Request' },
+  ],
+};
 
 @Injectable()
 export class ConsentService {
@@ -98,11 +134,12 @@ export class ConsentService {
       throw new NotFoundException(`Order with ID ${dto.order_id} was not found.`);
     }
 
-    // 3. Edge Case: Prevent duplicate pending consent requests for the same order
+    // 3. Edge Case: Prevent duplicate pending edit consent requests for the same order
     const existingActiveConsent = await this.prisma.consent_request.findFirst({
       where: {
-        entity_type: ConsentEntityType.OrderEdit,
+        entity_type: ConsentEntityType.Order,
         entity_id: dto.order_id,
+        consent_type: ConsentType.OrderEdit,
         status: {
           in: [
             ConsentStatus.PendingApproval,
@@ -116,7 +153,7 @@ export class ConsentService {
 
     if (existingActiveConsent) {
       throw new BadRequestException(
-        `Order #${dto.order_id} already has an active consent request (#${existingActiveConsent.id} - ${existingActiveConsent.status} at step ${existingActiveConsent.current_step}). Please complete or terminate it before creating a new one.`,
+        `Order #${dto.order_id} already has an active edit consent request (#${existingActiveConsent.id} - ${existingActiveConsent.status} at step ${existingActiveConsent.current_step}). Please complete or terminate it before creating a new one.`,
       );
     }
 
@@ -140,8 +177,9 @@ export class ConsentService {
     return this.prisma.$transaction(async (tx) => {
       const consent = await tx.consent_request.create({
         data: {
-          entity_type: ConsentEntityType.OrderEdit,
+          entity_type: ConsentEntityType.Order,
           entity_id: dto.order_id,
+          consent_type: ConsentType.OrderEdit,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
           proposed_payload: dto.changes as any,
@@ -498,6 +536,7 @@ export class ConsentService {
     if (query.status) where.status = query.status;
     if (query.current_step) where.current_step = query.current_step;
     if (query.entity_type) where.entity_type = query.entity_type;
+    if (query.consent_type) where.consent_type = query.consent_type;
     if (query.entity_id) where.entity_id = Number(query.entity_id);
 
     const [items, total] = await Promise.all([
@@ -551,5 +590,82 @@ export class ConsentService {
       where: { consent_request_id: id },
       orderBy: { created_at: 'asc' },
     });
+  }
+
+  /**
+   * Fetches all ongoing and past consents for an entity, grouped by consent_type.
+   * Mirrors the CMS tab list view shown in the Order/Entity details UI.
+   */
+  async findGroupedByEntity(entityType: ConsentEntityType, entityId: number) {
+    const definedTypes = ENTITY_CONSENT_TYPE_MAP[entityType] || [];
+
+    const allConsents = await this.prisma.consent_request.findMany({
+      where: {
+        entity_type: entityType,
+        entity_id: entityId,
+      },
+      orderBy: { created_at: 'desc' },
+      include: {
+        audit_logs: {
+          orderBy: { created_at: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    // Active status filter
+    const activeStatuses: ConsentStatus[] = [
+      ConsentStatus.PendingApproval,
+      ConsentStatus.PendingVerification,
+      ConsentStatus.PendingFinalization,
+    ];
+
+    // Build the groups based on defined types for this entity
+    const groups = definedTypes.map((def) => {
+      const items = allConsents.filter((c) => c.consent_type === def.type);
+      const activeConsent = items.find((c) => activeStatuses.includes(c.status)) || null;
+
+      return {
+        consent_type: def.type,
+        label: def.label,
+        total_count: items.length,
+        has_active: !!activeConsent,
+        active_consent: activeConsent,
+        items,
+      };
+    });
+
+    // Check if there are any extra consents on this entity not in definedTypes
+    const handledTypes = new Set(definedTypes.map((d) => d.type));
+    const extraConsents = allConsents.filter((c) => !handledTypes.has(c.consent_type));
+
+    if (extraConsents.length > 0) {
+      // Group any extra types dynamically
+      const extraMap = new Map<ConsentType, typeof extraConsents>();
+      for (const extra of extraConsents) {
+        const list = extraMap.get(extra.consent_type) || [];
+        list.push(extra);
+        extraMap.set(extra.consent_type, list);
+      }
+
+      for (const [type, items] of extraMap.entries()) {
+        const activeConsent = items.find((c) => activeStatuses.includes(c.status)) || null;
+        groups.push({
+          consent_type: type,
+          label: type,
+          total_count: items.length,
+          has_active: !!activeConsent,
+          active_consent: activeConsent,
+          items,
+        });
+      }
+    }
+
+    return {
+      entity_type: entityType,
+      entity_id: entityId,
+      total_consents: allConsents.length,
+      groups,
+    };
   }
 }

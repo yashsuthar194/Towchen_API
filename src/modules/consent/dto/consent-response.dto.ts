@@ -5,6 +5,7 @@ import {
   ConsentRole,
   ConsentStatus,
   ConsentStep,
+  ConsentType,
   Role,
 } from '@prisma/client';
 
@@ -50,11 +51,14 @@ export class ConsentResponseDto {
   @ApiProperty({ example: 1 })
   id: number;
 
-  @ApiProperty({ enum: ConsentEntityType, example: ConsentEntityType.OrderEdit })
+  @ApiProperty({ enum: ConsentEntityType, example: ConsentEntityType.Order })
   entity_type: ConsentEntityType;
 
   @ApiPropertyOptional({ example: 42 })
   entity_id?: number;
+
+  @ApiProperty({ enum: ConsentType, example: ConsentType.OrderEdit })
+  consent_type: ConsentType;
 
   @ApiProperty({ example: 'Apply 15% VIP discount and update dropoff remarks' })
   title: string;
@@ -115,4 +119,38 @@ export class ConsentListResponseDto {
 
   @ApiProperty({ example: 3 })
   total_pages: number;
+}
+
+export class ConsentTypeGroupDto {
+  @ApiProperty({ enum: ConsentType, example: ConsentType.OrderEdit })
+  consent_type: ConsentType;
+
+  @ApiProperty({ example: 'Edit Request' })
+  label: string;
+
+  @ApiProperty({ example: 2 })
+  total_count: number;
+
+  @ApiProperty({ example: true })
+  has_active: boolean;
+
+  @ApiPropertyOptional({ type: ConsentResponseDto })
+  active_consent?: ConsentResponseDto | null;
+
+  @ApiProperty({ type: [ConsentResponseDto] })
+  items: ConsentResponseDto[];
+}
+
+export class GroupedConsentResponseDto {
+  @ApiProperty({ enum: ConsentEntityType, example: ConsentEntityType.Order })
+  entity_type: ConsentEntityType;
+
+  @ApiProperty({ example: 42 })
+  entity_id: number;
+
+  @ApiProperty({ example: 10 })
+  total_consents: number;
+
+  @ApiProperty({ type: [ConsentTypeGroupDto] })
+  groups: ConsentTypeGroupDto[];
 }

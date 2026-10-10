@@ -23,11 +23,15 @@ import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.de
 import { ConsentService } from './consent.service';
 import { CreateOrderEditConsentDto } from './dto/create-order-edit-consent.dto';
 import { ConsentActionDto, ConsentRejectDto } from './dto/consent-action.dto';
-import { ConsentQueryDto } from './dto/consent-query.dto';
+import {
+  ConsentQueryDto,
+  GroupedConsentQueryDto,
+} from './dto/consent-query.dto';
 import {
   ConsentResponseDto,
   ConsentListResponseDto,
   ConsentAuditLogResponseDto,
+  GroupedConsentResponseDto,
 } from './dto/consent-response.dto';
 import { ConsentRoleGuard } from './guards/consent-role.guard';
 import { RequireConsentRole } from './decorators/require-consent-role.decorator';
@@ -178,6 +182,23 @@ export class ConsentController {
   // ─────────────────────────────────────────────────────────────────────────
   // Query Endpoints
   // ─────────────────────────────────────────────────────────────────────────
+
+  @Get('grouped')
+  @UseGuards(AdminGuard)
+  @ApiOperation({
+    summary: 'Get consents grouped by consent_type for an entity (CMS tab view)',
+    description:
+      'Returns all ongoing and past consent requests for an entity (Order, Vendor, Driver, Vehicle, Subscription, etc.) ' +
+      'grouped by consent_type. Powers the expandable CMS tab list seen in Order/Entity Details.',
+  })
+  @ApiResponseDto(GroupedConsentResponseDto, false, 200)
+  async findGrouped(@Query() query: GroupedConsentQueryDto): Promise<ResponseDto<any>> {
+    const result = await this.consentService.findGroupedByEntity(
+      query.entity_type,
+      query.entity_id,
+    );
+    return ResponseDto.retrieved('Grouped consent requests fetched successfully', result);
+  }
 
   @Get()
   @UseGuards(AdminGuard)
