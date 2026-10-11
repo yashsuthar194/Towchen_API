@@ -18,6 +18,7 @@ import {
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { JwtPayload } from 'src/services/jwt/interfaces/jwt-payload.interface';
 import { CreateOrderEditConsentDto } from './dto/create-order-edit-consent.dto';
+import { CreateConsentDto } from './dto/create-consent.dto';
 import { ConsentActionDto, ConsentRejectDto } from './dto/consent-action.dto';
 import { ConsentQueryDto } from './dto/consent-query.dto';
 import { ConsentActionDispatcherService } from './handlers/consent-action-dispatcher.service';
@@ -120,89 +121,217 @@ export class ConsentService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // STEP 1: Create Consent Request (Order Edit)
+  // STEP 1: Create Consent Request (Universal endpoint & specialized helper)
   // ─────────────────────────────────────────────────────────────────────────
 
-  async createOrderEditConsent(
-    dto: CreateOrderEditConsentDto,
-    caller: JwtPayload,
-  ) {
-    // 1. Edge Case: Verify proposed changes are not empty
-    const changes = dto.changes || {};
-    const hasDefinedChanges = Object.values(changes).some(
+  /**
+   * Universal creation method for all 12 consent types across Orders, Vendors,
+   * Drivers, Vehicles, Subscriptions, Packages, and Locations.
+   */
+  async createConsent(dto: CreateConsentDto, caller: JwtPayload) {
+    // 1. Verify that consent_type belongs to entity_type
+    const allowedTypes =
+      ENTITY_CONSENT_TYPE_MAP[dto.entity_type]?.map((item) => item.type) || [];
+    if (!allowedTypes.includes(dto.consent_type)) {
+      throw new BadRequestException(
+        `Consent type '${dto.consent_type}' is not valid for entity '${dto.entity_type}'. Allowed types: [${allowedTypes.join(', ')}].`,
+      );
+    }
+
+    // 2. Validate entity_id for types operating on existing records
+    const typesRequiringEntityId = new Set<ConsentType>([
+      ConsentType.OrderEdit,
+      ConsentType.OrderClosure,
+      ConsentType.ManualOrderAssign,
+      ConsentType.OrderFinance,
+      ConsentType.VendorWalletSettlement,
+    ]);
+
+    if (typesRequiringEntityId.has(dto.consent_type) && !dto.entity_id) {
+      throw new BadRequestException(
+        `Field 'entity_id' is required for consent type '${dto.consent_type}'.`,
+      );
+    }
+
+    // 3. Verify proposed_payload is non-empty
+    const payload = dto.proposed_payload || {};
+    const hasDefinedChanges = Object.values(payload).some(
       (val) => val !== undefined && val !== null,
     );
 
     if (!hasDefinedChanges) {
       throw new BadRequestException(
-        'At least one valid order field modification must be provided in changes.',
+        'At least one valid field modification must be provided in proposed_payload.',
       );
     }
 
-    // 2. Edge Case: Check order existence
-    const order = await this.prisma.order.findUnique({
-      where: { id: dto.order_id },
-      include: {
-        driver: { select: { id: true, driver_name: true } },
-        vehicle: { select: { id: true, registration_number: true } },
-        vendor: { select: { id: true, vendor_name: true } },
-      },
-    });
+    let originalPayload: Record<string, any> | null = null;
 
-    if (!order) {
-      throw new NotFoundException(`Order with ID ${dto.order_id} was not found.`);
-    }
-
-    // 3. Edge Case: Prevent duplicate pending edit consent requests for the same order
-    const existingActiveConsent = await this.prisma.consent_request.findFirst({
-      where: {
-        entity_type: ConsentEntityType.Order,
-        entity_id: dto.order_id,
-        consent_type: ConsentType.OrderEdit,
-        status: {
-          in: [
-            ConsentStatus.PendingApproval,
-            ConsentStatus.PendingVerification,
-            ConsentStatus.PendingFinalization,
-          ],
+    // 4. If entity_id is provided, validate target existence and prevent active duplicates
+    if (dto.entity_id) {
+      const existingActiveConsent = await this.prisma.consent_request.findFirst({
+        where: {
+          entity_type: dto.entity_type,
+          entity_id: dto.entity_id,
+          consent_type: dto.consent_type,
+          status: {
+            in: [
+              ConsentStatus.PendingApproval,
+              ConsentStatus.PendingVerification,
+              ConsentStatus.PendingFinalization,
+            ],
+          },
         },
-      },
-      select: { id: true, status: true, current_step: true },
-    });
+        select: { id: true, status: true, current_step: true },
+      });
 
-    if (existingActiveConsent) {
-      throw new BadRequestException(
-        `Order #${dto.order_id} already has an active edit consent request (#${existingActiveConsent.id} - ${existingActiveConsent.status} at step ${existingActiveConsent.current_step}). Please complete or terminate it before creating a new one.`,
-      );
+      if (existingActiveConsent) {
+        throw new BadRequestException(
+          `An active '${dto.consent_type}' consent request (#${existingActiveConsent.id} - ${existingActiveConsent.status} at step ${existingActiveConsent.current_step}) is already pending for ${dto.entity_type} #${dto.entity_id}. Please complete or terminate it before creating a new one.`,
+        );
+      }
+
+      // Snapshot original entity state based on entity_type
+      if (dto.entity_type === ConsentEntityType.Order) {
+        const order = await this.prisma.order.findUnique({
+          where: { id: dto.entity_id },
+        });
+
+        if (!order) {
+          throw new NotFoundException(`Order with ID ${dto.entity_id} was not found.`);
+        }
+
+        originalPayload = {
+          status: order.status,
+          remarks: order.remarks,
+          cancel_reason: order.cancel_reason,
+          discount_amount: order.discount_amount,
+          final_amount: order.final_amount,
+          driver_id: order.driver_id,
+          vehicle_id: order.vehicle_id,
+          vendor_id: order.vendor_id,
+          service_id: order.service_id,
+          sub_service_id: order.sub_service_id,
+          fleet_type: order.fleet_type,
+          is_physical_vcrf_for_pickup: order.is_physical_vcrf_for_pickup,
+          is_physical_vcrf_for_dropoff: order.is_physical_vcrf_for_dropoff,
+        };
+      } else if (dto.entity_type === ConsentEntityType.Vendor) {
+        const vendor = await this.prisma.vendor.findUnique({
+          where: { id: dto.entity_id },
+        });
+
+        if (!vendor) {
+          throw new NotFoundException(`Vendor with ID ${dto.entity_id} was not found.`);
+        }
+
+        originalPayload = {
+          organization_name: vendor.organization_name,
+          mobile_number: vendor.mobile_number,
+          email: vendor.email,
+          status: vendor.status,
+          is_deleted: vendor.is_deleted,
+        };
+      } else if (dto.entity_type === ConsentEntityType.Driver) {
+        const driver = await this.prisma.driver.findUnique({
+          where: { id: dto.entity_id },
+        });
+
+        if (!driver) {
+          throw new NotFoundException(`Driver with ID ${dto.entity_id} was not found.`);
+        }
+
+        originalPayload = {
+          driver_name: driver.driver_name,
+          mobile_number: driver.mobile_number,
+          status: driver.status,
+          is_deleted: driver.is_deleted,
+        };
+      } else if (dto.entity_type === ConsentEntityType.Vehicle) {
+        const vehicle = await this.prisma.vehicle.findUnique({
+          where: { id: dto.entity_id },
+        });
+
+        if (!vehicle) {
+          throw new NotFoundException(`Vehicle with ID ${dto.entity_id} was not found.`);
+        }
+
+        originalPayload = {
+          registration_number: vehicle.registration_number,
+          status: vehicle.status,
+          is_deleted: vehicle.is_deleted,
+        };
+      } else if (dto.entity_type === ConsentEntityType.Subscription) {
+        const plan = await this.prisma.subscription_plan.findUnique({
+          where: { id: dto.entity_id },
+        });
+
+        if (!plan) {
+          throw new NotFoundException(
+            `Subscription plan with ID ${dto.entity_id} was not found.`,
+          );
+        }
+
+        originalPayload = {
+          name: plan.name,
+          pricing: plan.pricing,
+          plan_period_months: plan.plan_period_months,
+          incidents: plan.incidents,
+          distance_km: plan.distance_km,
+          vehicle_type: plan.vehicle_type,
+          is_active: plan.is_active,
+        };
+      } else if (dto.entity_type === ConsentEntityType.ManualPackage) {
+        const pkg = await this.prisma.dealer_package_plan.findUnique({
+          where: { id: dto.entity_id },
+        });
+
+        if (!pkg) {
+          throw new NotFoundException(
+            `Dealer package plan with ID ${dto.entity_id} was not found.`,
+          );
+        }
+
+        originalPayload = {
+          name: pkg.name,
+          plan_period_months: pkg.plan_period_months,
+          incidents: pkg.incidents,
+          distance_km: pkg.distance_km,
+          price_basic: pkg.price_basic,
+          price_standard: pkg.price_standard,
+          price_premium: pkg.price_premium,
+          is_active: pkg.is_active,
+        };
+      } else if (dto.entity_type === ConsentEntityType.ServiceLocation) {
+        const loc = await this.prisma.location.findUnique({
+          where: { id: dto.entity_id },
+        });
+
+        if (!loc) {
+          throw new NotFoundException(`Location with ID ${dto.entity_id} was not found.`);
+        }
+
+        originalPayload = {
+          city: loc.city,
+          state: loc.state,
+          area: loc.area,
+          address: loc.address,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+        };
+      }
     }
-
-    // Capture original snapshot for diffing and audit comparison
-    const originalPayload: Record<string, any> = {
-      status: order.status,
-      remarks: order.remarks,
-      cancel_reason: order.cancel_reason,
-      discount_amount: order.discount_amount,
-      final_amount: order.final_amount,
-      driver_id: order.driver_id,
-      vehicle_id: order.vehicle_id,
-      vendor_id: order.vendor_id,
-      service_id: order.service_id,
-      sub_service_id: order.sub_service_id,
-      fleet_type: order.fleet_type,
-      is_physical_vcrf_for_pickup: order.is_physical_vcrf_for_pickup,
-      is_physical_vcrf_for_dropoff: order.is_physical_vcrf_for_dropoff,
-    };
 
     return this.prisma.$transaction(async (tx) => {
       const consent = await tx.consent_request.create({
         data: {
-          entity_type: ConsentEntityType.Order,
-          entity_id: dto.order_id,
-          consent_type: ConsentType.OrderEdit,
+          entity_type: dto.entity_type,
+          entity_id: dto.entity_id || null,
+          consent_type: dto.consent_type,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
-          proposed_payload: dto.changes as any,
-          original_payload: originalPayload,
+          proposed_payload: dto.proposed_payload as any,
+          original_payload: (originalPayload as Prisma.InputJsonValue) ?? Prisma.JsonNull,
           status: ConsentStatus.PendingApproval,
           current_step: ConsentStep.Approval,
           created_by_id: caller.id,
@@ -220,12 +349,32 @@ export class ConsentService {
           performed_by_id: caller.id,
           performed_by_role: caller.type,
           actor_consent_role: ConsentRole.Approver,
-          remarks: 'Consent request created and submitted for Step 2 (Approval).',
+          remarks: `Consent request created and submitted for ${dto.consent_type} (Step 2 Approval).`,
         },
       });
 
       return consent;
     });
+  }
+
+  /**
+   * Helper method for order edit consent creation.
+   */
+  async createOrderEditConsent(
+    dto: CreateOrderEditConsentDto,
+    caller: JwtPayload,
+  ) {
+    return this.createConsent(
+      {
+        entity_type: ConsentEntityType.Order,
+        entity_id: dto.order_id,
+        consent_type: ConsentType.OrderEdit,
+        title: dto.title,
+        description: dto.description,
+        proposed_payload: dto.changes,
+      },
+      caller,
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────

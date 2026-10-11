@@ -22,10 +22,10 @@ import { ResponseDto } from 'src/core/response/dto/response.dto';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ConsentService } from './consent.service';
 import { CreateOrderEditConsentDto } from './dto/create-order-edit-consent.dto';
+import { CreateConsentDto } from './dto/create-consent.dto';
 import { ConsentActionDto, ConsentRejectDto } from './dto/consent-action.dto';
 import {
   ConsentQueryDto,
-  GroupedConsentQueryDto,
   GroupedConsentDto,
 } from './dto/consent-query.dto';
 import {
@@ -49,8 +49,30 @@ export class ConsentController {
   ) {}
 
   // ─────────────────────────────────────────────────────────────────────────
-  // STEP 1: Create Consent Request (Order Edit)
+  // STEP 1: Create Consent Request (Universal endpoint & specialized helper)
   // ─────────────────────────────────────────────────────────────────────────
+
+  @Post()
+  @UseGuards(AdminGuard)
+  @ApiOperation({
+    summary: 'Step 1: Create a new consent request (Universal endpoint for all 12 consent types)',
+    description:
+      'Creates a new consent request with status `PendingApproval` and step `Approval`.\n\n' +
+      'Supports all 12 consent types across Orders, Vendors, Drivers, Vehicles, Subscriptions, Packages, and Locations.\n\n' +
+      'Automatically captures target entity snapshot if `entity_id` is provided. ' +
+      'Changes are kept in draft mode and will NOT be executed until permission is granted at Step 4.',
+  })
+  @ApiResponseDto(ConsentResponseDto, false, 201)
+  async createConsent(
+    @Body() dto: CreateConsentDto,
+  ): Promise<ResponseDto<any>> {
+    const caller = this.callerService.getCaller();
+    const result = await this.consentService.createConsent(dto, caller);
+    return ResponseDto.created(
+      `Consent request for '${dto.consent_type}' created successfully and queued for approval.`,
+      result,
+    );
+  }
 
   @Post('order-edit')
   @UseGuards(AdminGuard)

@@ -35,9 +35,10 @@ export class ConsentActionDispatcherService {
     const handler = this.handlers.get(consent.consent_type);
 
     if (!handler) {
-      throw new NotImplementedException(
-        `No execution handler registered for Consent Type: '${consent.consent_type}'.`,
+      this.logger.warn(
+        `No dedicated execution handler registered for Consent Type: '${consent.consent_type}'. Permission granted without automated side-effects.`,
       );
+      return;
     }
 
     await handler.execute(consent, tx);
