@@ -1506,3 +1506,25 @@ model consent_audit_log {
   @@index([consent_request_id])
   @@index([performed_by_id])
 }
+
+enum ContactInquiryStatus {
+  Pending
+  InProgress
+  Resolved
+}
+
+model contact_inquiry {
+  id         Int                  @id @default(autoincrement())
+  name       String               @db.VarChar(255)
+  phone      String               @db.VarChar(20)
+  email      String               @db.VarChar(255)
+  subject    String               @db.VarChar(255)
+  message    String               @db.Text
+  status     ContactInquiryStatus @default(Pending)
+  created_at DateTime             @default(now())
+  updated_at DateTime             @default(now()) @updatedAt
+
+  @@index([created_at])
+  @@index([status])
+  @@index([email])
+}
