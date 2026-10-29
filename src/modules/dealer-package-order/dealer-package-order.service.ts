@@ -29,7 +29,7 @@ export class DealerPackageOrderService {
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly pdfService: PackagePdfService,
-  ) {}
+  ) { }
 
   /**
    * Creates a new dealer package order with customer, vehicle, inspection uploads, and PDF certificate
@@ -178,6 +178,16 @@ export class DealerPackageOrderService {
         orderNumber = `DPKG${String(count + 1).padStart(4, '0')}${randomPart}`;
       }
 
+      // Generate Membership Formatted ID (MBR + sequential padded string)
+      let formatedId = `MBR${String(count + 1).padStart(7, '0')}`;
+      const existingMembership = await tx.dealer_package_order.findUnique({
+        where: { formated_id: formatedId },
+      });
+      if (existingMembership) {
+        const randomPart = Math.floor(1000 + Math.random() * 9000);
+        formatedId = `MBR${String(count + 1).padStart(4, '0')}${randomPart}`;
+      }
+
       // Calculate dealer payout
       const payoutPercentage = Number(dealer.payout_percentage || 0);
       const payoutAmount = Math.round(((amount * payoutPercentage) / 100) * 100) / 100;
@@ -185,6 +195,7 @@ export class DealerPackageOrderService {
       // Create Order
       const order = await tx.dealer_package_order.create({
         data: {
+          formated_id: formatedId,
           order_number: orderNumber,
           dealer_id: dealer.id,
           dealer_customer_id: customer.id,
@@ -472,5 +483,233 @@ export class DealerPackageOrderService {
     });
 
     return updated;
+  }
+
+  /**
+   * Retrieves active customer package contracts under a specific dealer
+   */
+  async findContractsByDealerAsync(dealerId: number) {
+    const packages = await this.prisma.dealer_package_order.findMany({
+      where: {
+        dealer_id: dealerId,
+        status: 'Active',
+      },
+      orderBy: { id: 'desc' },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            customer_name: true,
+            customer_number: true,
+          },
+        },
+        vehicle: {
+          select: {
+            id: true,
+            vehicle_reg_number: true,
+            vehicle_make: true,
+            vehicle_model: true,
+          },
+        },
+      },
+    });
+
+    const now = new Date();
+
+    return packages.map((pkg) => {
+      const isExpired = now > new Date(pkg.expiry_date);
+      const isExhausted = pkg.incidents_used >= pkg.incidents_allowed;
+      const isActive = pkg.status === 'Active';
+      const canCreateOrder = isActive && !isExpired && !isExhausted;
+
+      const availableService = Math.max(0, pkg.incidents_allowed - pkg.incidents_used);
+      const availableCab = Math.max(0, pkg.cab_service_allowed - pkg.cab_service_used);
+      const availableHotel = Math.max(0, pkg.hotel_accommodation_allowed - pkg.hotel_accommodation_used);
+
+      return {
+        id: pkg.id,
+        package_order_id: pkg.id,
+        formated_id: pkg.formated_id || pkg.order_number,
+        membership_id: pkg.formated_id || pkg.order_number,
+        order_number: pkg.order_number,
+        customer_id: pkg.customer?.id,
+        customer_name: pkg.customer?.customer_name,
+        customer_number: pkg.customer?.customer_number,
+        vehicle_id: pkg.vehicle?.id,
+        vehicle_reg_number: pkg.vehicle?.vehicle_reg_number,
+        vehicle_name: `${pkg.vehicle?.vehicle_make || ''} ${pkg.vehicle?.vehicle_model || ''}`.trim(),
+        plan_name: pkg.plan_name,
+
+        // Service Incidents
+        available_incidents: availableService,
+        incidents_remaining: availableService,
+        available_service_incidents: availableService,
+        incidents_allowed: pkg.incidents_allowed,
+        incidents_used: pkg.incidents_used,
+
+        // Cab Incidents
+        cab_service_allowed: pkg.cab_service_allowed,
+        cab_service_used: pkg.cab_service_used,
+        available_cab_incidents: availableCab,
+        cab_remaining: availableCab,
+
+        // Hotel Accommodation Incidents
+        hotel_accommodation_allowed: pkg.hotel_accommodation_allowed,
+        hotel_accommodation_used: pkg.hotel_accommodation_used,
+        available_hotel_incidents: availableHotel,
+        hotel_remaining: availableHotel,
+
+        can_create_order: canCreateOrder,
+        cannot_create_reason: !isActive
+          ? `Package is ${pkg.status}`
+          : isExpired
+            ? `Package expired on ${pkg.expiry_date.toISOString().split('T')[0]}`
+            : isExhausted
+              ? `All ${pkg.incidents_allowed} package incidents have been used`
+              : null,
+        status: pkg.status,
+        expiry_date: pkg.expiry_date,
+      };
+    });
+  }
+
+  /**
+   * Retrieves complete prefill information (customer, vehicle, membership, locations)
+   * for an admin creating a new order against a package contract.
+   * Returns can_create_order: false with reasons if exhausted/expired so the UI can populate fields and disable submit.
+   */
+  async getPrefillDetailsAsync(packageOrderId: number) {
+    const pkg = await this.prisma.dealer_package_order.findUnique({
+      where: { id: packageOrderId },
+      include: {
+        customer: true,
+        vehicle: true,
+        dealer: {
+          select: {
+            id: true,
+            name: true,
+            formated_id: true,
+            number: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!pkg) {
+      throw new NotFoundException(`Package order #${packageOrderId} not found.`);
+    }
+
+    // ─── can_create_order Validations ─────────────────────────────────────────
+    const now = new Date();
+    const isExpired = now > new Date(pkg.expiry_date);
+    const isExhausted = pkg.incidents_used >= pkg.incidents_allowed;
+    const isActive = pkg.status === 'Active';
+    const canCreateOrder = isActive && !isExpired && !isExhausted;
+
+    let cannotCreateReason: string | null = null;
+    if (!isActive) {
+      cannotCreateReason = `Package #${pkg.id} status is '${pkg.status}'. Only Active packages can be serviced.`;
+    } else if (isExpired) {
+      cannotCreateReason = `Package #${pkg.id} expired on ${pkg.expiry_date.toISOString().split('T')[0]}.`;
+    } else if (isExhausted) {
+      cannotCreateReason = `All ${pkg.incidents_allowed} package service incidents have already been used for Membership #${pkg.formated_id || pkg.order_number}.`;
+    }
+
+    const availableService = Math.max(0, pkg.incidents_allowed - pkg.incidents_used);
+    const availableCab = Math.max(0, pkg.cab_service_allowed - pkg.cab_service_used);
+    const availableHotel = Math.max(0, pkg.hotel_accommodation_allowed - pkg.hotel_accommodation_used);
+
+    const packageData = {
+      id: pkg.id,
+      package_order_id: pkg.id,
+      membership_id: pkg.formated_id || pkg.order_number,
+      formated_id: pkg.formated_id || pkg.order_number,
+      order_number: pkg.order_number,
+      plan_name: pkg.plan_name,
+      car_segment: pkg.car_segment,
+      start_date: pkg.start_date,
+      expiry_date: pkg.expiry_date,
+      status: pkg.status,
+
+      // Service Incidents
+      incidents_allowed: pkg.incidents_allowed,
+      incidents_used: pkg.incidents_used,
+      incidents_remaining: availableService,
+      available_incidents: availableService,
+      available_service_incidents: availableService,
+
+      // Cab Incidents
+      cab_service_allowed: pkg.cab_service_allowed,
+      cab_service_used: pkg.cab_service_used,
+      available_cab_incidents: availableCab,
+      cab_remaining: availableCab,
+
+      // Hotel Accommodation Incidents
+      hotel_accommodation_allowed: pkg.hotel_accommodation_allowed,
+      hotel_accommodation_used: pkg.hotel_accommodation_used,
+      available_hotel_incidents: availableHotel,
+      hotel_remaining: availableHotel,
+
+      can_create_order: canCreateOrder,
+      cannot_create_reason: cannotCreateReason,
+    };
+
+    return {
+      dealer: {
+        id: pkg.dealer?.id,
+        name: pkg.dealer?.name,
+        formated_id: pkg.dealer?.formated_id,
+        number: pkg.dealer?.number,
+        email: pkg.dealer?.email,
+      },
+      package: packageData,
+      contract: packageData, // backwards-compatible alias
+      customer: {
+        id: pkg.customer?.id,
+        customer_id: pkg.customer?.id,
+        name: pkg.customer?.customer_name,
+        customer_name: pkg.customer?.customer_name,
+        number: pkg.customer?.customer_number,
+        customer_number: pkg.customer?.customer_number,
+        alternate_number: pkg.customer?.alternative_number,
+        customer_alternate_number: pkg.customer?.alternative_number,
+        email_address: pkg.customer?.email_address,
+        building: pkg.customer?.building,
+        block: pkg.customer?.block,
+        road: pkg.customer?.road,
+        city: pkg.customer?.city,
+        state: pkg.customer?.state,
+        pincode: pkg.customer?.pincode,
+        gst_number: pkg.customer?.gst_number,
+      },
+      vehicle: {
+        id: pkg.vehicle?.id,
+        vehicle_id: pkg.vehicle?.id,
+        make: pkg.vehicle?.vehicle_make,
+        vehicle_make: pkg.vehicle?.vehicle_make,
+        model: pkg.vehicle?.vehicle_model,
+        vehicle_model: pkg.vehicle?.vehicle_model,
+        variant: pkg.vehicle?.variant,
+        vehicle_variant: pkg.vehicle?.variant,
+        fuel_type: pkg.vehicle?.vehicle_fuel_type,
+        vehicle_fuel_type: pkg.vehicle?.vehicle_fuel_type,
+        body_type: pkg.vehicle?.body_type,
+        vehicle_body_type: pkg.vehicle?.body_type,
+        reg_number: pkg.vehicle?.vehicle_reg_number,
+        vehicle_reg_number: pkg.vehicle?.vehicle_reg_number,
+        chassis_number: pkg.vehicle?.chassis_number,
+        vehicle_chassis_number: pkg.vehicle?.chassis_number,
+        current_status: 'AtHouse',
+        vehicle_current_status: 'AtHouse',
+        car_segment: pkg.vehicle?.car_segment,
+        registration_year: pkg.vehicle?.registration_year,
+        transmission_type: pkg.vehicle?.transmission_type,
+      },
+      // Convenience read-only counts at root level matching UI
+      available_service_incidents: availableService,
+      available_cab_incidents: availableCab,
+      available_hotel_incidents: availableHotel,
+    };
   }
 }

@@ -37,6 +37,7 @@ import { DealerPackagePlanModule } from './modules/dealer-package-plan/dealer-pa
 import { DealerPackageOrderModule } from './modules/dealer-package-order/dealer-package-order.module';
 import { ConsentModule } from './modules/consent/consent.module';
 import { ContactModule } from './modules/contact/contact.module';
+import { AdminPackageOrderModule } from './modules/admin-package-order/admin-package-order.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Global scheduler — must be here, not in feature modules
@@ -75,7 +76,8 @@ import { ContactModule } from './modules/contact/contact.module';
     DealerPackageOrderModule,
     ConsentModule,
     ContactModule,
-],
+    AdminPackageOrderModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

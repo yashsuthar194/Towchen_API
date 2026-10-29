@@ -40,6 +40,13 @@ export class DealerController {
     return ResponseDto.retrieved('Dealers retrieved successfully', result);
   }
 
+  @Get('dropdown')
+  @ApiOperation({ summary: 'Get active dealers for dropdown selection' })
+  async getDropdown() {
+    const result = await this.dealerService.getDropdownAsync();
+    return ResponseDto.retrieved('Dealers for dropdown retrieved successfully', result);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get dealer details by ID' })
   @ApiResponseDto(DealerResponseDto, false, 200)

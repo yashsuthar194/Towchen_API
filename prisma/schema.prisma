@@ -61,9 +61,10 @@ model vendor {
   vehicles        vehicle[]
   orders          order[]
   leads           lead[]
-  services        service[]
-  dispatches      order_dispatch[]
-  vendor_pricings vendor_pricing[] // vendor's own per-sub-service pricing
+  services             service[]
+  dispatches           order_dispatch[]
+  vendor_pricings      vendor_pricing[] // vendor's own per-sub-service pricing
+  admin_package_orders admin_package_order[]
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -144,9 +145,10 @@ model driver {
   total_reviews           Int                @default(0)
   serviceLocation         location?          @relation("DriverServiceLocation", fields: [service_location_id], references: [id])
   vehicle                 vehicle?           @relation(fields: [vehicle_id], references: [id])
-  vendor                  vendor             @relation(fields: [vendor_id], references: [id])
-  orders                  order[]
-  leads                   lead[]
+  vendor               vendor             @relation(fields: [vendor_id], references: [id])
+  orders               order[]
+  leads                lead[]
+  admin_package_orders admin_package_order[]
 
   @@index([vendor_id])
   @@index([vehicle_id])
@@ -185,8 +187,9 @@ model vehicle {
   availability_status AvailabilityStatus @default(Onboard_Pending)
   drivers             driver[]
   vendor              vendor             @relation(fields: [vendor_id], references: [id])
-  orders              order[]
-  leads               lead[]
+  orders               order[]
+  leads                lead[]
+  admin_package_orders admin_package_order[]
 
   @@index([id])
   @@index([vendor_id])
@@ -315,6 +318,7 @@ model dealer {
 
   dealer_customers      dealer_customer[]
   dealer_package_orders dealer_package_order[]
+  admin_package_orders  admin_package_order[]
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -500,8 +504,9 @@ model sub_service {
   journey_type JourneyType @default(FourWay)
 
   service service @relation(fields: [service_id], references: [id])
-  orders  order[]
-  leads   lead[]
+  orders               order[]
+  leads                lead[]
+  admin_package_orders admin_package_order[]
 
   conditions        sub_service_condtion[]
   location_pricings location_pricing[] // admin-configured ceilings per location
@@ -746,11 +751,33 @@ enum OrderStatus {
   InProgress
   Completed
   Closed
+  Scheduled
+  Cancelled
 }
 
 enum OrderType {
   Standard
   Scheduled
+  Package
+  Sample
+}
+
+enum DispatchType {
+  Current
+  ScheduledLater
+}
+
+enum ClientType {
+  Dealer
+}
+
+enum VehicleCurrentStatus {
+  AtHouse
+  Roadside
+  Dealership
+  Workshop
+  Office
+  Other
 }
 
 enum LocationType {
@@ -1322,9 +1349,10 @@ model dealer_customer {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  dealer         dealer                    @relation(fields: [dealer_id], references: [id])
-  vehicles       dealer_customer_vehicle[]
-  package_orders dealer_package_order[]
+  dealer               dealer                    @relation(fields: [dealer_id], references: [id])
+  vehicles             dealer_customer_vehicle[]
+  package_orders       dealer_package_order[]
+  admin_package_orders admin_package_order[]
 
   @@index([dealer_id])
   @@index([customer_number])
@@ -1343,6 +1371,8 @@ model dealer_customer_vehicle {
   chassis_number           String           @db.VarChar(100)
   current_odometer_reading Float
   car_segment              CarSegment
+  variant                  String?          @db.VarChar(100)
+  body_type                String?          @db.VarChar(100)
 
   image_front         String @db.Text
   image_rear          String @db.Text
@@ -1356,8 +1386,9 @@ model dealer_customer_vehicle {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  customer       dealer_customer        @relation(fields: [dealer_customer_id], references: [id], onDelete: Cascade)
-  package_orders dealer_package_order[]
+  customer             dealer_customer        @relation(fields: [dealer_customer_id], references: [id], onDelete: Cascade)
+  package_orders       dealer_package_order[]
+  admin_package_orders admin_package_order[]
 
   @@index([dealer_customer_id])
   @@index([vehicle_reg_number])
@@ -1365,6 +1396,7 @@ model dealer_customer_vehicle {
 
 model dealer_package_order {
   id                 Int    @id @default(autoincrement())
+  formated_id        String @unique
   order_number       String @unique
   dealer_id          Int
   dealer_customer_id Int
@@ -1395,15 +1427,100 @@ model dealer_package_order {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  dealer       dealer                  @relation(fields: [dealer_id], references: [id])
-  customer     dealer_customer         @relation(fields: [dealer_customer_id], references: [id])
-  vehicle      dealer_customer_vehicle @relation(fields: [vehicle_id], references: [id])
-  package_plan dealer_package_plan     @relation(fields: [package_plan_id], references: [id])
+  dealer               dealer                    @relation(fields: [dealer_id], references: [id])
+  customer             dealer_customer           @relation(fields: [dealer_customer_id], references: [id])
+  vehicle              dealer_customer_vehicle   @relation(fields: [vehicle_id], references: [id])
+  package_plan         dealer_package_plan       @relation(fields: [package_plan_id], references: [id])
+  admin_package_orders admin_package_order[]
 
   @@index([dealer_id])
   @@index([dealer_customer_id])
   @@index([vehicle_id])
   @@index([order_number])
+  @@index([formated_id])
+}
+
+model admin_package_order {
+  id                        Int                  @id @default(autoincrement())
+  formated_id               String               @unique
+
+  // 1. General Info
+  order_type                OrderType            @default(Package)
+  sub_service_id            Int
+  dispatch_type             DispatchType         @default(Current)
+  activation_time           DateTime?
+  eta                       DateTime?
+
+  // 2. Personal Info / Client & Contract
+  client_type               ClientType           @default(Dealer)
+  dealer_id                 Int
+  dealer_package_order_id   Int
+  dealer_customer_id        Int
+  customer_name             String               @db.VarChar(255)
+  customer_number           String               @db.VarChar(20)
+  customer_alternate_number String?              @db.VarChar(20)
+
+  // 3. Customer Vehicle Info
+  vehicle_id                Int?
+  vehicle_make              String               @db.VarChar(100)
+  vehicle_model             String               @db.VarChar(100)
+  vehicle_variant           String?              @db.VarChar(100)
+  vehicle_fuel_type         FuelType
+  vehicle_body_type         String?              @db.VarChar(100)
+  vehicle_reg_number        String               @db.VarChar(50)
+  vehicle_chassis_number    String               @db.VarChar(100)
+  vehicle_current_status    VehicleCurrentStatus @default(AtHouse)
+  images                    String[]             @default([])
+  extra_services            String[]             @default([])
+
+  // 4. Customer Location Info
+  pickup_location_address   String?              @db.Text
+  pickup_latitude           Float?
+  pickup_longitude          Float?
+  pickup_place_id           String?              @db.VarChar(255)
+
+  drop_location_address     String?              @db.Text
+  drop_latitude             Float?
+  drop_longitude            Float?
+  drop_place_id             String?              @db.VarChar(255)
+
+  // 5. Fulfillment & Assignment
+  status                    OrderStatus          @default(New)
+  vendor_id                 Int?
+  driver_id                 Int?
+  assigned_vehicle_id       Int?
+  assign_time               DateTime?
+  start_time                DateTime?
+  completion_time           DateTime?
+  remarks                   String?              @db.Text
+  cancel_reason             String?              @db.Text
+
+  created_by_id             Int?
+  created_at                DateTime             @default(now())
+  updated_at                DateTime             @updatedAt
+
+  // Relations
+  sub_service             sub_service              @relation(fields: [sub_service_id], references: [id])
+  dealer                  dealer                   @relation(fields: [dealer_id], references: [id])
+  dealer_package_order    dealer_package_order     @relation(fields: [dealer_package_order_id], references: [id])
+  dealer_customer         dealer_customer          @relation(fields: [dealer_customer_id], references: [id])
+  dealer_customer_vehicle dealer_customer_vehicle? @relation(fields: [vehicle_id], references: [id])
+  vendor                  vendor?                  @relation(fields: [vendor_id], references: [id])
+  driver                  driver?                  @relation(fields: [driver_id], references: [id])
+  assigned_vehicle        vehicle?                 @relation(fields: [assigned_vehicle_id], references: [id])
+
+  @@index([formated_id])
+  @@index([dealer_id])
+  @@index([dealer_package_order_id])
+  @@index([dealer_customer_id])
+  @@index([vehicle_id])
+  @@index([sub_service_id])
+  @@index([driver_id])
+  @@index([vendor_id])
+  @@index([assigned_vehicle_id])
+  @@index([status])
+  @@index([status, activation_time])
+  @@index([created_at])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

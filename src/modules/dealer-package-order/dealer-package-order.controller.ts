@@ -262,4 +262,33 @@ export class DealerPackageOrderController {
       updated as any,
     );
   }
+
+  @Get('dealer/:dealerId/contracts')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiOperation({
+    summary: 'Get active customer package contracts under a specific dealer (Admin contract dropdown)',
+  })
+  async findContractsByDealer(@Param('dealerId', ParseIntPipe) dealerId: number) {
+    const contracts = await this.orderService.findContractsByDealerAsync(dealerId);
+    return ResponseDto.retrieved(
+      'Dealer customer package contracts retrieved successfully',
+      contracts as any,
+    );
+  }
+
+  @Get(':id/prefill-details')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @ApiOperation({
+    summary:
+      'Get prefill customer, vehicle, membership, and coverage details for creating an admin package order',
+  })
+  async getPrefillDetails(@Param('id', ParseIntPipe) id: number) {
+    const details = await this.orderService.getPrefillDetailsAsync(id);
+    return ResponseDto.retrieved(
+      'Package order prefill details retrieved successfully',
+      details as any,
+    );
+  }
 }
