@@ -200,4 +200,21 @@ export class DealerService {
 
     return true;
   }
+
+  /**
+   * Retrieves active dealers list for dropdown selection
+   */
+  async getDropdownAsync() {
+    return this.prisma.dealer.findMany({
+      where: { is_deleted: false },
+      select: {
+        id: true,
+        formated_id: true,
+        name: true,
+        number: true,
+        email: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
 }
