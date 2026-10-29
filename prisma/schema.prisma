@@ -307,6 +307,7 @@ model dealer {
   aadhar_image        String
   pan_image           String
   bankdetails_image   String?
+  payout_percentage   Float    @default(0.0)
   is_deleted          Boolean  @default(false)
   is_deleted_by       Int?
   created_at          DateTime @default(now())
@@ -1373,6 +1374,8 @@ model dealer_package_order {
   plan_name                   String     @db.VarChar(255)
   car_segment                 CarSegment
   amount                      Float
+  payout_percentage           Float      @default(0.0)
+  payout_amount               Float      @default(0.0)
   plan_period_months          Int
   incidents_allowed           Int
   incidents_used              Int        @default(0)

@@ -178,6 +178,10 @@ export class DealerPackageOrderService {
         orderNumber = `DPKG${String(count + 1).padStart(4, '0')}${randomPart}`;
       }
 
+      // Calculate dealer payout
+      const payoutPercentage = Number(dealer.payout_percentage || 0);
+      const payoutAmount = Math.round(((amount * payoutPercentage) / 100) * 100) / 100;
+
       // Create Order
       const order = await tx.dealer_package_order.create({
         data: {
@@ -189,6 +193,8 @@ export class DealerPackageOrderService {
           plan_name: plan.name,
           car_segment: dto.car_segment,
           amount,
+          payout_percentage: payoutPercentage,
+          payout_amount: payoutAmount,
           plan_period_months: plan.plan_period_months,
           incidents_allowed: plan.incidents,
           incidents_used: 0,
@@ -358,6 +364,7 @@ export class DealerPackageOrderService {
             name: true,
             number: true,
             email: true,
+            payout_percentage: true,
           },
         },
       },

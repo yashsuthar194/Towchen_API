@@ -126,6 +126,12 @@ export class DealerPackageOrderResponseDto {
   @ApiProperty({ example: 1999.0 })
   amount: number;
 
+  @ApiProperty({ example: 15.0, description: 'Dealer payout percentage at order creation' })
+  payout_percentage: number;
+
+  @ApiProperty({ example: 299.85, description: 'Calculated dealer payout amount' })
+  payout_amount: number;
+
   @ApiProperty({ example: 12 })
   plan_period_months: number;
 

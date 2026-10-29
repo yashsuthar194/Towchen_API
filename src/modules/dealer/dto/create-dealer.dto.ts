@@ -5,6 +5,9 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  IsNumber,
+  Min,
+  Max,
 } from 'class-validator';
 
 export class CreateDealerDto {
@@ -78,4 +81,11 @@ export class CreateDealerDto {
   @IsString()
   @IsOptional()
   bankdetails_image?: string;
+
+  @ApiPropertyOptional({ example: 15.0, description: 'Dealer payout percentage (e.g. 10, 15)' })
+  @IsNumber()
+  @Min(0, { message: 'Payout percentage cannot be less than 0' })
+  @Max(100, { message: 'Payout percentage cannot exceed 100' })
+  @IsOptional()
+  payout_percentage?: number;
 }

@@ -46,6 +46,9 @@ export class DealerResponseDto {
   @ApiPropertyOptional({ example: 'https://storage.example.com/bankdetails.jpg', description: 'Bank details image URL' })
   bankdetails_image?: string | null;
 
+  @ApiProperty({ example: 15.0, description: 'Dealer payout percentage' })
+  payout_percentage: number;
+
   @ApiProperty({ example: '2026-09-30T12:00:00.000Z', description: 'Created timestamp' })
   created_at: Date;
 
