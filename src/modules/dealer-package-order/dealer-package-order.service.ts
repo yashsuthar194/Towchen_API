@@ -935,7 +935,7 @@ export class DealerPackageOrderService {
    * Generates a new secure encrypted customer inspection link and saves it in dealer_package_inspection_link table.
    * Automatically expires/revokes any previous unsubmitted links for this order.
    */
-  async createInspectionLinkAsync(orderId: number, dealerId?: number) {
+  async createInspectionLinkAsync(orderId: number, dealerId?: number, clientOrigin?: string) {
     const order = await this.prisma.dealer_package_order.findFirst({
       where: {
         id: orderId,
@@ -979,7 +979,7 @@ export class DealerPackageOrderService {
       },
     });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
+    const frontendUrl = clientOrigin || process.env.FRONTEND_URL || 'https://nextow.in';
     const inspectUrl = `${frontendUrl}/inspect/${newLink.token}`;
 
     return {
@@ -1045,7 +1045,7 @@ export class DealerPackageOrderService {
   /**
    * Retrieves all generated inspection links for an order history
    */
-  async getAllInspectionLinksAsync(orderId: number, dealerId?: number) {
+  async getAllInspectionLinksAsync(orderId: number, dealerId?: number, clientOrigin?: string) {
     const order = await this.prisma.dealer_package_order.findFirst({
       where: {
         id: orderId,
@@ -1064,7 +1064,7 @@ export class DealerPackageOrderService {
       orderBy: { created_at: 'desc' },
     });
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
+    const frontendUrl = clientOrigin || process.env.FRONTEND_URL || 'https://nextow.in';
     const now = Date.now();
 
     return links.map((l: any) => {
@@ -1112,7 +1112,7 @@ export class DealerPackageOrderService {
   /**
    * Retrieves the latest inspection link for a package order
    */
-  async getLatestInspectionLinkAsync(orderId: number, dealerId?: number) {
+  async getLatestInspectionLinkAsync(orderId: number, dealerId?: number, clientOrigin?: string) {
     const order = await this.prisma.dealer_package_order.findFirst({
       where: {
         id: orderId,
@@ -1135,7 +1135,7 @@ export class DealerPackageOrderService {
       return null;
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
+    const frontendUrl = clientOrigin || process.env.FRONTEND_URL || 'https://nextow.in';
     const now = Date.now();
     const expiryTime = new Date(latestLink.expires_at).getTime();
     const isExpired = now > expiryTime;

@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
   UseGuards,
   UseInterceptors,
   UploadedFiles,
@@ -262,6 +263,18 @@ export class DealerPackageOrderController {
   }
 
 
+  private resolveOrigin(req?: any): string {
+    const headerOrigin = req?.headers?.['origin'] || req?.headers?.['referer'];
+    if (headerOrigin) {
+      try {
+        return new URL(headerOrigin).origin;
+      } catch {
+        // ignore
+      }
+    }
+    return process.env.FRONTEND_URL || 'https://nextow.in';
+  }
+
   @Post(':id/inspection-link')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, DealerGuard)
@@ -269,9 +282,13 @@ export class DealerPackageOrderController {
     summary:
       'Generate a new secure, encrypted customer self-inspection link with expiration tracking in DB',
   })
-  async createInspectionLink(@Param('id', ParseIntPipe) id: number) {
+  async createInspectionLink(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
     const dealerId = this.callerService.getUserId();
-    const link = await this.orderService.createInspectionLinkAsync(id, dealerId);
+    const origin = this.resolveOrigin(req);
+    const link = await this.orderService.createInspectionLinkAsync(id, dealerId, origin);
     return ResponseDto.created('Inspection link created successfully', link as any);
   }
 
@@ -282,9 +299,13 @@ export class DealerPackageOrderController {
     summary:
       'Get latest inspection link status, expiration time, and submission state for an order',
   })
-  async getLatestInspectionLink(@Param('id', ParseIntPipe) id: number) {
+  async getLatestInspectionLink(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
     const dealerId = this.callerService.getUserId();
-    const link = await this.orderService.getLatestInspectionLinkAsync(id, dealerId);
+    const origin = this.resolveOrigin(req);
+    const link = await this.orderService.getLatestInspectionLinkAsync(id, dealerId, origin);
     return ResponseDto.retrieved(
       link ? 'Inspection link retrieved successfully' : 'No active inspection link found',
       link as any,
@@ -297,9 +318,13 @@ export class DealerPackageOrderController {
   @ApiOperation({
     summary: 'Get all generated inspection links history for a package order',
   })
-  async getAllInspectionLinks(@Param('id', ParseIntPipe) id: number) {
+  async getAllInspectionLinks(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: any,
+  ) {
     const dealerId = this.callerService.getUserId();
-    const links = await this.orderService.getAllInspectionLinksAsync(id, dealerId);
+    const origin = this.resolveOrigin(req);
+    const links = await this.orderService.getAllInspectionLinksAsync(id, dealerId, origin);
     return ResponseDto.retrieved('Inspection links history retrieved successfully', links as any);
   }
 
