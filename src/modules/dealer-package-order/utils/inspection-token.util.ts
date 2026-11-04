@@ -1,29 +1,15 @@
 import * as crypto from 'crypto';
 
 /**
- * Generates an encrypted, URL-safe token embedding orderId and orderNumber
- * with AES-256-CBC, random IV, and salt.
+ * Generates a short, secure, URL-safe random token
+ * (e.g. insp_a7b9c1d2e3f4g5h68901)
+ * Completely opaque and unguessable while keeping the URL short and clean.
  */
 export function generateEncryptedInspectionToken(
-  orderId: number,
-  orderNumber: string,
+  orderId?: number,
+  orderNumber?: string,
 ): string {
-  const secret = process.env.JWT_SECRET || 'TOWCHEN_INSPECTION_SECURE_TOKEN_2026';
-  const key = crypto.createHash('sha256').update(secret).digest();
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-
-  const payload = JSON.stringify({
-    oid: orderId,
-    num: orderNumber,
-    ts: Date.now(),
-    nonce: crypto.randomBytes(6).toString('hex'),
-  });
-
-  let encrypted = cipher.update(payload, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-
-  // URL-safe encrypted hex string prefixed with 'insp_'
-  return `insp_${iv.toString('hex')}${encrypted}`;
+  // 10 random bytes = 20 hex characters (2^80 entropy: unguessable & collision-free)
+  const rand = crypto.randomBytes(10).toString('hex');
+  return `insp_${rand}`;
 }
-

@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import {
   Injectable,
   NotFoundException,
@@ -963,8 +964,8 @@ export class DealerPackageOrderService {
       },
     });
 
-    const { generateEncryptedInspectionToken } = await import('./utils/inspection-token.util');
-    const token = generateEncryptedInspectionToken(order.id, order.order_number);
+    // Short, secure URL-safe token (insp_ + 20 hex chars = 25 chars total)
+    const token = `insp_${crypto.randomBytes(10).toString('hex')}`;
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours validity
 
     const newLink = await (this.prisma as any).dealer_package_inspection_link.create({
@@ -1208,8 +1209,10 @@ export class DealerPackageOrderService {
       linkMeta = {
         token: link.token,
         expires_at: link.expires_at,
-        is_submitted: link.is_submitted,
+        is_submitted: Boolean(link.is_submitted),
         submitted_at: link.submitted_at,
+        is_revoked: Boolean(link.is_revoked),
+        revoked_at: link.revoked_at,
         is_expired: isExpired,
       };
     } else {
@@ -1293,6 +1296,11 @@ export class DealerPackageOrderService {
     let orderId: number;
 
     if (link) {
+      if (link.is_revoked) {
+        throw new BadRequestException(
+          'This vehicle inspection link has been closed and can no longer be used.',
+        );
+      }
       if (link.is_submitted) {
         throw new BadRequestException(
           'This vehicle inspection link has already been used and submitted.',

@@ -291,6 +291,33 @@ export class DealerPackageOrderController {
     );
   }
 
+  @Get(':id/inspection-links')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, DealerGuard)
+  @ApiOperation({
+    summary: 'Get all generated inspection links history for a package order',
+  })
+  async getAllInspectionLinks(@Param('id', ParseIntPipe) id: number) {
+    const dealerId = this.callerService.getUserId();
+    const links = await this.orderService.getAllInspectionLinksAsync(id, dealerId);
+    return ResponseDto.retrieved('Inspection links history retrieved successfully', links as any);
+  }
+
+  @Patch(':id/inspection-link/:linkId/close')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, DealerGuard)
+  @ApiOperation({
+    summary: 'Directly close / revoke an inspection link so no one can access it',
+  })
+  async closeInspectionLink(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('linkId', ParseIntPipe) linkId: number,
+  ) {
+    const dealerId = this.callerService.getUserId();
+    const res = await this.orderService.closeInspectionLinkAsync(id, linkId, dealerId);
+    return ResponseDto.updated('Inspection link closed successfully', res as any);
+  }
+
   @Post(':id/upload-inspection')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard)
