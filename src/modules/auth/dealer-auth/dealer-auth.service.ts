@@ -29,6 +29,7 @@ const dealerAuthSelect = {
   aadhar_image: true,
   pan_image: true,
   bankdetails_image: true,
+  payout_percentage: true,
   created_at: true,
   updated_at: true,
 } as const;
@@ -56,6 +57,7 @@ export class DealerAuthService {
     aadhar_image: string;
     pan_image: string;
     bankdetails_image: string | null;
+    payout_percentage: number;
     created_at: Date;
     updated_at: Date;
   }): DealerProfileDto {
@@ -76,6 +78,7 @@ export class DealerAuthService {
       aadhar_image: dealer.aadhar_image,
       pan_image: dealer.pan_image,
       bankdetails_image: dealer.bankdetails_image,
+      payout_percentage: dealer.payout_percentage ?? 0,
       created_at: dealer.created_at,
       updated_at: dealer.updated_at,
     };

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsInt,
@@ -9,7 +10,7 @@ import {
   IsString,
   Min,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { FuelType, CarSegment, TransmissionType } from '@prisma/client';
 
 export class CreateDealerPackageOrderDto {
@@ -127,6 +128,43 @@ export class CreateDealerPackageOrderDto {
   package_plan_start_date: string;
 
   // --- GEO-TEMPORAL METADATA (JSON string from frontend) ---
+  @ApiPropertyOptional({
+    example: '{"latitude": 19.0760, "longitude": 72.8777, "captured_at": "2026-10-04T15:00:00.000Z"}',
+    description: 'JSON metadata for 4-sided inspection images (lat, lng, captured_at)',
+  })
+  @IsString()
+  @IsOptional()
+  vehicle_images_meta?: string;
+
+  @ApiPropertyOptional({
+    example: '{"latitude": 19.0760, "longitude": 72.8777, "captured_at": "2026-10-04T15:00:00.000Z"}',
+    description: 'JSON metadata for odometer inspection image (lat, lng, captured_at)',
+  })
+  @IsString()
+  @IsOptional()
+  odometer_image_meta?: string;
+
+  // --- INSPECTION UPLOAD SOURCE ---
+  @ApiPropertyOptional({
+    example: true,
+    description: 'True if images were uploaded by dealer, false if to be uploaded by customer',
+  })
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true || value === '1' || value === 1)
+  uploaded_by_dealer?: boolean;
+}
+
+export class UploadInspectionDto {
+  @ApiPropertyOptional({
+    example: true,
+    description: 'True if uploaded by dealer, false if uploaded by customer',
+  })
+  @IsBoolean()
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true || value === '1' || value === 1)
+  uploaded_by_dealer?: boolean;
+
   @ApiPropertyOptional({
     example: '{"latitude": 19.0760, "longitude": 72.8777, "captured_at": "2026-10-04T15:00:00.000Z"}',
     description: 'JSON metadata for 4-sided inspection images (lat, lng, captured_at)',

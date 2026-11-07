@@ -26,6 +26,7 @@ export const dealerSelect = {
   aadhar_image: true,
   pan_image: true,
   bankdetails_image: true,
+  payout_percentage: true,
   created_at: true,
   updated_at: true,
 } as const;
@@ -69,6 +70,7 @@ export class DealerService {
         aadhar_image: dto.aadhar_image,
         pan_image: dto.pan_image,
         bankdetails_image: dto.bankdetails_image ?? null,
+        payout_percentage: dto.payout_percentage !== undefined ? Number(dto.payout_percentage) : 0,
       },
       select: dealerSelect,
     });
@@ -174,6 +176,7 @@ export class DealerService {
     if (dto.aadhar_image !== undefined) updateData.aadhar_image = dto.aadhar_image;
     if (dto.pan_image !== undefined) updateData.pan_image = dto.pan_image;
     if (dto.bankdetails_image !== undefined) updateData.bankdetails_image = dto.bankdetails_image;
+    if (dto.payout_percentage !== undefined) updateData.payout_percentage = Number(dto.payout_percentage);
 
     const updated = await this.prisma.dealer.update({
       where: { id },

@@ -21,7 +21,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { DealerPackageOrderService } from './dealer-package-order.service';
-import { CreateDealerPackageOrderDto } from './dto/create-dealer-package-order.dto';
+import { CreateDealerPackageOrderDto, UploadInspectionDto } from './dto/create-dealer-package-order.dto';
 import { UpdatePackageUsageDto } from './dto/update-package-usage.dto';
 import { DealerPackageOrderQueryDto } from './dto/dealer-package-order-query.dto';
 import {
@@ -42,6 +42,71 @@ export class DealerPackageOrderController {
     private readonly orderService: DealerPackageOrderService,
     private readonly callerService: CallerService,
   ) {}
+
+  // =========================================================================
+  // PUBLIC CUSTOMER SELF-INSPECTION ENDPOINTS (NO JWT REQUIRED)
+  // =========================================================================
+
+  @Get('public/inspection/:orderIdentifier')
+  @ApiOperation({
+    summary: 'Public endpoint: Retrieve vehicle and package details for customer self-inspection',
+  })
+  async getPublicInspection(
+    @Param('orderIdentifier') orderIdentifier: string,
+  ) {
+    const details = await this.orderService.getPublicInspectionDetailsAsync(orderIdentifier);
+    return ResponseDto.retrieved(
+      'Inspection details retrieved successfully',
+      details as any,
+    );
+  }
+
+  @Post('public/inspection/:orderIdentifier')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Public endpoint: Customer submits 5 inspection images from mobile camera, activating package coverage',
+  })
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image_front', maxCount: 1 },
+      { name: 'image_rear', maxCount: 1 },
+      { name: 'image_left', maxCount: 1 },
+      { name: 'image_right', maxCount: 1 },
+      { name: 'odometer_image', maxCount: 1 },
+    ]),
+  )
+  async uploadCustomerInspection(
+    @Param('orderIdentifier') orderIdentifier: string,
+    @Body() dto: UploadInspectionDto,
+    @UploadedFiles()
+    files: {
+      image_front?: Express.Multer.File[];
+      image_rear?: Express.Multer.File[];
+      image_left?: Express.Multer.File[];
+      image_right?: Express.Multer.File[];
+      odometer_image?: Express.Multer.File[];
+    },
+  ) {
+    const inspectionFiles = {
+      image_front: files?.image_front?.[0],
+      image_rear: files?.image_rear?.[0],
+      image_left: files?.image_left?.[0],
+      image_right: files?.image_right?.[0],
+      odometer_image: files?.odometer_image?.[0],
+    };
+
+    const updated = await this.orderService.uploadCustomerInspectionAsync(
+      orderIdentifier,
+      dto,
+      inspectionFiles,
+    );
+
+    return ResponseDto.updated(
+      'Customer inspection photos uploaded and coverage activated successfully',
+      updated as any,
+    );
+  }
+
 
   // =========================================================================
   // DEALER PORTAL ENDPOINTS
@@ -75,11 +140,6 @@ export class DealerPackageOrderController {
         'car_segment',
         'package_plan_id',
         'package_plan_start_date',
-        'image_front',
-        'image_rear',
-        'image_left',
-        'image_right',
-        'odometer_image',
       ],
       properties: {
         customer_name: { type: 'string', example: 'Rahul Sharma' },
@@ -122,6 +182,11 @@ export class DealerPackageOrderController {
         image_left: { type: 'string', format: 'binary' },
         image_right: { type: 'string', format: 'binary' },
         odometer_image: { type: 'string', format: 'binary' },
+        uploaded_by_dealer: {
+          type: 'boolean',
+          example: true,
+          description: 'True if images uploaded by dealer, false if uploaded by customer',
+        },
       },
     },
   })
@@ -193,6 +258,114 @@ export class DealerPackageOrderController {
     return ResponseDto.retrieved(
       'Dealer package order retrieved successfully',
       order as any,
+    );
+  }
+
+
+  @Post(':id/inspection-link')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, DealerGuard)
+  @ApiOperation({
+    summary:
+      'Generate a new secure, encrypted customer self-inspection link with expiration tracking in DB',
+  })
+  async createInspectionLink(@Param('id', ParseIntPipe) id: number) {
+    const dealerId = this.callerService.getUserId();
+    const link = await this.orderService.createInspectionLinkAsync(id, dealerId);
+    return ResponseDto.created('Inspection link created successfully', link as any);
+  }
+
+  @Get(':id/inspection-link')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, DealerGuard)
+  @ApiOperation({
+    summary:
+      'Get latest inspection link status, expiration time, and submission state for an order',
+  })
+  async getLatestInspectionLink(@Param('id', ParseIntPipe) id: number) {
+    const dealerId = this.callerService.getUserId();
+    const link = await this.orderService.getLatestInspectionLinkAsync(id, dealerId);
+    return ResponseDto.retrieved(
+      link ? 'Inspection link retrieved successfully' : 'No active inspection link found',
+      link as any,
+    );
+  }
+
+  @Get(':id/inspection-links')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, DealerGuard)
+  @ApiOperation({
+    summary: 'Get all generated inspection links history for a package order',
+  })
+  async getAllInspectionLinks(@Param('id', ParseIntPipe) id: number) {
+    const dealerId = this.callerService.getUserId();
+    const links = await this.orderService.getAllInspectionLinksAsync(id, dealerId);
+    return ResponseDto.retrieved('Inspection links history retrieved successfully', links as any);
+  }
+
+  @Patch(':id/inspection-link/:linkId/close')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard, DealerGuard)
+  @ApiOperation({
+    summary: 'Directly close / revoke an inspection link so no one can access it',
+  })
+  async closeInspectionLink(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('linkId', ParseIntPipe) linkId: number,
+  ) {
+    const dealerId = this.callerService.getUserId();
+    const res = await this.orderService.closeInspectionLinkAsync(id, linkId, dealerId);
+    return ResponseDto.updated('Inspection link closed successfully', res as any);
+  }
+
+  @Post(':id/upload-inspection')
+  @ApiBearerAuth('JWT-auth')
+  @UseGuards(JwtAuthGuard)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Upload 5 inspection images for a package order (by Dealer or Customer), activating coverage',
+  })
+  @ApiResponseDto(DealerPackageOrderResponseDto)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'image_front', maxCount: 1 },
+      { name: 'image_rear', maxCount: 1 },
+      { name: 'image_left', maxCount: 1 },
+      { name: 'image_right', maxCount: 1 },
+      { name: 'odometer_image', maxCount: 1 },
+    ]),
+  )
+  async uploadInspection(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UploadInspectionDto,
+    @UploadedFiles()
+    files: {
+      image_front?: Express.Multer.File[];
+      image_rear?: Express.Multer.File[];
+      image_left?: Express.Multer.File[];
+      image_right?: Express.Multer.File[];
+      odometer_image?: Express.Multer.File[];
+    },
+  ) {
+    const inspectionFiles = {
+      image_front: files?.image_front?.[0],
+      image_rear: files?.image_rear?.[0],
+      image_left: files?.image_left?.[0],
+      image_right: files?.image_right?.[0],
+      odometer_image: files?.odometer_image?.[0],
+    };
+
+    const callerId = this.callerService.getUserId();
+    const updated = await this.orderService.uploadInspectionImagesAsync(
+      id,
+      dto,
+      inspectionFiles,
+      callerId,
+    );
+
+    return ResponseDto.updated(
+      'Inspection photos uploaded and package activated successfully',
+      updated as any,
     );
   }
 

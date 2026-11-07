@@ -50,6 +50,9 @@ export class DealerProfileDto {
   @ApiPropertyOptional({ example: 'https://storage.example.com/bankdetails.jpg' })
   bankdetails_image?: string | null;
 
+  @ApiProperty({ example: 15.0 })
+  payout_percentage: number;
+
   @ApiProperty({ example: '2026-09-30T12:00:00.000Z' })
   created_at: Date;
 

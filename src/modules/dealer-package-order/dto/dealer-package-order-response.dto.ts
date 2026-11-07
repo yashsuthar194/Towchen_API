@@ -76,26 +76,32 @@ export class DealerCustomerVehicleResponseDto {
   @ApiProperty({ enum: CarSegment, example: CarSegment.Basic })
   car_segment: CarSegment;
 
-  @ApiProperty({ example: 'https://storage.example.com/front.jpg' })
-  image_front: string;
+  @ApiPropertyOptional({ example: 'https://storage.example.com/front.jpg' })
+  image_front?: string | null;
 
-  @ApiProperty({ example: 'https://storage.example.com/rear.jpg' })
-  image_rear: string;
+  @ApiPropertyOptional({ example: 'https://storage.example.com/rear.jpg' })
+  image_rear?: string | null;
 
-  @ApiProperty({ example: 'https://storage.example.com/left.jpg' })
-  image_left: string;
+  @ApiPropertyOptional({ example: 'https://storage.example.com/left.jpg' })
+  image_left?: string | null;
 
-  @ApiProperty({ example: 'https://storage.example.com/right.jpg' })
-  image_right: string;
+  @ApiPropertyOptional({ example: 'https://storage.example.com/right.jpg' })
+  image_right?: string | null;
 
   @ApiPropertyOptional({ example: { latitude: 19.076, longitude: 72.877, captured_at: '2026-10-04' } })
   vehicle_images_meta?: any;
 
-  @ApiProperty({ example: 'https://storage.example.com/odo.jpg' })
-  odometer_image: string;
+  @ApiPropertyOptional({ example: 'https://storage.example.com/odo.jpg' })
+  odometer_image?: string | null;
 
   @ApiPropertyOptional({ example: { latitude: 19.076, longitude: 72.877, captured_at: '2026-10-04' } })
   odometer_image_meta?: any;
+
+  @ApiProperty({
+    example: true,
+    description: 'True if images were uploaded by dealer, false if to be uploaded by customer',
+  })
+  uploaded_by_dealer: boolean;
 }
 
 export class DealerPackageOrderResponseDto {
@@ -125,6 +131,12 @@ export class DealerPackageOrderResponseDto {
 
   @ApiProperty({ example: 1999.0 })
   amount: number;
+
+  @ApiProperty({ example: 15.0, description: 'Dealer payout percentage at order creation' })
+  payout_percentage: number;
+
+  @ApiProperty({ example: 299.85, description: 'Calculated dealer payout amount' })
+  payout_amount: number;
 
   @ApiProperty({ example: 12 })
   plan_period_months: number;
