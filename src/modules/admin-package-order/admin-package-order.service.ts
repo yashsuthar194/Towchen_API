@@ -53,9 +53,20 @@ export class AdminPackageOrderService {
     files: Express.Multer.File[] = [],
     adminId?: number,
   ) {
-    // 1. Validate Dealer Package Order (Contract)
+    // 1. Resolve & Validate Dealer Package Order (Contract)
+    const packageOrderId =
+      dto.tp_membership_id ||
+      dto.dealer_package_order_id ||
+      (dto as any).membership_id;
+
+    if (!packageOrderId) {
+      throw new BadRequestException(
+        'Field tp_membership_id (or dealer_package_order_id) is required.',
+      );
+    }
+
     const packageOrder = await this.prisma.dealer_package_order.findUnique({
-      where: { id: dto.dealer_package_order_id },
+      where: { id: packageOrderId },
       include: {
         dealer: { select: { id: true, name: true, is_deleted: true } },
       },
@@ -63,20 +74,20 @@ export class AdminPackageOrderService {
 
     if (!packageOrder) {
       throw new NotFoundException(
-        `Dealer package order #${dto.dealer_package_order_id} was not found.`,
+        `Dealer package order #${packageOrderId} was not found.`,
       );
     }
 
     if (packageOrder.status !== 'Active') {
       throw new BadRequestException(
-        `Cannot create order: Package #${dto.dealer_package_order_id} status is '${packageOrder.status}'. Only Active packages can be serviced.`,
+        `Cannot create order: Package #${packageOrderId} status is '${packageOrder.status}'. Only Active packages can be serviced.`,
       );
     }
 
     const now = new Date();
     if (now > new Date(packageOrder.expiry_date)) {
       throw new BadRequestException(
-        `Cannot create order: Package #${dto.dealer_package_order_id} expired on ${packageOrder.expiry_date.toISOString().split('T')[0]}.`,
+        `Cannot create order: Package #${packageOrderId} expired on ${packageOrder.expiry_date.toISOString().split('T')[0]}.`,
       );
     }
 
@@ -160,8 +171,11 @@ export class AdminPackageOrderService {
       throw new NotFoundException(`Sub-service #${dto.sub_service_id} was not found.`);
     }
 
+    const pickupAddress = (dto.pickup_location_address || dto.pickup_location || '').trim() || null;
+    const dropAddress = (dto.drop_location_address || dto.drop_location || '').trim() || null;
+
     const isFourWay = subService.journey_type === 'FourWay';
-    if (isFourWay && !dto.drop_location_address && !dto.drop_place_id) {
+    if (isFourWay && !dropAddress && !dto.drop_place_id) {
       throw new BadRequestException(
         'Drop location (address or place_id) is mandatory for FourWay journey sub-services.',
       );
@@ -184,6 +198,21 @@ export class AdminPackageOrderService {
         ),
       );
     }
+
+    // Resolve client_id, customer, vehicle registration, and problem
+    const dealerId = dto.client_id || dto.dealer_id || packageOrder.dealer_id;
+    const dealerCustomerId = dto.dealer_customer_id || packageOrder.dealer_customer_id;
+    const customerName = (dto.customer || dto.customer_name || '').trim();
+    const customerNumber = (dto.customer_number || '').trim();
+    const customerAltNumber = dto.customer_alternate_number?.trim() || null;
+    const vehicleRegNumber = (
+      dto.vehicle_registration_number ||
+      dto.vehicle_reg_number ||
+      ''
+    )
+      .trim()
+      .toUpperCase();
+    const vehicleProblem = (dto.vehicle_problem || dto.remarks || '').trim() || null;
 
     // 6. Database Transaction: Atomic Incident Decrement + Order Insertion
     const createdOrder = await this.prisma.$transaction(async (tx) => {
@@ -245,28 +274,28 @@ export class AdminPackageOrderService {
           activation_time: parsedActivationTime,
           eta: parsedEta,
           client_type: dto.client_type,
-          dealer_id: dto.dealer_id,
-          dealer_package_order_id: dto.dealer_package_order_id,
-          dealer_customer_id: dto.dealer_customer_id,
-          customer_name: dto.customer_name.trim(),
-          customer_number: dto.customer_number.trim(),
-          customer_alternate_number: dto.customer_alternate_number?.trim() || null,
+          dealer_id: dealerId,
+          dealer_package_order_id: packageOrderId,
+          dealer_customer_id: dealerCustomerId,
+          customer_name: customerName,
+          customer_number: customerNumber,
+          customer_alternate_number: customerAltNumber,
           vehicle_id: dto.vehicle_id || null,
           vehicle_make: dto.vehicle_make.trim(),
           vehicle_model: dto.vehicle_model.trim(),
           vehicle_variant: dto.vehicle_variant?.trim() || null,
           vehicle_fuel_type: dto.vehicle_fuel_type,
           vehicle_body_type: dto.vehicle_body_type?.trim() || null,
-          vehicle_reg_number: dto.vehicle_reg_number.trim().toUpperCase(),
+          vehicle_reg_number: vehicleRegNumber,
           vehicle_chassis_number: dto.vehicle_chassis_number.trim().toUpperCase(),
           vehicle_current_status: dto.vehicle_current_status,
           images: imageUrls,
           extra_services: extraServices,
-          pickup_location_address: dto.pickup_location_address?.trim() || null,
+          pickup_location_address: pickupAddress,
           pickup_latitude: dto.pickup_latitude || null,
           pickup_longitude: dto.pickup_longitude || null,
           pickup_place_id: dto.pickup_place_id?.trim() || null,
-          drop_location_address: dto.drop_location_address?.trim() || null,
+          drop_location_address: dropAddress,
           drop_latitude: dto.drop_latitude || null,
           drop_longitude: dto.drop_longitude || null,
           drop_place_id: dto.drop_place_id?.trim() || null,
@@ -274,7 +303,7 @@ export class AdminPackageOrderService {
           driver_id: dto.driver_id || null,
           assigned_vehicle_id: dto.assigned_vehicle_id || null,
           assign_time: dto.driver_id || dto.vendor_id ? new Date() : null,
-          remarks: dto.remarks?.trim() || null,
+          remarks: vehicleProblem,
           status: initialStatus,
           created_by_id: adminId || null,
         },
@@ -302,10 +331,10 @@ export class AdminPackageOrderService {
     });
 
     this.logger.log(
-      `Admin package order #${createdOrder.id} (${createdOrder.formated_id}) created with status '${createdOrder.status}' for Dealer #${dto.dealer_id}, Contract #${dto.dealer_package_order_id}.`,
+      `Admin package order #${createdOrder.id} (${createdOrder.formated_id}) created with status '${createdOrder.status}' for Dealer #${dealerId}, Contract #${packageOrderId}.`,
     );
 
-    return createdOrder;
+    return this.formatOrderResponse(createdOrder);
   }
 
   // ─── Automated Scheduled Activation Cron (Worker) ─────────────────────────
@@ -444,7 +473,7 @@ export class AdminPackageOrderService {
           ` to Package #${order.dealer_package_order_id}.`,
       );
 
-      return updatedOrder;
+      return this.formatOrderResponse(updatedOrder);
     });
   }
 
@@ -511,10 +540,26 @@ export class AdminPackageOrderService {
       `Order #${id} (${order.formated_id}) rescheduled to ${newActivation.toISOString()}`,
     );
 
-    return updated;
+    return this.formatOrderResponse(updated);
   }
 
   // ─── Query Methods ─────────────────────────────────────────────────────────
+
+  /**
+   * Formats order object with FlutterFlow alias properties
+   */
+  formatOrderResponse(order: any) {
+    if (!order) return order;
+    return {
+      ...order,
+      client_id: order.dealer_id,
+      tp_membership_id: order.dealer_package_order_id,
+      customer: order.customer_name,
+      vehicle_registration_number: order.vehicle_reg_number,
+      vehicle_problem: order.remarks,
+      upload_images: order.images,
+    };
+  }
 
   /**
    * Retrieves paginated admin package orders with optional filters
@@ -526,9 +571,13 @@ export class AdminPackageOrderService {
 
     const where: Prisma.admin_package_orderWhereInput = {};
 
-    if (query.dealer_id) where.dealer_id = Number(query.dealer_id);
-    if (query.dealer_package_order_id) {
-      where.dealer_package_order_id = Number(query.dealer_package_order_id);
+    if (query.client_id || query.dealer_id) {
+      where.dealer_id = Number(query.client_id || query.dealer_id);
+    }
+    if (query.tp_membership_id || query.dealer_package_order_id) {
+      where.dealer_package_order_id = Number(
+        query.tp_membership_id || query.dealer_package_order_id,
+      );
     }
     if (query.status) where.status = query.status;
     if (query.order_type) where.order_type = query.order_type;
@@ -571,7 +620,7 @@ export class AdminPackageOrderService {
     ]);
 
     return {
-      items,
+      items: items.map((order) => this.formatOrderResponse(order)),
       pagination: {
         page,
         limit,
@@ -603,6 +652,6 @@ export class AdminPackageOrderService {
       throw new NotFoundException(`Admin package order #${id} was not found.`);
     }
 
-    return order;
+    return this.formatOrderResponse(order);
   }
 }

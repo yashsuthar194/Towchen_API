@@ -494,6 +494,7 @@ export class DealerPackageOrderService {
             id: true,
             customer_name: true,
             customer_number: true,
+            alternative_number: true,
           },
         },
         vehicle: {
@@ -502,6 +503,10 @@ export class DealerPackageOrderService {
             vehicle_reg_number: true,
             vehicle_make: true,
             vehicle_model: true,
+            variant: true,
+            vehicle_fuel_type: true,
+            body_type: true,
+            chassis_number: true,
           },
         },
       },
@@ -521,16 +526,29 @@ export class DealerPackageOrderService {
 
       return {
         id: pkg.id,
+        tp_membership_id: pkg.id,
         package_order_id: pkg.id,
         formated_id: pkg.formated_id || pkg.order_number,
-        membership_id: pkg.formated_id || pkg.order_number,
+        membership_id: pkg.id,
+        membership_code: pkg.formated_id || pkg.order_number,
         order_number: pkg.order_number,
+        client_id: pkg.dealer_id,
+        dealer_id: pkg.dealer_id,
         customer_id: pkg.customer?.id,
+        customer: pkg.customer?.customer_name,
         customer_name: pkg.customer?.customer_name,
         customer_number: pkg.customer?.customer_number,
+        customer_alternate_number: pkg.customer?.alternative_number,
         vehicle_id: pkg.vehicle?.id,
         vehicle_reg_number: pkg.vehicle?.vehicle_reg_number,
+        vehicle_registration_number: pkg.vehicle?.vehicle_reg_number,
         vehicle_name: `${pkg.vehicle?.vehicle_make || ''} ${pkg.vehicle?.vehicle_model || ''}`.trim(),
+        vehicle_make: pkg.vehicle?.vehicle_make,
+        vehicle_model: pkg.vehicle?.vehicle_model,
+        vehicle_variant: pkg.vehicle?.variant,
+        vehicle_fuel_type: pkg.vehicle?.vehicle_fuel_type,
+        vehicle_body_type: pkg.vehicle?.body_type,
+        vehicle_chassis_number: pkg.vehicle?.chassis_number,
         plan_name: pkg.plan_name,
 
         // Service Incidents
@@ -550,6 +568,8 @@ export class DealerPackageOrderService {
         hotel_accommodation_allowed: pkg.hotel_accommodation_allowed,
         hotel_accommodation_used: pkg.hotel_accommodation_used,
         available_hotel_incidents: availableHotel,
+        available_hotel_accomodation_incidents: availableHotel,
+        available_hotel_accommodation_incidents: availableHotel,
         hotel_remaining: availableHotel,
 
         can_create_order: canCreateOrder,
@@ -615,8 +635,10 @@ export class DealerPackageOrderService {
 
     const packageData = {
       id: pkg.id,
+      tp_membership_id: pkg.id,
       package_order_id: pkg.id,
-      membership_id: pkg.formated_id || pkg.order_number,
+      membership_id: pkg.id,
+      membership_code: pkg.formated_id || pkg.order_number,
       formated_id: pkg.formated_id || pkg.order_number,
       order_number: pkg.order_number,
       plan_name: pkg.plan_name,
@@ -642,6 +664,8 @@ export class DealerPackageOrderService {
       hotel_accommodation_allowed: pkg.hotel_accommodation_allowed,
       hotel_accommodation_used: pkg.hotel_accommodation_used,
       available_hotel_incidents: availableHotel,
+      available_hotel_accomodation_incidents: availableHotel,
+      available_hotel_accommodation_incidents: availableHotel,
       hotel_remaining: availableHotel,
 
       can_create_order: canCreateOrder,
@@ -649,19 +673,16 @@ export class DealerPackageOrderService {
     };
 
     return {
-      dealer: {
-        id: pkg.dealer?.id,
-        name: pkg.dealer?.name,
-        formated_id: pkg.dealer?.formated_id,
-        number: pkg.dealer?.number,
-        email: pkg.dealer?.email,
-      },
-      package: packageData,
-      contract: packageData, // backwards-compatible alias
+      client_id: pkg.dealer?.id,
+      dealer_id: pkg.dealer?.id,
+      tp_membership_id: pkg.id,
+      membership_id: pkg.id,
+      formated_id: pkg.formated_id || pkg.order_number,
       customer: {
         id: pkg.customer?.id,
         customer_id: pkg.customer?.id,
         name: pkg.customer?.customer_name,
+        customer: pkg.customer?.customer_name,
         customer_name: pkg.customer?.customer_name,
         number: pkg.customer?.customer_number,
         customer_number: pkg.customer?.customer_number,
@@ -676,6 +697,29 @@ export class DealerPackageOrderService {
         pincode: pkg.customer?.pincode,
         gst_number: pkg.customer?.gst_number,
       },
+      customer_name: pkg.customer?.customer_name,
+      customer_number: pkg.customer?.customer_number,
+      customer_alternate_number: pkg.customer?.alternative_number,
+      vehicle_id: pkg.vehicle?.id,
+      vehicle_make: pkg.vehicle?.vehicle_make,
+      vehicle_model: pkg.vehicle?.vehicle_model,
+      vehicle_variant: pkg.vehicle?.variant,
+      vehicle_fuel_type: pkg.vehicle?.vehicle_fuel_type,
+      vehicle_body_type: pkg.vehicle?.body_type,
+      vehicle_registration_number: pkg.vehicle?.vehicle_reg_number,
+      vehicle_reg_number: pkg.vehicle?.vehicle_reg_number,
+      vehicle_chassis_number: pkg.vehicle?.chassis_number,
+      vehicle_current_status: 'AtHouse',
+      dealer: {
+        id: pkg.dealer?.id,
+        client_id: pkg.dealer?.id,
+        name: pkg.dealer?.name,
+        formated_id: pkg.dealer?.formated_id,
+        number: pkg.dealer?.number,
+        email: pkg.dealer?.email,
+      },
+      package: packageData,
+      contract: packageData, // backwards-compatible alias
       vehicle: {
         id: pkg.vehicle?.id,
         vehicle_id: pkg.vehicle?.id,
@@ -691,6 +735,7 @@ export class DealerPackageOrderService {
         vehicle_body_type: pkg.vehicle?.body_type,
         reg_number: pkg.vehicle?.vehicle_reg_number,
         vehicle_reg_number: pkg.vehicle?.vehicle_reg_number,
+        vehicle_registration_number: pkg.vehicle?.vehicle_reg_number,
         chassis_number: pkg.vehicle?.chassis_number,
         vehicle_chassis_number: pkg.vehicle?.chassis_number,
         current_status: 'AtHouse',
@@ -703,6 +748,8 @@ export class DealerPackageOrderService {
       available_service_incidents: availableService,
       available_cab_incidents: availableCab,
       available_hotel_incidents: availableHotel,
+      available_hotel_accomodation_incidents: availableHotel,
+      available_hotel_accommodation_incidents: availableHotel,
     };
   }
 }

@@ -36,14 +36,23 @@ export class AdminPackageOrderResponseDto {
   @ApiProperty({ example: 1 })
   dealer_id: number;
 
+  @ApiPropertyOptional({ example: 1, description: 'Alias for dealer_id' })
+  client_id?: number;
+
   @ApiProperty({ example: 10 })
   dealer_package_order_id: number;
+
+  @ApiPropertyOptional({ example: 10, description: 'Alias for dealer_package_order_id' })
+  tp_membership_id?: number;
 
   @ApiProperty({ example: 5 })
   dealer_customer_id: number;
 
   @ApiProperty({ example: 'Jainish Panchal' })
   customer_name: string;
+
+  @ApiPropertyOptional({ example: 'Jainish Panchal', description: 'Alias for customer_name' })
+  customer?: string;
 
   @ApiProperty({ example: '+919016616324' })
   customer_number: string;
@@ -71,6 +80,9 @@ export class AdminPackageOrderResponseDto {
 
   @ApiProperty({ example: 'GJ01HA9667' })
   vehicle_reg_number: string;
+
+  @ApiPropertyOptional({ example: 'GJ01HA9667', description: 'Alias for vehicle_reg_number' })
+  vehicle_registration_number?: string;
 
   @ApiProperty({ example: 'MB28431SDSD45153' })
   vehicle_chassis_number: string;
@@ -131,6 +143,9 @@ export class AdminPackageOrderResponseDto {
 
   @ApiPropertyOptional({ example: null })
   remarks?: string;
+
+  @ApiPropertyOptional({ example: null, description: 'Alias for remarks' })
+  vehicle_problem?: string;
 
   @ApiPropertyOptional({ example: null })
   cancel_reason?: string;

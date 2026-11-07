@@ -94,6 +94,18 @@ export class CreateAdminPackageOrderDto {
   @IsString()
   eta?: string;
 
+  @ApiPropertyOptional({ example: 'ChIJ...pickup_place_id' })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsString()
+  pickup_place_id?: string;
+
+  @ApiPropertyOptional({ example: 'ChIJ...drop_place_id' })
+  @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsString()
+  drop_place_id?: string;
+
   // ─── 2. Personal Info / Client & Contract ───────────────────────────────────
 
   @ApiProperty({
@@ -107,42 +119,131 @@ export class CreateAdminPackageOrderDto {
 
   @ApiProperty({
     example: 1,
-    description: 'Selected Dealer ID',
+    description: 'Client / Dealer ID (client_id)',
   })
-  @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
+  @Transform(({ value, obj }) => {
+    const val = value ?? obj?.dealer_id;
+    return val !== undefined && val !== '' ? Number(val) : val;
+  })
   @Type(() => Number)
   @IsInt()
   @IsNotEmpty()
-  dealer_id: number;
+  client_id: number;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Alias for client_id',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
+  @Type(() => Number)
+  @IsInt()
+  dealer_id?: number;
 
   @ApiProperty({
     example: 10,
-    description: 'Selected Dealer Package Order (Contract) ID',
+    description: 'Towchen Package Membership ID (Contract ID: tp_membership_id)',
   })
-  @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
+  @Transform(({ value, obj }) => {
+    const val = value ?? obj?.membership_id ?? obj?.dealer_package_order_id;
+    return val !== undefined && val !== '' ? Number(val) : val;
+  })
   @Type(() => Number)
   @IsInt()
   @IsNotEmpty()
-  dealer_package_order_id: number;
+  tp_membership_id: number;
 
-  @ApiProperty({
-    example: 5,
-    description: 'Dealer Customer ID',
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'Alias for tp_membership_id',
   })
+  @IsOptional()
   @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
   @Type(() => Number)
   @IsInt()
-  @IsNotEmpty()
-  dealer_customer_id: number;
+  membership_id?: number;
+
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'Alias for tp_membership_id',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
+  @Type(() => Number)
+  @IsInt()
+  dealer_package_order_id?: number;
+
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Dealer Customer ID (optional, auto-resolved from package contract)',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
+  @Type(() => Number)
+  @IsInt()
+  dealer_customer_id?: number;
+
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Read-only field from form for available service incidents',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
+  @Type(() => Number)
+  @IsInt()
+  available_service_incidents?: number;
+
+  @ApiPropertyOptional({
+    example: 3,
+    description: 'Read-only field from form for available cab incidents',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
+  @Type(() => Number)
+  @IsInt()
+  available_cab_incidents?: number;
+
+  @ApiPropertyOptional({
+    example: 3,
+    description: 'Read-only field from form for available hotel accommodation incidents',
+  })
+  @IsOptional()
+  @Transform(({ value, obj }) => {
+    const val = value ?? obj?.available_hotel_accommodation_incidents;
+    return val !== undefined && val !== '' ? Number(val) : value;
+  })
+  @Type(() => Number)
+  @IsInt()
+  available_hotel_accomodation_incidents?: number;
+
+  @ApiPropertyOptional({
+    example: 3,
+    description: 'Alias for available_hotel_accomodation_incidents',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined && value !== '' ? Number(value) : value))
+  @Type(() => Number)
+  @IsInt()
+  available_hotel_accommodation_incidents?: number;
 
   @ApiProperty({
     example: 'Jainish Panchal',
-    description: 'Customer full name',
+    description: 'Customer full name (customer)',
   })
+  @Transform(({ value, obj }) => (value ?? obj?.customer_name ?? '').trim())
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  customer_name: string;
+  customer: string;
+
+  @ApiPropertyOptional({
+    example: 'Jainish Panchal',
+    description: 'Alias for customer',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  customer_name?: string;
 
   @ApiProperty({
     example: '+919016616324',
@@ -224,12 +325,22 @@ export class CreateAdminPackageOrderDto {
 
   @ApiProperty({
     example: 'GJ01HA9667',
-    description: 'Vehicle registration number',
+    description: 'Vehicle registration number (vehicle_registration_number)',
   })
+  @Transform(({ value, obj }) => (value ?? obj?.vehicle_reg_number ?? '').trim().toUpperCase())
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  vehicle_reg_number: string;
+  vehicle_registration_number: string;
+
+  @ApiPropertyOptional({
+    example: 'GJ01HA9667',
+    description: 'Alias for vehicle_registration_number',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  vehicle_reg_number?: string;
 
   @ApiProperty({
     example: 'MB28431SDSD45153',
@@ -245,6 +356,12 @@ export class CreateAdminPackageOrderDto {
     example: VehicleCurrentStatus.AtHouse,
     description: 'Where the vehicle currently is (AtHouse, Roadside, Dealership, Workshop, Office, Other)',
   })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value[0] || VehicleCurrentStatus.AtHouse;
+    }
+    return value || VehicleCurrentStatus.AtHouse;
+  })
   @IsEnum(VehicleCurrentStatus)
   @IsNotEmpty()
   vehicle_current_status: VehicleCurrentStatus;
@@ -256,9 +373,14 @@ export class CreateAdminPackageOrderDto {
     description: 'Pickup / Breakdown location address',
   })
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value, obj }) => (value ?? obj?.pickup_location ?? ''))
   @IsString()
   pickup_location_address?: string;
+
+  @ApiPropertyOptional({ example: 'Dhanushdhari Farm, Pardhol, Gujarat 382330' })
+  @IsOptional()
+  @IsString()
+  pickup_location?: string;
 
   @ApiPropertyOptional({ example: 23.0225 })
   @IsOptional()
@@ -274,20 +396,19 @@ export class CreateAdminPackageOrderDto {
   @IsNumber()
   pickup_longitude?: number;
 
-  @ApiPropertyOptional({ example: 'ChIJ...pickup_place_id' })
-  @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
-  @IsString()
-  pickup_place_id?: string;
-
   @ApiPropertyOptional({
     example: 'Samarpan Cricket Ground, Sonarda, Gujarat 382355',
-    description: 'Drop location address (Mandatory for FourWay journey sub-services)',
+    description: 'Drop location address',
   })
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Transform(({ value, obj }) => (value ?? obj?.drop_location ?? ''))
   @IsString()
   drop_location_address?: string;
+
+  @ApiPropertyOptional({ example: 'Samarpan Cricket Ground, Sonarda, Gujarat 382355' })
+  @IsOptional()
+  @IsString()
+  drop_location?: string;
 
   @ApiPropertyOptional({ example: 23.033 })
   @IsOptional()
@@ -303,17 +424,32 @@ export class CreateAdminPackageOrderDto {
   @IsNumber()
   drop_longitude?: number;
 
-  @ApiPropertyOptional({ example: 'ChIJ...drop_place_id' })
-  @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
-  @IsString()
-  drop_place_id?: string;
+  // ─── 5. Vehicle Problem / Remarks ──────────────────────────────────────────
 
-  // ─── 5. Optional Pre-Assignment (for Scheduled / Pre-arranged Orders) ──────
+  @ApiPropertyOptional({
+    example: 'Urgent towing needed, vehicle battery flat and tyre puncture.',
+    description: 'Vehicle problem / remarks described by customer or admin (vehicle_problem)',
+  })
+  @IsOptional()
+  @Transform(({ value, obj }) => (value ?? obj?.remarks ?? ''))
+  @IsString()
+  @MaxLength(1000)
+  vehicle_problem?: string;
+
+  @ApiPropertyOptional({
+    example: 'Urgent towing needed, vehicle battery flat and tyre puncture.',
+    description: 'Alias for vehicle_problem',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  remarks?: string;
+
+  // ─── 6. Optional Pre-Assignment & FlutterFlow Variables ────────────────────
 
   @ApiPropertyOptional({
     example: 2,
-    description: 'Pre-assigned Vendor ID (optional, e.g. for pre-arranged scheduled towing)',
+    description: 'Pre-assigned Vendor ID (optional)',
   })
   @IsOptional()
   @Transform(({ value }) => (value === '' || value === null || value === undefined ? undefined : Number(value)))
@@ -342,11 +478,25 @@ export class CreateAdminPackageOrderDto {
   assigned_vehicle_id?: number;
 
   @ApiPropertyOptional({
-    example: 'Urgent towing needed, vehicle battery flat and tyre puncture.',
+    description: 'FlutterFlow authorization access token parameter (optional in body)',
   })
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
-  @MaxLength(1000)
-  remarks?: string;
+  access_token?: string;
+
+  @ApiPropertyOptional({
+    type: 'array',
+    items: { type: 'string', format: 'binary' },
+    description: 'Intake photos of vehicle condition (upload_images)',
+  })
+  @IsOptional()
+  upload_images?: any;
+
+  @ApiPropertyOptional({
+    type: 'array',
+    items: { type: 'string', format: 'binary' },
+    description: 'Alias for upload_images',
+  })
+  @IsOptional()
+  images?: any;
 }
