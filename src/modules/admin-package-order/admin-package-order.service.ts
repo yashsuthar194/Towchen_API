@@ -56,7 +56,7 @@ export class AdminPackageOrderService {
     // 1. Resolve & Validate Dealer Package Order (Contract)
     const packageOrderId =
       dto.tp_membership_id ||
-      dto.dealer_package_order_id ||
+      (dto as any).dealer_package_order_id ||
       (dto as any).membership_id;
 
     if (!packageOrderId) {
@@ -171,13 +171,10 @@ export class AdminPackageOrderService {
       throw new NotFoundException(`Sub-service #${dto.sub_service_id} was not found.`);
     }
 
-    const pickupAddress = (dto.pickup_location_address || dto.pickup_location || '').trim() || null;
-    const dropAddress = (dto.drop_location_address || dto.drop_location || '').trim() || null;
-
     const isFourWay = subService.journey_type === 'FourWay';
-    if (isFourWay && !dropAddress && !dto.drop_place_id) {
+    if (isFourWay && !dto.drop_place_id && !dto.drop_location_address) {
       throw new BadRequestException(
-        'Drop location (address or place_id) is mandatory for FourWay journey sub-services.',
+        'Drop location (drop_place_id or drop_location_address) is mandatory for FourWay journey sub-services.',
       );
     }
 
@@ -200,19 +197,13 @@ export class AdminPackageOrderService {
     }
 
     // Resolve client_id, customer, vehicle registration, and problem
-    const dealerId = dto.client_id || dto.dealer_id || packageOrder.dealer_id;
+    const dealerId = dto.client_id || packageOrder.dealer_id;
     const dealerCustomerId = dto.dealer_customer_id || packageOrder.dealer_customer_id;
-    const customerName = (dto.customer || dto.customer_name || '').trim();
-    const customerNumber = (dto.customer_number || '').trim();
+    const customerName = dto.customer.trim();
+    const customerNumber = dto.customer_number.trim();
     const customerAltNumber = dto.customer_alternate_number?.trim() || null;
-    const vehicleRegNumber = (
-      dto.vehicle_registration_number ||
-      dto.vehicle_reg_number ||
-      ''
-    )
-      .trim()
-      .toUpperCase();
-    const vehicleProblem = (dto.vehicle_problem || dto.remarks || '').trim() || null;
+    const vehicleRegNumber = dto.vehicle_registration_number.trim().toUpperCase();
+    const vehicleProblem = dto.vehicle_problem?.trim() || null;
 
     // 6. Database Transaction: Atomic Incident Decrement + Order Insertion
     const createdOrder = await this.prisma.$transaction(async (tx) => {
@@ -291,11 +282,11 @@ export class AdminPackageOrderService {
           vehicle_current_status: dto.vehicle_current_status,
           images: imageUrls,
           extra_services: extraServices,
-          pickup_location_address: pickupAddress,
+          pickup_location_address: dto.pickup_location_address?.trim() || null,
           pickup_latitude: dto.pickup_latitude || null,
           pickup_longitude: dto.pickup_longitude || null,
           pickup_place_id: dto.pickup_place_id?.trim() || null,
-          drop_location_address: dropAddress,
+          drop_location_address: dto.drop_location_address?.trim() || null,
           drop_latitude: dto.drop_latitude || null,
           drop_longitude: dto.drop_longitude || null,
           drop_place_id: dto.drop_place_id?.trim() || null,
