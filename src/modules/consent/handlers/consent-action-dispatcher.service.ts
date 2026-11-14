@@ -10,14 +10,19 @@ import {
 } from '@prisma/client';
 import { IConsentActionHandler } from './consent-action-handler.interface';
 import { OrderEditConsentHandler } from './order-edit-consent.handler';
+import { OrderClosureConsentHandler } from './order-closure-consent.handler';
 
 @Injectable()
 export class ConsentActionDispatcherService {
   private readonly logger = new Logger(ConsentActionDispatcherService.name);
   private readonly handlers = new Map<ConsentType, IConsentActionHandler>();
 
-  constructor(private readonly orderEditHandler: OrderEditConsentHandler) {
+  constructor(
+    private readonly orderEditHandler: OrderEditConsentHandler,
+    private readonly orderClosureHandler: OrderClosureConsentHandler,
+  ) {
     this.registerHandler(this.orderEditHandler);
+    this.registerHandler(this.orderClosureHandler);
   }
 
   private registerHandler(handler: IConsentActionHandler): void {
