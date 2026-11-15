@@ -14,6 +14,7 @@ model admin {
   name          String        @db.VarChar(255)
   role          Role          @default(Admin)
   consent_roles ConsentRole[] @default([])
+  dispute_roles DisputeRole[] @default([])
   is_deleted    Boolean       @default(false)
   created_at    DateTime      @default(now())
   updated_at    DateTime      @default(now()) @updatedAt
@@ -65,6 +66,7 @@ model vendor {
   dispatches           order_dispatch[]
   vendor_pricings      vendor_pricing[] // vendor's own per-sub-service pricing
   admin_package_orders admin_package_order[]
+  disputes             dispute_request[]
   @@index([id, formated_id])
   @@index([email, is_deleted])
   @@index([mobile_number, is_deleted])
@@ -381,6 +383,7 @@ model order {
   dispatches                   order_dispatch[]
   reviews                      review[]
   subscription_incident_usages subscription_incident_usage[]
+  disputes                     dispute_request[]
 
   @@index([customer_id])
   @@index([driver_id])
@@ -1672,4 +1675,97 @@ model dealer_package_inspection_link {
   @@index([token])
   @@index([package_order_id])
   @@index([is_submitted])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dispute Management Module (DMS)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum DisputeType {
+  TollDispute
+  KmDispute
+  HydraDispute
+  BorderDispute
+  ExtraChargeDispute
+  WaitingDispute
+  FuelChargeDispute
+}
+
+enum DisputeRole {
+  Resolver
+  Verifier
+  Finalizer
+}
+
+enum DisputeStatus {
+  PendingResolution
+  PendingVerification
+  PendingFinalization
+  PermissionGranted
+  Terminated
+}
+
+enum DisputeStep {
+  Resolution
+  Verification
+  Finalization
+}
+
+enum DisputeAction {
+  Submit
+  Resolve
+  Verify
+  Finalize
+  Reject
+}
+
+model dispute_request {
+  id              Int           @id @default(autoincrement())
+  formated_id     String        @unique @default("") @db.VarChar(255)
+  order_id        Int
+  vendor_id       Int
+  dispute_type    DisputeType
+  demanded_amount Float
+  approved_amount Float?
+  description     String?       @db.Text
+  proof_urls      String[]      @default([])
+  status          DisputeStatus @default(PendingResolution)
+  current_step    DisputeStep   @default(Resolution)
+  created_by_id   Int
+  finalized_at    DateTime?
+  terminated_at   DateTime?
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @default(now()) @updatedAt
+
+  order      order               @relation(fields: [order_id], references: [id])
+  vendor     vendor              @relation(fields: [vendor_id], references: [id])
+  audit_logs dispute_audit_log[]
+
+  @@index([order_id])
+  @@index([vendor_id])
+  @@index([status])
+  @@index([current_step])
+  @@index([dispute_type])
+}
+
+model dispute_audit_log {
+  id                 Int           @id @default(autoincrement())
+  dispute_request_id Int
+  step               DisputeStep
+  action             DisputeAction
+  previous_status    DisputeStatus
+  new_status         DisputeStatus
+  performed_by_id    Int
+  performed_by_role  String        @db.VarChar(50)
+  actor_dispute_role DisputeRole?
+  demanded_amount    Float?
+  approved_amount    Float?
+  remarks            String?       @db.Text
+  metadata           Json?
+  created_at         DateTime      @default(now())
+
+  dispute_request dispute_request @relation(fields: [dispute_request_id], references: [id], onDelete: Cascade)
+
+  @@index([dispute_request_id])
+  @@index([performed_by_id])
 }

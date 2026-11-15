@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { OrderStatus, OrderType } from '@prisma/client';
 
 export class AdminPackageOrderQueryDto {
@@ -16,13 +16,33 @@ export class AdminPackageOrderQueryDto {
   @IsInt()
   limit?: number = 10;
 
-  @ApiPropertyOptional({ description: 'Filter by dealer ID' })
+  @ApiPropertyOptional({ description: 'Filter by client / dealer ID (client_id)' })
+  @IsOptional()
+  @Transform(({ value, obj }) => {
+    const val = value ?? obj?.dealer_id;
+    return val !== undefined && val !== '' ? Number(val) : val;
+  })
+  @Type(() => Number)
+  @IsInt()
+  client_id?: number;
+
+  @ApiPropertyOptional({ description: 'Alias for client_id' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   dealer_id?: number;
 
-  @ApiPropertyOptional({ description: 'Filter by dealer package order ID' })
+  @ApiPropertyOptional({ description: 'Filter by Towchen package membership ID (tp_membership_id)' })
+  @IsOptional()
+  @Transform(({ value, obj }) => {
+    const val = value ?? obj?.dealer_package_order_id ?? obj?.membership_id;
+    return val !== undefined && val !== '' ? Number(val) : val;
+  })
+  @Type(() => Number)
+  @IsInt()
+  tp_membership_id?: number;
+
+  @ApiPropertyOptional({ description: 'Alias for tp_membership_id' })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

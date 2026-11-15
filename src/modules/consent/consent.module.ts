@@ -5,6 +5,7 @@ import { ConsentController } from './consent.controller';
 import { ConsentService } from './consent.service';
 import { ConsentActionDispatcherService } from './handlers/consent-action-dispatcher.service';
 import { OrderEditConsentHandler } from './handlers/order-edit-consent.handler';
+import { OrderClosureConsentHandler } from './handlers/order-closure-consent.handler';
 import { ConsentRoleGuard } from './guards/consent-role.guard';
 
 @Module({
@@ -14,6 +15,7 @@ import { ConsentRoleGuard } from './guards/consent-role.guard';
     ConsentService,
     ConsentActionDispatcherService,
     OrderEditConsentHandler,
+    OrderClosureConsentHandler,
     ConsentRoleGuard,
   ],
   exports: [ConsentService, ConsentActionDispatcherService],

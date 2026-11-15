@@ -38,6 +38,7 @@ import { DealerPackageOrderModule } from './modules/dealer-package-order/dealer-
 import { ConsentModule } from './modules/consent/consent.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { AdminPackageOrderModule } from './modules/admin-package-order/admin-package-order.module';
+import { DisputeModule } from './modules/dispute/dispute.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Global scheduler — must be here, not in feature modules
@@ -77,6 +78,7 @@ import { AdminPackageOrderModule } from './modules/admin-package-order/admin-pac
     ConsentModule,
     ContactModule,
     AdminPackageOrderModule,
+    DisputeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

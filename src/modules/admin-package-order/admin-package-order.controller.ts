@@ -11,7 +11,7 @@ import {
   UploadedFiles,
   ParseIntPipe,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiTags,
   ApiOperation,
@@ -48,7 +48,7 @@ export class AdminPackageOrderController {
 
   @Post()
   @ApiConsumes('multipart/form-data')
-  @UseInterceptors(FilesInterceptor('images', 10))
+  @UseInterceptors(AnyFilesInterceptor())
   @ApiOperation({
     summary:
       'Create an order for a dealer customer package (Admin Dashboard Form with multi-image upload)',

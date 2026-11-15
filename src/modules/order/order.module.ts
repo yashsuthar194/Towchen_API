@@ -10,6 +10,7 @@ import { OrderCreationService } from './order-creation.service';
 import { OrderGateway } from './order.gateway';
 import { OrderDispatchService } from './order-dispatch.service';
 import { OrderDispatchEscalationService } from './order-dispatch-escalation.service';
+import { OrderClosureSchedulerService } from './order-closure-scheduler.service';
 import { PrismaModule } from '../../core/prisma/prisma.module';
 import { MapsModule } from 'src/services/maps/maps.module';
 import { VoucherModule } from '../voucher/voucher.module';
@@ -42,8 +43,9 @@ import { DispatchModule } from '../dispatch/dispatch.module';
     OrderGateway,                      // Phase 3 — WebSocket gateway
     OrderDispatchService,              // Phase 5 — dispatch orchestrator
     OrderDispatchEscalationService,    // Phase 6 — 2-minute escalation cron
+    OrderClosureSchedulerService,      // Phase 7 — 24h Order Closure & CMS generator
   ],
-  exports: [OrderService, OrderCreationService, OrderGateway, OrderDispatchService],
+  exports: [OrderService, OrderCreationService, OrderGateway, OrderDispatchService, OrderClosureSchedulerService],
 })
 export class OrderModule {}
 

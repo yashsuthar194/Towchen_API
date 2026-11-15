@@ -208,7 +208,7 @@ export class DealerService {
    * Retrieves active dealers list for dropdown selection
    */
   async getDropdownAsync() {
-    return this.prisma.dealer.findMany({
+    const dealers = await this.prisma.dealer.findMany({
       where: { is_deleted: false },
       select: {
         id: true,
@@ -219,5 +219,11 @@ export class DealerService {
       },
       orderBy: { name: 'asc' },
     });
+
+    return dealers.map((d) => ({
+      ...d,
+      client_id: d.id,
+      dealer_id: d.id,
+    }));
   }
 }

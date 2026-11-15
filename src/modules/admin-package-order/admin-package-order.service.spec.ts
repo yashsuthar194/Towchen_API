@@ -102,19 +102,24 @@ describe('AdminPackageOrderService - Unit Tests', () => {
       sub_service_id: 1,
       dispatch_type: DispatchType.Current,
       client_type: ClientType.Dealer,
+      client_id: 1,
       dealer_id: 1,
+      tp_membership_id: 10,
       dealer_package_order_id: 10,
       dealer_customer_id: 5,
+      customer: 'Jainish Panchal',
       customer_name: 'Jainish Panchal',
       customer_number: '+919016616324',
       vehicle_make: 'Tata',
       vehicle_model: 'Altroz',
       vehicle_fuel_type: FuelType.Diesel,
+      vehicle_registration_number: 'GJ01HA9667',
       vehicle_reg_number: 'GJ01HA9667',
       vehicle_chassis_number: 'MB28431SDSD45153',
       vehicle_current_status: VehicleCurrentStatus.AtHouse,
+      vehicle_problem: 'Vehicle breakdown and tyre flat',
       extra_services: ['Cab', 'Hotel Accomodation'],
-    };
+    } as any;
 
     it('should throw BadRequestException if Cab incidents are exhausted', async () => {
       mockPrisma.dealer_package_order.findUnique.mockResolvedValue({
@@ -174,6 +179,57 @@ describe('AdminPackageOrderService - Unit Tests', () => {
 
       expect(result.id).toBe(1);
       expect(result.extra_services).toEqual(['Cab', 'Hotel Accomodation']);
+    });
+
+    it('should create order successfully when FlutterFlow payload variable names are provided', async () => {
+      const flutterFlowDto: any = {
+        order_type: OrderType.Package,
+        sub_service_id: 1,
+        dispatch_type: DispatchType.Current,
+        client_type: ClientType.Dealer,
+        client_id: 1,
+        tp_membership_id: 10,
+        customer: 'Jainish Panchal',
+        customer_number: '+919016616324',
+        vehicle_make: 'Tata',
+        vehicle_model: 'Altroz',
+        vehicle_fuel_type: FuelType.Diesel,
+        vehicle_registration_number: 'GJ01HA9667',
+        vehicle_chassis_number: 'MB28431SDSD45153',
+        vehicle_current_status: VehicleCurrentStatus.AtHouse,
+        vehicle_problem: 'Vehicle breakdown and tyre flat',
+        extra_services: ['Cab'],
+      };
+
+      mockPrisma.dealer_package_order.findUnique.mockResolvedValue(basePackage);
+      mockPrisma.sub_service.findUnique.mockResolvedValue({
+        id: 1,
+        journey_type: 'ThreeWay',
+      });
+      mockPrisma.dealer_package_order.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.admin_package_order.findFirst.mockResolvedValue(null);
+      mockPrisma.admin_package_order.findUnique.mockResolvedValue(null);
+      mockPrisma.admin_package_order.create.mockResolvedValue({
+        id: 2,
+        formated_id: 'APO0000002',
+        dealer_id: 1,
+        dealer_package_order_id: 10,
+        customer_name: 'Jainish Panchal',
+        vehicle_reg_number: 'GJ01HA9667',
+        remarks: 'Vehicle breakdown and tyre flat',
+        status: OrderStatus.New,
+        extra_services: ['Cab'],
+        images: [],
+      });
+
+      const result = await service.createOrderAsync(flutterFlowDto, []);
+
+      expect(result.id).toBe(2);
+      expect(result.client_id).toBe(1);
+      expect(result.tp_membership_id).toBe(10);
+      expect(result.customer).toBe('Jainish Panchal');
+      expect(result.vehicle_registration_number).toBe('GJ01HA9667');
+      expect(result.vehicle_problem).toBe('Vehicle breakdown and tyre flat');
     });
   });
 
