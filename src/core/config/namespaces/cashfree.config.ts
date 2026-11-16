@@ -10,7 +10,7 @@ import { createConfigLoader } from '../helper/config.loader';
  * - CASHFREE_CLIENT_ID: Cashfree App / Client ID
  * - CASHFREE_CLIENT_SECRET: Cashfree Secret Key
  * - CASHFREE_BASE_URL: Base URL for VRS (defaults to https://api.cashfree.com/verification)
- * - CASHFREE_RC_DAILY_LIMIT: Maximum allowed vehicle RC API requests per day (defaults to 25)
+ * - CASHFREE_RC_DAILY_LIMIT: Maximum allowed vehicle RC API requests per dealer per day (defaults to 25)
  */
 @ConfigNamespace('cashfree')
 export class CashfreeConfig {

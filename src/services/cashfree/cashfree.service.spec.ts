@@ -157,13 +157,40 @@ describe('CashfreeService', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('should return correct usage statistics via getRcUsage()', async () => {
-    rateLimiter._resetForTesting(10);
-    const usage = await service.getRcUsage();
+  it('should isolate daily limits per dealer so one dealer hitting limit does not block another', async () => {
+    // Simulate dealer 1 has used 25 requests today
+    rateLimiter._resetForTesting(25, 1);
+    // Dealer 2 has used 0 requests today
+    rateLimiter._resetForTesting(0, 2);
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({ status: 'VALID', reg_no: 'KA01CD5678' }),
+    } as any);
+
+    // Dealer 1 should be blocked
+    await expect(
+      service.getVehicleRcDetails({ vehicle_number: 'KA01CD5678', dealer_id: 1 }),
+    ).rejects.toThrow(HttpException);
+
+    // Dealer 2 should still be allowed to verify
+    const dealer2Result = await service.getVehicleRcDetails(
+      { vehicle_number: 'KA01CD5678' },
+      2,
+    );
+    expect(dealer2Result).toBeDefined();
+    expect(dealer2Result.status).toBe('VALID');
+  });
+
+  it('should return correct usage statistics per dealer via getRcUsage()', async () => {
+    rateLimiter._resetForTesting(10, 5);
+    const usage = await service.getRcUsage(5);
     expect(usage.limit).toBe(25);
     expect(usage.used).toBe(10);
     expect(usage.remaining).toBe(15);
     expect(usage.is_blocked).toBe(false);
+    expect(usage.dealer_id).toBe(5);
   });
 
   it('should throw ForbiddenException on 403 ip_validation_failed', async () => {

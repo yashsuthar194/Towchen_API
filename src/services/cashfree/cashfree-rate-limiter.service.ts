@@ -13,6 +13,7 @@ export interface VehicleRcUsageStatus {
   remaining: number;
   reset_at: string;
   is_blocked: boolean;
+  dealer_id?: number | null;
 }
 
 export interface DayRange {
@@ -49,9 +50,9 @@ export function getIstDayRange(date = new Date()): DayRange {
 export class CashfreeRateLimiterService {
   private readonly logger = new Logger(CashfreeRateLimiterService.name);
 
-  // In-memory counter and daily tracker (hybrid fallback & cache)
+  // In-memory counter per dealer/context and daily cache
   private currentDateStr = '';
-  private inMemoryCount = 0;
+  private inMemoryCounts = new Map<string, number>();
   private readonly rcCache = new Map<string, { data: ICashfreeVehicleRcResponse; expiresAt: number }>();
 
   constructor(
@@ -61,26 +62,40 @@ export class CashfreeRateLimiterService {
     const range = getIstDayRange();
     this.currentDateStr = range.dateStr;
     this.logger.log(
-      `Vehicle RC Rate Limiter initialized: limit=${this.dailyLimit} requests/day (resets at 00:00:00 IST)`,
+      `Vehicle RC Rate Limiter initialized: limit=${this.dailyLimit} requests/dealer/day (resets at 00:00:00 IST)`,
     );
   }
 
   /**
-   * Maximum vehicle RC API requests allowed per day
+   * Maximum vehicle RC API requests allowed per dealer per day
    */
   get dailyLimit(): number {
     return this.configService?.cashfree?.rcDailyLimit || 25;
   }
 
+  private getDealerKey(dealerId?: number | null): string {
+    return dealerId !== undefined && dealerId !== null ? `dealer_${dealerId}` : '__global__';
+  }
+
+  private getInMemoryCount(dealerId?: number | null): number {
+    return this.inMemoryCounts.get(this.getDealerKey(dealerId)) || 0;
+  }
+
+  private incrementInMemoryCount(dealerId?: number | null): void {
+    const key = this.getDealerKey(dealerId);
+    const current = this.inMemoryCounts.get(key) || 0;
+    this.inMemoryCounts.set(key, current + 1);
+  }
+
   /**
-   * Resets or aligns in-memory counter if day has changed
+   * Resets or aligns in-memory counters if day has changed
    */
   private checkDayRollover(): void {
     const { dateStr } = getIstDayRange();
     if (this.currentDateStr !== dateStr) {
-      this.logger.log(`Day rolled over from ${this.currentDateStr} to ${dateStr}. Resetting in-memory counter.`);
+      this.logger.log(`Day rolled over from ${this.currentDateStr} to ${dateStr}. Resetting in-memory counters.`);
       this.currentDateStr = dateStr;
-      this.inMemoryCount = 0;
+      this.inMemoryCounts.clear();
       this.rcCache.clear();
     }
   }
@@ -113,38 +128,45 @@ export class CashfreeRateLimiterService {
   }
 
   /**
-   * Gets current usage statistics for vehicle RC requests today
+   * Gets current usage statistics for vehicle RC requests today for a specific dealer (or overall)
    */
-  async getUsageStatus(): Promise<VehicleRcUsageStatus> {
+  async getUsageStatus(dealerId?: number | null): Promise<VehicleRcUsageStatus> {
     this.checkDayRollover();
     const { startOfDay, endOfDay, resetAt } = getIstDayRange();
     const limit = this.dailyLimit;
+    const memCount = this.getInMemoryCount(dealerId);
 
     let dbCount = 0;
     if (this.prisma) {
       try {
-        dbCount = await this.prisma.vehicle_rc_request.count({
-          where: {
-            created_at: {
-              gte: startOfDay,
-              lte: endOfDay,
-            },
-            status: {
-              in: ['SUCCESS', 'FAILED'], // Only count actual hits to Cashfree API
-            },
+        const whereClause: any = {
+          created_at: {
+            gte: startOfDay,
+            lte: endOfDay,
           },
+          status: {
+            in: ['SUCCESS', 'FAILED'], // Only count actual hits to Cashfree API
+          },
+        };
+
+        if (dealerId !== undefined && dealerId !== null) {
+          whereClause.dealer_id = Number(dealerId);
+        }
+
+        dbCount = await this.prisma.vehicle_rc_request.count({
+          where: whereClause,
         });
       } catch (error) {
         this.logger.warn(
           `Unable to query vehicle_rc_request from DB: ${error?.message || error}. Falling back to in-memory count.`,
         );
-        dbCount = this.inMemoryCount;
+        dbCount = memCount;
       }
     } else {
-      dbCount = this.inMemoryCount;
+      dbCount = memCount;
     }
 
-    const used = Math.max(this.inMemoryCount, dbCount);
+    const used = Math.max(memCount, dbCount);
     const remaining = Math.max(0, limit - used);
     const is_blocked = used >= limit;
 
@@ -154,13 +176,17 @@ export class CashfreeRateLimiterService {
       remaining,
       reset_at: resetAt,
       is_blocked,
+      dealer_id: dealerId ?? null,
     };
   }
 
   /**
-   * Checks if an RC verification request is allowed to hit Cashfree
+   * Checks if an RC verification request is allowed to hit Cashfree for a dealer
    */
-  async checkAllowed(vehicleNumber: string): Promise<{
+  async checkAllowed(
+    vehicleNumber: string,
+    dealerId?: number | null,
+  ): Promise<{
     allowed: boolean;
     cachedData?: ICashfreeVehicleRcResponse;
     usage: VehicleRcUsageStatus;
@@ -168,12 +194,12 @@ export class CashfreeRateLimiterService {
     // 1. Check if we already have this vehicle cached today
     const cachedData = this.getCachedRc(vehicleNumber);
     if (cachedData) {
-      const usage = await this.getUsageStatus();
+      const usage = await this.getUsageStatus(dealerId);
       return { allowed: true, cachedData, usage };
     }
 
-    // 2. Check if the daily limit has been reached
-    const usage = await this.getUsageStatus();
+    // 2. Check if the daily limit for this dealer has been reached
+    const usage = await this.getUsageStatus(dealerId);
     if (usage.is_blocked) {
       return { allowed: false, usage };
     }
@@ -186,18 +212,19 @@ export class CashfreeRateLimiterService {
    */
   async recordHit(params: {
     vehicleNumber: string;
+    dealerId?: number | null;
     verificationId?: string;
     status: 'SUCCESS' | 'FAILED' | 'BLOCKED';
     statusCode?: number;
     errorMessage?: string;
     data?: ICashfreeVehicleRcResponse;
   }): Promise<void> {
-    const { vehicleNumber, verificationId, status, statusCode, errorMessage, data } = params;
+    const { vehicleNumber, dealerId, verificationId, status, statusCode, errorMessage, data } = params;
     this.checkDayRollover();
 
-    // If actual request hit Cashfree, increment in-memory counter
+    // If actual request hit Cashfree, increment in-memory counter for this dealer
     if (status === 'SUCCESS' || status === 'FAILED') {
-      this.inMemoryCount++;
+      this.incrementInMemoryCount(dealerId);
     }
 
     // Cache successful response
@@ -210,6 +237,7 @@ export class CashfreeRateLimiterService {
       try {
         await this.prisma.vehicle_rc_request.create({
           data: {
+            dealer_id: dealerId ? Number(dealerId) : null,
             vehicle_number: vehicleNumber.toUpperCase().replace(/[\s-]/g, ''),
             verification_id: verificationId || null,
             status,
@@ -226,9 +254,15 @@ export class CashfreeRateLimiterService {
   /**
    * Helper for unit tests to reset in-memory counter and cache
    */
-  _resetForTesting(customCount = 0): void {
-    this.inMemoryCount = customCount;
+  _resetForTesting(customCount = 0, dealerId?: number | null): void {
+    if (dealerId !== undefined && dealerId !== null) {
+      this.inMemoryCounts.set(this.getDealerKey(dealerId), customCount);
+    } else {
+      this.inMemoryCounts.clear();
+      if (customCount > 0) {
+        this.inMemoryCounts.set('__global__', customCount);
+      }
+    }
     this.rcCache.clear();
   }
 }
-

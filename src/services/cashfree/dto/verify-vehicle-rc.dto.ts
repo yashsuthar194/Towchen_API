@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export class VerifyVehicleRcDto {
   @ApiProperty({
@@ -23,5 +23,14 @@ export class VerifyVehicleRcDto {
     message: 'verification_id can only contain alphanumeric characters, dots (.), hyphens (-), and underscores (_)',
   })
   verification_id?: string;
+
+  @ApiPropertyOptional({
+    description: 'Optional dealer ID. Automatically populated from JWT when authenticated as a dealer.',
+    example: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'dealer_id must be an integer' })
+  dealer_id?: number;
 }
 

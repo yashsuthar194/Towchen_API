@@ -321,6 +321,7 @@ model dealer {
   dealer_package_orders dealer_package_order[]
   admin_package_orders  admin_package_order[]
   inspection_links      dealer_package_inspection_link[]
+  vehicle_rc_requests   vehicle_rc_request[]
 
   @@index([id, formated_id])
   @@index([email, is_deleted])
@@ -1772,6 +1773,7 @@ model dispute_audit_log {
 
 model vehicle_rc_request {
   id              Int       @id @default(autoincrement())
+  dealer_id       Int?
   vehicle_number  String    @db.VarChar(50)
   verification_id String?   @db.VarChar(100)
   status          String    @db.VarChar(50) // SUCCESS | FAILED | BLOCKED
@@ -1779,6 +1781,9 @@ model vehicle_rc_request {
   error_message   String?   @db.Text
   created_at      DateTime  @default(now())
 
+  dealer          dealer?   @relation(fields: [dealer_id], references: [id], onDelete: SetNull)
+
   @@index([created_at])
   @@index([vehicle_number])
+  @@index([dealer_id, created_at])
 }

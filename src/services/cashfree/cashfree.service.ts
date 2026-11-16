@@ -42,8 +42,8 @@ export class CashfreeService {
   /**
    * Retrieves current vehicle RC rate limit and daily usage statistics
    */
-  async getRcUsage(): Promise<VehicleRcUsageStatus> {
-    return this.rateLimiter.getUsageStatus();
+  async getRcUsage(dealerId?: number | null): Promise<VehicleRcUsageStatus> {
+    return this.rateLimiter.getUsageStatus(dealerId);
   }
 
   /**
@@ -121,17 +121,22 @@ export class CashfreeService {
   /**
    * Fetch Vehicle RC details from Cashfree Verification Suite
    *
-   * @param dto VerifyVehicleRcDto containing vehicle_number and optional verification_id
+   * @param dto VerifyVehicleRcDto containing vehicle_number, optional verification_id, and optional dealer_id
+   * @param dealerId Optional dealer ID context
    * @returns ICashfreeVehicleRcResponse
    */
-  async getVehicleRcDetails(dto: VerifyVehicleRcDto): Promise<ICashfreeVehicleRcResponse> {
+  async getVehicleRcDetails(
+    dto: VerifyVehicleRcDto,
+    dealerId?: number | null,
+  ): Promise<ICashfreeVehicleRcResponse> {
+    const effectiveDealerId = dto.dealer_id ?? dealerId;
     const vehicleNumber = (dto.vehicle_number || '').replace(/[\s-]/g, '').toUpperCase();
     if (!vehicleNumber) {
       throw new BadRequestException('A valid vehicle_number is required');
     }
 
     // Check rate limit and daily cache
-    const check = await this.rateLimiter.checkAllowed(vehicleNumber);
+    const check = await this.rateLimiter.checkAllowed(vehicleNumber, effectiveDealerId);
     if (check.cachedData) {
       this.logger.log(
         `Vehicle RC details for ${vehicleNumber} served from daily cache (avoiding duplicate external Cashfree API hit)`,
@@ -140,27 +145,30 @@ export class CashfreeService {
     }
 
     if (!check.allowed) {
+      const dealerMsg = effectiveDealerId ? ` for dealer #${effectiveDealerId}` : '';
       this.logger.warn(
-        `Daily limit of ${check.usage.limit} vehicle RC requests reached! Blocking request for ${vehicleNumber}.`,
+        `Daily limit of ${check.usage.limit} vehicle RC requests reached${dealerMsg}! Blocking request for ${vehicleNumber}.`,
       );
 
       // Record blocked attempt
       await this.rateLimiter.recordHit({
         vehicleNumber,
+        dealerId: effectiveDealerId,
         verificationId: dto.verification_id,
         status: 'BLOCKED',
         statusCode: HttpStatus.TOO_MANY_REQUESTS,
-        errorMessage: `Daily limit of ${check.usage.limit} vehicle RC verification requests reached`,
+        errorMessage: `Daily limit of ${check.usage.limit} vehicle RC verification requests reached${dealerMsg}`,
       });
 
       throw new HttpException(
         {
-          message: `Daily limit of ${check.usage.limit} vehicle RC verification requests reached. Please try again tomorrow or enter details manually.`,
+          message: `Daily limit of ${check.usage.limit} vehicle RC verification requests reached${dealerMsg}. Please try again tomorrow or enter details manually.`,
           error: 'Too Many Requests',
           limit: check.usage.limit,
           used: check.usage.used,
           remaining: 0,
           reset_at: check.usage.reset_at,
+          dealer_id: effectiveDealerId ?? null,
         },
         HttpStatus.TOO_MANY_REQUESTS,
       );
@@ -210,6 +218,7 @@ export class CashfreeService {
       this.logger.error(`Network error connecting to Cashfree API: ${error.message}`, error.stack);
       await this.rateLimiter.recordHit({
         vehicleNumber,
+        dealerId: effectiveDealerId,
         verificationId,
         status: 'FAILED',
         statusCode: HttpStatus.BAD_GATEWAY,
@@ -225,6 +234,7 @@ export class CashfreeService {
       this.logger.error(`Failed to parse Cashfree response: ${parseError.message}`);
       await this.rateLimiter.recordHit({
         vehicleNumber,
+        dealerId: effectiveDealerId,
         verificationId,
         status: 'FAILED',
         statusCode: response.status,
@@ -243,6 +253,7 @@ export class CashfreeService {
 
       await this.rateLimiter.recordHit({
         vehicleNumber,
+        dealerId: effectiveDealerId,
         verificationId,
         status: 'FAILED',
         statusCode: response.status,
@@ -284,6 +295,7 @@ export class CashfreeService {
     // Record success and cache result
     await this.rateLimiter.recordHit({
       vehicleNumber,
+      dealerId: effectiveDealerId,
       verificationId,
       status: 'SUCCESS',
       statusCode: response.status,
