@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { ConfigNamespace } from '../helper/config.decorator';
 import { createConfigLoader } from '../helper/config.loader';
 
@@ -10,6 +10,7 @@ import { createConfigLoader } from '../helper/config.loader';
  * - CASHFREE_CLIENT_ID: Cashfree App / Client ID
  * - CASHFREE_CLIENT_SECRET: Cashfree Secret Key
  * - CASHFREE_BASE_URL: Base URL for VRS (defaults to https://api.cashfree.com/verification)
+ * - CASHFREE_RC_DAILY_LIMIT: Maximum allowed vehicle RC API requests per day (defaults to 25)
  */
 @ConfigNamespace('cashfree')
 export class CashfreeConfig {
@@ -29,6 +30,11 @@ export class CashfreeConfig {
   @IsOptional()
   CASHFREE_PUBLIC_KEY?: string;
 
+  @IsInt({ message: 'CASHFREE_RC_DAILY_LIMIT must be an integer' })
+  @Min(1, { message: 'CASHFREE_RC_DAILY_LIMIT must be at least 1' })
+  @IsOptional()
+  CASHFREE_RC_DAILY_LIMIT?: number = 25;
+
   get clientId(): string {
     return this.CASHFREE_CLIENT_ID || '';
   }
@@ -43,6 +49,10 @@ export class CashfreeConfig {
 
   get publicKey(): string | undefined {
     return this.CASHFREE_PUBLIC_KEY;
+  }
+
+  get rcDailyLimit(): number {
+    return Number(this.CASHFREE_RC_DAILY_LIMIT) || 25;
   }
 }
 

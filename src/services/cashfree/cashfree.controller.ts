@@ -46,6 +46,19 @@ export class CashfreeController {
   }
 
   /**
+   * Get current daily API usage and rate limit status for Vehicle RC
+   */
+  @Get('vehicle-rc/usage')
+  @ApiOperation({
+    summary: 'Get Vehicle RC daily API usage and quota status',
+    description: 'Returns the daily limit (e.g. 25/day), used requests today, remaining requests, and reset time.',
+  })
+  async getUsage(): Promise<ResponseDto<any>> {
+    const usage = await this.cashfreeService.getRcUsage();
+    return ResponseDto.retrieved('Vehicle RC daily API usage retrieved successfully', usage);
+  }
+
+  /**
    * Get Vehicle RC details by vehicle number route parameter (GET)
    */
   @Get('vehicle-rc/:vehicle_number')

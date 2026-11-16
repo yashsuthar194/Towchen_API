@@ -15,8 +15,17 @@ describe('CashfreeController', () => {
     owner_name: 'JOHN DOE',
   };
 
+  const mockUsage = {
+    limit: 25,
+    used: 5,
+    remaining: 20,
+    reset_at: '2026-11-17T00:00:00.000Z',
+    is_blocked: false,
+  };
+
   const mockCashfreeService = {
     getVehicleRcDetails: jest.fn().mockResolvedValue(mockResponse),
+    getRcUsage: jest.fn().mockResolvedValue(mockUsage),
   };
 
   beforeEach(async () => {
@@ -64,6 +73,14 @@ describe('CashfreeController', () => {
 
     expect(response.is_success).toBe(true);
     expect(response.data).toEqual(mockResponse);
+  });
+
+  it('should get vehicle RC usage status via GET', async () => {
+    const response = await controller.getUsage();
+
+    expect(response.is_success).toBe(true);
+    expect(response.data).toEqual(mockUsage);
+    expect(cashfreeService.getRcUsage).toHaveBeenCalled();
   });
 });
 

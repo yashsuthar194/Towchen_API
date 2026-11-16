@@ -88,6 +88,17 @@ export class VehicleController {
     const data = await this._cashfreeService.getVehicleRcDetails(dto);
     return ResponseDto.retrieved('Vehicle RC details retrieved successfully', data);
   }
+
+  /**
+   * Get Vehicle RC daily API usage and remaining quota
+   */
+  @UseGuards(AdminOrVendorGuard)
+  @Get('rc-usage')
+  @ApiOperation({ summary: 'Get Vehicle RC daily API usage and remaining quota' })
+  async getRcUsage(): Promise<ResponseDto<any>> {
+    const usage = await this._cashfreeService.getRcUsage();
+    return ResponseDto.retrieved('Vehicle RC usage retrieved successfully', usage);
+  }
   // #endregion
 
   // #region Create

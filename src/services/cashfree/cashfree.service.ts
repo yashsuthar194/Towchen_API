@@ -6,12 +6,15 @@ import {
   UnauthorizedException,
   NotFoundException,
   BadGatewayException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { TypedConfigService } from 'src/core/config/typed-config.service';
 import { VerifyVehicleRcDto } from './dto/verify-vehicle-rc.dto';
 import { ICashfreeVehicleRcResponse } from './interfaces/cashfree-rc-response.interface';
+import { CashfreeRateLimiterService, VehicleRcUsageStatus } from './cashfree-rate-limiter.service';
 
 @Injectable()
 export class CashfreeService {
@@ -21,7 +24,10 @@ export class CashfreeService {
   private readonly baseUrl: string;
   private readonly publicKeyContent?: string;
 
-  constructor(private readonly configService: TypedConfigService) {
+  constructor(
+    private readonly configService: TypedConfigService,
+    private readonly rateLimiter: CashfreeRateLimiterService,
+  ) {
     this.clientId = this.configService.cashfree.clientId;
     this.clientSecret = this.configService.cashfree.clientSecret;
     this.baseUrl = (this.configService.cashfree.baseUrl || 'https://api.cashfree.com/verification').replace(/\/+$/, '');
@@ -31,6 +37,13 @@ export class CashfreeService {
     if (this.publicKeyContent && this.publicKeyContent.trim().length > 0) {
       this.logger.log(`Cashfree Public Key configured in env - dynamic 2FA signature (x-cf-signature) active`);
     }
+  }
+
+  /**
+   * Retrieves current vehicle RC rate limit and daily usage statistics
+   */
+  async getRcUsage(): Promise<VehicleRcUsageStatus> {
+    return this.rateLimiter.getUsageStatus();
   }
 
   /**
@@ -117,6 +130,42 @@ export class CashfreeService {
       throw new BadRequestException('A valid vehicle_number is required');
     }
 
+    // Check rate limit and daily cache
+    const check = await this.rateLimiter.checkAllowed(vehicleNumber);
+    if (check.cachedData) {
+      this.logger.log(
+        `Vehicle RC details for ${vehicleNumber} served from daily cache (avoiding duplicate external Cashfree API hit)`,
+      );
+      return check.cachedData;
+    }
+
+    if (!check.allowed) {
+      this.logger.warn(
+        `Daily limit of ${check.usage.limit} vehicle RC requests reached! Blocking request for ${vehicleNumber}.`,
+      );
+
+      // Record blocked attempt
+      await this.rateLimiter.recordHit({
+        vehicleNumber,
+        verificationId: dto.verification_id,
+        status: 'BLOCKED',
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        errorMessage: `Daily limit of ${check.usage.limit} vehicle RC verification requests reached`,
+      });
+
+      throw new HttpException(
+        {
+          message: `Daily limit of ${check.usage.limit} vehicle RC verification requests reached. Please try again tomorrow or enter details manually.`,
+          error: 'Too Many Requests',
+          limit: check.usage.limit,
+          used: check.usage.used,
+          remaining: 0,
+          reset_at: check.usage.reset_at,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     if (!this.clientId || !this.clientSecret) {
       throw new BadRequestException(
         'Cashfree API credentials (CASHFREE_CLIENT_ID / CASHFREE_CLIENT_SECRET) are not configured in environment variables.',
@@ -159,6 +208,13 @@ export class CashfreeService {
       });
     } catch (error) {
       this.logger.error(`Network error connecting to Cashfree API: ${error.message}`, error.stack);
+      await this.rateLimiter.recordHit({
+        vehicleNumber,
+        verificationId,
+        status: 'FAILED',
+        statusCode: HttpStatus.BAD_GATEWAY,
+        errorMessage: `Failed to connect to Cashfree: ${error.message}`,
+      });
       throw new BadGatewayException(`Failed to connect to Cashfree Verification API: ${error.message}`);
     }
 
@@ -167,6 +223,13 @@ export class CashfreeService {
       responseData = await response.json();
     } catch (parseError) {
       this.logger.error(`Failed to parse Cashfree response: ${parseError.message}`);
+      await this.rateLimiter.recordHit({
+        vehicleNumber,
+        verificationId,
+        status: 'FAILED',
+        statusCode: response.status,
+        errorMessage: `Invalid JSON response received from Cashfree: HTTP ${response.status}`,
+      });
       throw new BadGatewayException(`Invalid response received from Cashfree: HTTP ${response.status}`);
     }
 
@@ -177,6 +240,14 @@ export class CashfreeService {
       this.logger.warn(
         `Cashfree API returned error HTTP ${response.status} [${errorCode}]: ${errorMessage}`,
       );
+
+      await this.rateLimiter.recordHit({
+        vehicleNumber,
+        verificationId,
+        status: 'FAILED',
+        statusCode: response.status,
+        errorMessage: `HTTP ${response.status} [${errorCode}]: ${errorMessage}`,
+      });
 
       if (
         errorMessage.includes('test data in the test environment') ||
@@ -209,6 +280,15 @@ export class CashfreeService {
         `Cashfree Service Error (${response.status}): ${errorMessage}`,
       );
     }
+
+    // Record success and cache result
+    await this.rateLimiter.recordHit({
+      vehicleNumber,
+      verificationId,
+      status: 'SUCCESS',
+      statusCode: response.status,
+      data: responseData as ICashfreeVehicleRcResponse,
+    });
 
     return responseData as ICashfreeVehicleRcResponse;
   }

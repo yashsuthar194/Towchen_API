@@ -1769,3 +1769,16 @@ model dispute_audit_log {
   @@index([dispute_request_id])
   @@index([performed_by_id])
 }
+
+model vehicle_rc_request {
+  id              Int       @id @default(autoincrement())
+  vehicle_number  String    @db.VarChar(50)
+  verification_id String?   @db.VarChar(100)
+  status          String    @db.VarChar(50) // SUCCESS | FAILED | BLOCKED
+  status_code     Int?
+  error_message   String?   @db.Text
+  created_at      DateTime  @default(now())
+
+  @@index([created_at])
+  @@index([vehicle_number])
+}
