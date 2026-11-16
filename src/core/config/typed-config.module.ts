@@ -9,6 +9,7 @@ import { smsConfig } from './namespaces/sms.config';
 import { storageConfig } from './namespaces/storage.config';
 import { verificationConfig } from './namespaces/verification.config';
 import { mapsConfig } from './namespaces/maps.config';
+import { cashfreeConfig } from './namespaces/cashfree.config';
 import { TypedConfigService } from './typed-config.service';
 
 /**
@@ -32,7 +33,7 @@ import { TypedConfigService } from './typed-config.service';
       cache: true,
       expandVariables: true,
       envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
-      load: [appConfig, databaseConfig, jwtConfig, mailConfig, smsConfig, storageConfig, verificationConfig, mapsConfig],
+      load: [appConfig, databaseConfig, jwtConfig, mailConfig, smsConfig, storageConfig, verificationConfig, mapsConfig, cashfreeConfig],
       validate: validateEnv,
     }),
   ],

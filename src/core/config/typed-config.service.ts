@@ -8,6 +8,7 @@ import { SmsConfig } from './namespaces/sms.config';
 import { StorageConfig } from './namespaces/storage.config';
 import { VerificationConfig } from './namespaces/verification.config';
 import { MapsConfig } from './namespaces/maps.config';
+import { CashfreeConfig } from './namespaces/cashfree.config';
 
 /**
  * Type-safe configuration service providing access to all config namespaces.
@@ -76,6 +77,13 @@ export class TypedConfigService {
    */
   get maps(): MapsConfig {
     return this.config.get<MapsConfig>('maps')!;
+  }
+
+  /**
+   * Get Cashfree configuration
+   */
+  get cashfree(): CashfreeConfig {
+    return this.config.get<CashfreeConfig>('cashfree')!;
   }
 }
 

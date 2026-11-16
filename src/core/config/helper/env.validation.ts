@@ -5,6 +5,7 @@ import { DatabaseConfig } from '../namespaces/database.config';
 import { JwtConfig } from '../namespaces/jwt.config';
 import { StorageConfig } from '../namespaces/storage.config';
 import { MapsConfig } from '../namespaces/maps.config';
+import { CashfreeConfig } from '../namespaces/cashfree.config';
 
 /**
  * Unified environment validation using all config classes.
@@ -21,4 +22,5 @@ export const validateEnv = validateEnvironment([
   JwtConfig,
   StorageConfig,
   MapsConfig,
+  CashfreeConfig,
 ]);
