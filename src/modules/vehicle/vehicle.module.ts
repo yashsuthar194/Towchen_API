@@ -4,9 +4,10 @@ import { VehicleService } from './vehicle.service';
 import { PrismaModule } from '../../core/prisma/prisma.module';
 import { StorageModule } from 'src/services/storage/storage.module';
 import { JwtModule } from 'src/services/jwt/jwt.module';
+import { CashfreeModule } from 'src/services/cashfree/cashfree.module';
 
 @Module({
-  imports: [PrismaModule, StorageModule, JwtModule],
+  imports: [PrismaModule, StorageModule, JwtModule, CashfreeModule],
   controllers: [VehicleController],
   providers: [VehicleService],
   exports: [VehicleService],

@@ -39,6 +39,7 @@ import { ConsentModule } from './modules/consent/consent.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { AdminPackageOrderModule } from './modules/admin-package-order/admin-package-order.module';
 import { DisputeModule } from './modules/dispute/dispute.module';
+import { CashfreeModule } from './services/cashfree/cashfree.module';
 @Module({
   imports: [
     ScheduleModule.forRoot(), // Global scheduler — must be here, not in feature modules
@@ -79,6 +80,7 @@ import { DisputeModule } from './modules/dispute/dispute.module';
     ContactModule,
     AdminPackageOrderModule,
     DisputeModule,
+    CashfreeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

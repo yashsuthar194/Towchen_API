@@ -24,7 +24,12 @@ import {
   ApiBearerAuth,
   ApiTags,
   ApiQuery,
+  ApiOperation,
 } from '@nestjs/swagger';
+import { CashfreeService } from 'src/services/cashfree/cashfree.service';
+import { VerifyVehicleRcDto } from 'src/services/cashfree/dto/verify-vehicle-rc.dto';
+import { CashfreeVehicleRcResponseDto } from 'src/services/cashfree/dto/cashfree-rc-response.dto';
+import { ICashfreeVehicleRcResponse } from 'src/services/cashfree/interfaces/cashfree-rc-response.interface';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 import { AdminOrVendorGuard } from 'src/services/jwt/guards/admin-or-vendor.guard';
@@ -54,13 +59,47 @@ import {
   ResponseDto,
   VehicleListDto,
   VehicleDetailDto,
+  VerifyVehicleRcDto,
+  CashfreeVehicleRcResponseDto,
 )
 @Controller('vehicle')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 @ApiTags('Vehicle')
 export class VehicleController {
-  constructor(private readonly _vehicleService: VehicleService, private readonly _callerService: CallerService) { }
+  constructor(
+    private readonly _vehicleService: VehicleService,
+    private readonly _callerService: CallerService,
+    private readonly _cashfreeService: CashfreeService,
+  ) { }
+
+  // #region Verification
+  /**
+   * Verify vehicle RC details from Cashfree
+   * @param dto VerifyVehicleRcDto
+   */
+  @UseGuards(AdminOrVendorGuard)
+  @Post('verify-rc')
+  @ApiOperation({ summary: 'Verify vehicle RC and fetch details from Cashfree' })
+  @ApiResponseDto(CashfreeVehicleRcResponseDto)
+  async verifyRc(
+    @Body() dto: VerifyVehicleRcDto,
+  ): Promise<ResponseDto<ICashfreeVehicleRcResponse>> {
+    const data = await this._cashfreeService.getVehicleRcDetails(dto);
+    return ResponseDto.retrieved('Vehicle RC details retrieved successfully', data);
+  }
+
+  /**
+   * Get Vehicle RC daily API usage and remaining quota
+   */
+  @UseGuards(AdminOrVendorGuard)
+  @Get('rc-usage')
+  @ApiOperation({ summary: 'Get Vehicle RC daily API usage and remaining quota' })
+  async getRcUsage(): Promise<ResponseDto<any>> {
+    const usage = await this._cashfreeService.getRcUsage();
+    return ResponseDto.retrieved('Vehicle RC usage retrieved successfully', usage);
+  }
+  // #endregion
 
   // #region Create
   /**
