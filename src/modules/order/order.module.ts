@@ -3,6 +3,8 @@ import { OrderService } from './order.service';
 import { OrderController } from './order.controller';
 import { DriverOrderController } from './driver-order.controller';
 import { OrderV2Controller } from './order-v2.controller';
+import { AdminOrderController } from './admin-order.controller';
+import { VendorOrderController } from './vendor-order.controller';
 import { ScheduledOrderService } from './scheduled-order.service';
 import { ScheduledOrderProcessorService } from './scheduled-order-processor.service';
 import { OrderNotificationService } from './order-notification.service';
@@ -33,7 +35,13 @@ import { DispatchModule } from '../dispatch/dispatch.module';
     VehicleClassMappingModule,
     DispatchModule, // Phase 4 — provides DispatchService.rankVendorsByProximityAsync
   ],
-  controllers: [OrderController, OrderV2Controller, DriverOrderController],
+  controllers: [
+    OrderController,
+    OrderV2Controller,
+    DriverOrderController,
+    AdminOrderController,
+    VendorOrderController,
+  ],
   providers: [
     OrderService,
     ScheduledOrderService,

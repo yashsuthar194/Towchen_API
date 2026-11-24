@@ -14,12 +14,19 @@ import {
   LocationType,
   OrderOtpType,
   TransactionType,
+  Prisma,
 } from '@prisma/client';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { WalletService } from '../wallet/wallet.service';
 import { OrderNotificationService } from './order-notification.service';
 import { OrderCreationService } from './order-creation.service';
 import { StorageService } from 'src/services/storage/storage.service';
+import { AdminOrderFilterDto } from './dto/admin-order-filter.dto';
+import { VendorOrderFilterDto } from './dto/vendor-order-filter.dto';
+import {
+  PaginatedOrderListResponseDto,
+  OrderListItemDto,
+} from './dto/order-list-response.dto';
 
 @Injectable()
 export class OrderService {
@@ -837,5 +844,464 @@ export class OrderService {
       order.driver.total_reviews = totReviews;
       order.driver.total_stars = Math.round(avgRating * totReviews);
     }
+  }
+
+  // ─── Admin & Vendor Order List Query Methods ─────────────────────────────
+
+  /**
+   * Admin order list with full filter options and pagination.
+   */
+  async getAdminOrderListAsync(
+    filter: AdminOrderFilterDto,
+  ): Promise<PaginatedOrderListResponseDto> {
+    const page = Math.max(1, Number(filter.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(filter.limit) || 30));
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.orderWhereInput = {};
+
+    // 1. Status Filter (Single Value)
+    if (filter.status) {
+      where.status = filter.status;
+    }
+
+    // 2. Type Filter (Single Value)
+    if (filter.type) {
+      where.type = filter.type;
+    }
+
+    // 3. Entity Foreign Key Filters
+    if (filter.vendor_id) where.vendor_id = filter.vendor_id;
+    if (filter.driver_id) where.driver_id = filter.driver_id;
+    if (filter.customer_id) where.customer_id = filter.customer_id;
+    if (filter.vehicle_id) where.vehicle_id = filter.vehicle_id;
+    if (filter.service_id) where.service_id = filter.service_id;
+    if (filter.sub_service_id) where.sub_service_id = filter.sub_service_id;
+
+    // 4. Date Range Filter
+    if (filter.start_date || filter.end_date) {
+      const dateField = filter.date_filter_by || 'created_at';
+      where[dateField] = {};
+      if (filter.start_date) {
+        const start = new Date(filter.start_date);
+        if (!isNaN(start.getTime())) (where[dateField] as any).gte = start;
+      }
+      if (filter.end_date) {
+        const end = new Date(filter.end_date);
+        if (!isNaN(end.getTime())) (where[dateField] as any).lte = end;
+      }
+    }
+
+    // 5. Location Geographic Filter (Breakdown or Dropoff)
+    const locationConditions: any = {};
+    if (filter.city?.trim()) {
+      locationConditions.city = { contains: filter.city.trim(), mode: 'insensitive' };
+    }
+    if (filter.state?.trim()) {
+      locationConditions.state = { contains: filter.state.trim(), mode: 'insensitive' };
+    }
+    if (filter.pincode?.trim()) {
+      locationConditions.pincode = { contains: filter.pincode.trim(), mode: 'insensitive' };
+    }
+    if (Object.keys(locationConditions).length > 0) {
+      where.locations = { some: locationConditions };
+    }
+
+    // 6. Financial Amount Range Filter
+    if (filter.min_amount !== undefined || filter.max_amount !== undefined) {
+      where.final_amount = {};
+      if (filter.min_amount !== undefined) (where.final_amount as any).gte = filter.min_amount;
+      if (filter.max_amount !== undefined) (where.final_amount as any).lte = filter.max_amount;
+    }
+
+    // 7. Dispute and Voucher Filters
+    if (filter.has_dispute !== undefined) {
+      where.disputes = filter.has_dispute ? { some: {} } : { none: {} };
+    }
+    if (filter.has_voucher !== undefined) {
+      where.applied_voucher_id = filter.has_voucher ? { not: null } : null;
+    }
+
+    // 8. Search Filters (Order ID, Vehicle Number, Customer, Driver, Location)
+    const searchConditions = this._buildSearchFilter(filter.search, true);
+    if (searchConditions.length > 0) {
+      where.AND = [
+        ...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []),
+        ...searchConditions,
+      ];
+    }
+
+    // 9. Sorting (Default latest order by ID)
+    const orderBy: Prisma.orderOrderByWithRelationInput = { id: 'desc' };
+
+    const [total, orders] = await Promise.all([
+      this._prisma.order.count({ where }),
+      this._prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: this._buildOrderListInclude(),
+      }),
+    ]);
+
+    return {
+      items: orders.map((order) => this._formatOrderListItem(order)),
+      pagination: {
+        page,
+        limit,
+        total,
+        total_pages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  /**
+   * Vendor order list strictly scoped to the authenticated vendor ID.
+   */
+  async getVendorOrderListAsync(
+    vendorId: number,
+    filter: VendorOrderFilterDto,
+  ): Promise<PaginatedOrderListResponseDto> {
+    const page = Math.max(1, Number(filter.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(filter.limit) || 30));
+    const skip = (page - 1) * limit;
+
+    // Strict vendor tenancy constraint
+    const where: Prisma.orderWhereInput = {
+      vendor_id: vendorId,
+    };
+
+    // 1. Status Filter (Single Value)
+    if (filter.status) {
+      where.status = filter.status;
+    }
+
+    // 2. Type Filter (Single Value)
+    if (filter.type) {
+      where.type = filter.type;
+    }
+
+    // 3. Assigned Driver / Vehicle / Service Filters
+    if (filter.driver_id) where.driver_id = filter.driver_id;
+    if (filter.vehicle_id) where.vehicle_id = filter.vehicle_id;
+    if (filter.service_id) where.service_id = filter.service_id;
+    if (filter.sub_service_id) where.sub_service_id = filter.sub_service_id;
+
+    // 4. Date Range Filter
+    if (filter.start_date || filter.end_date) {
+      const dateField = filter.date_filter_by || 'created_at';
+      where[dateField] = {};
+      if (filter.start_date) {
+        const start = new Date(filter.start_date);
+        if (!isNaN(start.getTime())) (where[dateField] as any).gte = start;
+      }
+      if (filter.end_date) {
+        const end = new Date(filter.end_date);
+        if (!isNaN(end.getTime())) (where[dateField] as any).lte = end;
+      }
+    }
+
+    // 5. Location Geographic Filter
+    const locationConditions: any = {};
+    if (filter.city?.trim()) {
+      locationConditions.city = { contains: filter.city.trim(), mode: 'insensitive' };
+    }
+    if (filter.state?.trim()) {
+      locationConditions.state = { contains: filter.state.trim(), mode: 'insensitive' };
+    }
+    if (filter.pincode?.trim()) {
+      locationConditions.pincode = { contains: filter.pincode.trim(), mode: 'insensitive' };
+    }
+    if (Object.keys(locationConditions).length > 0) {
+      where.locations = { some: locationConditions };
+    }
+
+    // 6. Dispute Filter
+    if (filter.has_dispute !== undefined) {
+      where.disputes = filter.has_dispute ? { some: {} } : { none: {} };
+    }
+
+    // 7. Financial Amount Range Filter
+    if (filter.min_amount !== undefined || filter.max_amount !== undefined) {
+      where.final_amount = {};
+      if (filter.min_amount !== undefined) (where.final_amount as any).gte = filter.min_amount;
+      if (filter.max_amount !== undefined) (where.final_amount as any).lte = filter.max_amount;
+    }
+
+    // 8. Search Filter (Single search key: Order ID, Vehicle Number, Customer, Driver, Location)
+    const searchConditions = this._buildSearchFilter(filter.search, false);
+    if (searchConditions.length > 0) {
+      where.AND = [
+        ...(where.AND ? (Array.isArray(where.AND) ? where.AND : [where.AND]) : []),
+        ...searchConditions,
+      ];
+    }
+
+    // 9. Sorting (Default latest order by ID)
+    const orderBy: Prisma.orderOrderByWithRelationInput = { id: 'desc' };
+
+    const [total, orders] = await Promise.all([
+      this._prisma.order.count({ where }),
+      this._prisma.order.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: this._buildOrderListInclude(),
+      }),
+    ]);
+
+    return {
+      items: orders.map((order) => this._formatOrderListItem(order)),
+      pagination: {
+        page,
+        limit,
+        total,
+        total_pages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  /**
+   * Builds unified search conditions across Order ID, Vehicle Number, Customer, Driver, Location, etc.
+   * Single search key handles:
+   * - Order ID: formatted ID (e.g. "ORD-10023") and numeric ID (e.g. 10023)
+   * - Customer Vehicle: registration number (with or without spaces e.g. "MH 01 AB 1234" / "MH01AB1234"), make, model, class
+   * - Assigned Towing Vehicle: registration number (with/without spaces), make, model
+   * - Customer: full name, mobile number, email
+   * - Driver: driver name, mobile number
+   * - Vendor: vendor name, organization name, mobile number (when includeVendor = true)
+   * - Locations: address, street, area, landmark, city, state, pincode
+   */
+  private _buildSearchFilter(
+    search?: string,
+    includeVendor = false,
+  ): Prisma.orderWhereInput[] {
+    if (!search?.trim()) return [];
+    const term = search.trim();
+    const compactTerm = term.replace(/\s+/g, '');
+    const numId = Number(term);
+    const isIntegerId = !isNaN(numId) && Number.isInteger(numId) && numId > 0;
+
+    const orConditions: Prisma.orderWhereInput[] = [
+      // 1. Order ID (formatted ID e.g. "ORD-10023", and numeric integer ID e.g. 10023)
+      { formated_id: { contains: term, mode: 'insensitive' } },
+      ...(isIntegerId ? [{ id: numId }] : []),
+
+      // 2. Customer Vehicle: registration number (with or without spaces), make, model, class
+      { customer_vehicle: { registration_number: { contains: term, mode: 'insensitive' } } },
+      ...(compactTerm !== term
+        ? [{ customer_vehicle: { registration_number: { contains: compactTerm, mode: 'insensitive' as Prisma.QueryMode } } }]
+        : []),
+      { customer_vehicle: { make: { contains: term, mode: 'insensitive' } } },
+      { customer_vehicle: { model: { contains: term, mode: 'insensitive' } } },
+      { customer_vehicle: { class: { contains: term, mode: 'insensitive' } } },
+
+      // 3. Assigned Towing Fleet Vehicle: registration number (with/without spaces), make, model
+      { vehicle: { registration_number: { contains: term, mode: 'insensitive' } } },
+      ...(compactTerm !== term
+        ? [{ vehicle: { registration_number: { contains: compactTerm, mode: 'insensitive' as Prisma.QueryMode } } }]
+        : []),
+      { vehicle: { make: { contains: term, mode: 'insensitive' } } },
+      { vehicle: { model: { contains: term, mode: 'insensitive' } } },
+
+      // 4. Customer Details (name, phone, email)
+      { customer: { full_name: { contains: term, mode: 'insensitive' } } },
+      { customer: { number: { contains: term, mode: 'insensitive' } } },
+      { customer: { email: { contains: term, mode: 'insensitive' } } },
+
+      // 5. Driver Details (name, phone)
+      { driver: { driver_name: { contains: term, mode: 'insensitive' } } },
+      { driver: { mobile_number: { contains: term, mode: 'insensitive' } } },
+
+      // 6. Location (breakdown or dropoff address, street, area, landmark, city, state, pincode)
+      { locations: { some: { address: { contains: term, mode: 'insensitive' } } } },
+      { locations: { some: { street: { contains: term, mode: 'insensitive' } } } },
+      { locations: { some: { area: { contains: term, mode: 'insensitive' } } } },
+      { locations: { some: { landmark: { contains: term, mode: 'insensitive' } } } },
+      { locations: { some: { city: { contains: term, mode: 'insensitive' } } } },
+      { locations: { some: { state: { contains: term, mode: 'insensitive' } } } },
+      { locations: { some: { pincode: { contains: term, mode: 'insensitive' } } } },
+    ];
+
+    if (includeVendor) {
+      orConditions.push(
+        { vendor: { vendor_name: { contains: term, mode: 'insensitive' } } },
+        { vendor: { organization_name: { contains: term, mode: 'insensitive' } } },
+        { vendor: { mobile_number: { contains: term, mode: 'insensitive' } } },
+      );
+    }
+
+    return [{ OR: orConditions }];
+  }
+
+  /**
+   * Helper that returns full Prisma include configuration for Order list queries.
+   */
+  private _buildOrderListInclude() {
+    return {
+      customer: {
+        select: {
+          id: true,
+          formated_id: true,
+          full_name: true,
+          number: true,
+          email: true,
+          average_rating: true,
+        },
+      },
+      customer_vehicle: {
+        select: {
+          id: true,
+          make: true,
+          model: true,
+          registration_number: true,
+          class: true,
+          fuel_type: true,
+          vehicle_type: true,
+        },
+      },
+      vendor: {
+        select: {
+          id: true,
+          formated_id: true,
+          vendor_name: true,
+          organization_name: true,
+          mobile_number: true,
+          email: true,
+        },
+      },
+      driver: {
+        select: {
+          id: true,
+          formated_id: true,
+          driver_name: true,
+          mobile_number: true,
+          email: true,
+          driver_image_url: true,
+        },
+      },
+      vehicle: {
+        select: {
+          id: true,
+          registration_number: true,
+          make: true,
+          model: true,
+          fleet_type: true,
+        },
+      },
+      service: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      sub_service: {
+        select: {
+          id: true,
+          name: true,
+          journey_type: true,
+        },
+      },
+      locations: {
+        select: {
+          id: true,
+          type: true,
+          address: true,
+          street: true,
+          area: true,
+          city: true,
+          state: true,
+          pincode: true,
+          latitude: true,
+          longitude: true,
+          landmark: true,
+          place_id: true,
+          contact_name: true,
+          contact_number: true,
+        },
+      },
+      voucher: {
+        select: {
+          id: true,
+          code: true,
+          discount_percent: true,
+        },
+      },
+      disputes: {
+        select: {
+          id: true,
+          status: true,
+          reason: true,
+        },
+      },
+    };
+  }
+
+  /**
+   * Helper to format Prisma order result into OrderListItemDto.
+   */
+  private _formatOrderListItem(order: any): OrderListItemDto {
+    const locations = (order.locations || []).map((loc: any) => ({
+      id: loc.id,
+      type: loc.type,
+      address: loc.address,
+      street: loc.street,
+      area: loc.area,
+      city: loc.city,
+      state: loc.state,
+      pincode: loc.pincode,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      landmark: loc.landmark,
+      place_id: loc.place_id,
+      contact_name: loc.contact_name,
+      contact_number: loc.contact_number,
+    }));
+
+    const breakdownLocation =
+      locations.find((l: any) => l.type === LocationType.Breakdown) || null;
+    const dropoffLocation =
+      locations.find((l: any) => l.type === LocationType.Drop) || null;
+
+    const jobCardType = order.is_physical_vcrf_for_pickup ? 'VCRF' : 'EVCRF';
+    const hasDispute = Boolean(order.disputes && order.disputes.length > 0);
+
+    return {
+      id: order.id,
+      formated_id: order.formated_id,
+      status: order.status,
+      type: order.type,
+      fleet_type: order.fleet_type,
+      customer_id: order.customer_id,
+      vendor_id: order.vendor_id,
+      driver_id: order.driver_id,
+      vehicle_id: order.vehicle_id,
+      service_id: order.service_id,
+      sub_service_id: order.sub_service_id,
+      final_amount: order.final_amount,
+      discount_amount: order.discount_amount ?? 0,
+      applied_voucher_code: order.voucher?.code || null,
+      created_at: order.created_at,
+      updated_at: order.updated_at,
+      assign_time: order.assign_time,
+      start_time: order.start_time,
+      completion_time: order.completion_time,
+      remarks: order.remarks,
+      cancel_reason: order.cancel_reason,
+      job_card_type: jobCardType,
+      has_dispute: hasDispute,
+      customer: order.customer || null,
+      customer_vehicle: order.customer_vehicle || null,
+      vendor: order.vendor || null,
+      driver: order.driver || null,
+      vehicle: order.vehicle || null,
+      service: order.service,
+      sub_service: order.sub_service || null,
+      breakdown_location: breakdownLocation,
+      dropoff_location: dropoffLocation,
+      locations,
+    };
   }
 }

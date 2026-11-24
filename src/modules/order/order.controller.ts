@@ -6,13 +6,20 @@ import {
   Param,
   ParseIntPipe,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderListDto } from './dto/order-list.dto';
 import { OrderDetailDto, OrderOtpDetailDto } from './dto/order-detail.dto';
+import { AdminOrderFilterDto } from './dto/admin-order-filter.dto';
+import { VendorOrderFilterDto } from './dto/vendor-order-filter.dto';
+import { PaginatedOrderListResponseDto } from './dto/order-list-response.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
+import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
+import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
+import { CallerService } from 'src/services/jwt/caller.service';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 
@@ -25,7 +32,48 @@ import { ResponseDto } from 'src/core/response/dto/response.dto';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class OrderController {
-  constructor(private readonly _orderService: OrderService) {}
+  constructor(
+    private readonly _orderService: OrderService,
+    private readonly _callerService: CallerService,
+  ) {}
+
+  /**
+   * Filtered & paginated order list for Admin.
+   * Accessible via POST /order/admin/list
+   */
+  @Post('admin/list')
+  @UseGuards(AdminGuard)
+  @ApiOperation({
+    summary: 'Get paginated list of orders with filters (Admin only)',
+    description: 'Filterable order list for Admin dashboard with status, date, vendor, customer, search, and pagination.',
+  })
+  @ApiResponseDto(PaginatedOrderListResponseDto, false, 200)
+  async adminList(
+    @Body() filterDto: AdminOrderFilterDto,
+  ): Promise<ResponseDto<PaginatedOrderListResponseDto>> {
+    const orders = await this._orderService.getAdminOrderListAsync(filterDto);
+    return ResponseDto.retrieved('Orders fetched successfully', orders);
+  }
+
+  /**
+   * Filtered & paginated order list for Vendor.
+   * Accessible via POST /order/vendor/list
+   */
+  @Post('vendor/list')
+  @UseGuards(VendorGuard)
+  @ApiOperation({
+    summary: 'Get paginated list of vendor orders with filters (Vendor only)',
+    description: 'Filterable order list for Vendor portal automatically scoped to the logged-in vendor.',
+  })
+  @ApiResponseDto(PaginatedOrderListResponseDto, false, 200)
+  async vendorList(
+    @Req() req: any,
+    @Body() filterDto: VendorOrderFilterDto,
+  ): Promise<ResponseDto<PaginatedOrderListResponseDto>> {
+    const vendorId = req.user?.id || this._callerService.getUserId();
+    const orders = await this._orderService.getVendorOrderListAsync(vendorId, filterDto);
+    return ResponseDto.retrieved('Vendor orders fetched successfully', orders);
+  }
 
   /**
    * Step 1: Create a new order with breakdown and drop locations.
