@@ -36,7 +36,7 @@ export class ServiceService {
   }
 
   /**
-   * Fetches all active services including their active sub-services.
+   * Fetches all active services including their active sub-services and conditions.
    */
   async findAllWithSubServicesAsync(): Promise<any[]> {
     return await this._prisma.service.findMany({
@@ -44,6 +44,9 @@ export class ServiceService {
       include: {
         sub_services: {
           where: { is_active: true },
+          include: {
+            conditions: true,
+          },
           orderBy: { id: 'asc' },
         },
       },

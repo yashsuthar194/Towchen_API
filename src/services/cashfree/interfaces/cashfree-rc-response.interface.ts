@@ -27,6 +27,9 @@ export interface ICashfreeVehicleRcResponse {
   pucc_upto?: string;
   pucc_no?: string;
   message?: string;
+  is_commercial?: boolean;
+  commercial_reason?: string;
+  vehicle_class_type?: 'COMMERCIAL' | 'PRIVATE' | string;
   [key: string]: any;
 }
 

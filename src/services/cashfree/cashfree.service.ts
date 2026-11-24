@@ -141,7 +141,19 @@ export class CashfreeService {
       this.logger.log(
         `Vehicle RC details for ${vehicleNumber} served from daily cache (avoiding duplicate external Cashfree API hit)`,
       );
-      return check.cachedData;
+      const cached = check.cachedData as any;
+      const commercialCheck = this.checkCommercialVehicle(cached);
+      cached.is_commercial = commercialCheck.isCommercial;
+      cached.vehicle_class_type = commercialCheck.isCommercial ? 'COMMERCIAL' : 'PRIVATE';
+      if (commercialCheck.isCommercial) {
+        cached.commercial_reason = commercialCheck.reason;
+        if (dto.reject_commercial) {
+          throw new BadRequestException(
+            `This vehicle is registered as a commercial vehicle (${commercialCheck.reason}). Only private/non-commercial vehicles are eligible, so auto-prefilling is disabled.`,
+          );
+        }
+      }
+      return cached;
     }
 
     if (!check.allowed) {
@@ -292,6 +304,14 @@ export class CashfreeService {
       );
     }
 
+    // Evaluate commercial vehicle status
+    const commercialCheck = this.checkCommercialVehicle(responseData);
+    responseData.is_commercial = commercialCheck.isCommercial;
+    responseData.vehicle_class_type = commercialCheck.isCommercial ? 'COMMERCIAL' : 'PRIVATE';
+    if (commercialCheck.isCommercial) {
+      responseData.commercial_reason = commercialCheck.reason;
+    }
+
     // Record success and cache result
     await this.rateLimiter.recordHit({
       vehicleNumber,
@@ -302,6 +322,77 @@ export class CashfreeService {
       data: responseData as ICashfreeVehicleRcResponse,
     });
 
+    if (dto.reject_commercial && commercialCheck.isCommercial) {
+      throw new BadRequestException(
+        `This vehicle is registered as a commercial vehicle (${commercialCheck.reason}). Only private/non-commercial vehicles are eligible, so auto-prefilling is disabled.`,
+      );
+    }
+
     return responseData as ICashfreeVehicleRcResponse;
+  }
+
+  /**
+   * Identifies whether a vehicle from Cashfree/VAHAN RC response is classified as commercial/transport.
+   */
+  checkCommercialVehicle(data: any): { isCommercial: boolean; reason?: string } {
+    if (!data) return { isCommercial: false };
+
+    // Explicit flag if provided by gateway
+    if (data.commercial === true || data.is_commercial === true) {
+      return { isCommercial: true, reason: 'Flagged as commercial by vehicle registry' };
+    }
+
+    // In India (VAHAN), vehicle_category/category is either "TRANSPORT" (commercial) or "NON-TRANSPORT" (private)
+    const category = String(data.vehicle_category || data.category || '').toUpperCase().trim();
+    if (category === 'TRANSPORT' || (category.includes('COMMERCIAL') && !category.includes('NON-COMMERCIAL'))) {
+      return { isCommercial: true, reason: `Vehicle category is ${category}` };
+    }
+
+    const vehicleClass = String(data.class || data.vehicle_class || '').toUpperCase().trim();
+    const vehicleType = String(data.type || data.body_type || '').toUpperCase().trim();
+    const combinedText = `${vehicleClass} ${vehicleType}`;
+
+    const commercialKeywords = [
+      'GOODS CARRIER',
+      'GOODS VEHICLE',
+      'LIGHT GOODS',
+      'MEDIUM GOODS',
+      'HEAVY GOODS',
+      'LGV',
+      'HGV',
+      'MGV',
+      'LCV',
+      'MAXI CAB',
+      'MOTOR CAB',
+      'TAXI',
+      'CAB',
+      'TOURIST',
+      'STAGE CARRIAGE',
+      'CONTRACT CARRIAGE',
+      'OMNIBUS',
+      'BUS',
+      'AMBULANCE',
+      'COMMERCIAL',
+      'PUBLIC SERVICE',
+      'TRAILER',
+      'DUMPER',
+      'TIPPER',
+      'TANKER',
+      'AUTO RICKSHAW',
+      'E-RICKSHAW',
+      'THREE WHEELER',
+      '3-WHEELER',
+      'TRACTOR',
+      'DELIVERY VAN',
+      'LOAD CARRIER',
+    ];
+
+    for (const kw of commercialKeywords) {
+      if (combinedText.includes(kw)) {
+        return { isCommercial: true, reason: `Vehicle class: "${data.class || data.type || kw}"` };
+      }
+    }
+
+    return { isCommercial: false };
   }
 }

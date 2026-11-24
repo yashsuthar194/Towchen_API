@@ -84,5 +84,14 @@ export class CashfreeVehicleRcResponseDto {
 
   @ApiPropertyOptional({ description: 'Optional message from Cashfree' })
   message?: string;
+
+  @ApiPropertyOptional({ description: 'Indicates whether the vehicle is commercial / transport class', example: false })
+  is_commercial?: boolean;
+
+  @ApiPropertyOptional({ description: 'Reason or matched class why the vehicle was flagged as commercial' })
+  commercial_reason?: string;
+
+  @ApiPropertyOptional({ description: 'Classification category: COMMERCIAL or PRIVATE', example: 'PRIVATE' })
+  vehicle_class_type?: string;
 }
 

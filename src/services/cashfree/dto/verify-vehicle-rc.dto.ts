@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export class VerifyVehicleRcDto {
@@ -32,5 +32,14 @@ export class VerifyVehicleRcDto {
   @Type(() => Number)
   @IsInt({ message: 'dealer_id must be an integer' })
   dealer_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'If true, throws a BadRequestException if the vehicle is identified as commercial / transport',
+    example: true,
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === 1 || value === '1')
+  @IsBoolean()
+  reject_commercial?: boolean;
 }
 
