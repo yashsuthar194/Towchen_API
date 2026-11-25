@@ -3,19 +3,25 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-valida
 import { Type } from 'class-transformer';
 
 export class ReassignOrderDriverDto {
-  @ApiProperty({ example: 5, description: 'ID of the vendor' })
-  @Type(() => Number)
-  @IsInt()
-  @IsNotEmpty()
-  vendor_id: number;
-
-  @ApiProperty({ example: 12, description: 'ID of the newly assigned driver' })
+  @ApiProperty({ example: 12, description: 'ID of the newly assigned driver (mandatory)' })
   @Type(() => Number)
   @IsInt()
   @IsNotEmpty()
   driver_id: number;
 
-  @ApiPropertyOptional({ example: 8, description: 'ID of the assigned towing fleet vehicle (optional)' })
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'ID of the vendor (optional - automatically resolved from the assigned driver if omitted)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  vendor_id?: number;
+
+  @ApiPropertyOptional({
+    example: 8,
+    description: 'ID of the towing fleet vehicle (optional - automatically resolved from driver.vehicle_id if omitted)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

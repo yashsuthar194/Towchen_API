@@ -628,7 +628,8 @@ export class AdminPackageOrderService {
       throw new NotFoundException(`Driver #${dto.driver_id} was not found or is inactive.`);
     }
 
-    if (driver.vendor_id !== dto.vendor_id) {
+    const vendorId = dto.vendor_id || driver.vendor_id;
+    if (dto.vendor_id && driver.vendor_id !== dto.vendor_id) {
       throw new BadRequestException(
         `Driver #${dto.driver_id} does not belong to Vendor #${dto.vendor_id}.`,
       );
@@ -648,10 +649,11 @@ export class AdminPackageOrderService {
       );
     }
 
+    // Automatically resolve vehicle from driver's assigned vehicle if not explicitly supplied
     let vehicleId = dto.vehicle_id || driver.vehicle_id || driver.vehicle?.id || null;
     if (!vehicleId) {
       const vendorVehicle = await this.prisma.vehicle.findFirst({
-        where: { vendor_id: dto.vendor_id },
+        where: { vendor_id: vendorId },
         select: { id: true },
       });
       if (vendorVehicle) vehicleId = vendorVehicle.id;
@@ -664,7 +666,7 @@ export class AdminPackageOrderService {
     const updated = await this.prisma.admin_package_order.update({
       where: { id },
       data: {
-        vendor_id: dto.vendor_id,
+        vendor_id: vendorId,
         driver_id: dto.driver_id,
         assigned_vehicle_id: vehicleId,
         assign_time: new Date(),
