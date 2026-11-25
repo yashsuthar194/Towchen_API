@@ -52,11 +52,13 @@ export class AdminPackageOrderController {
   @UseInterceptors(AnyFilesInterceptor())
   @ApiOperation({
     summary:
-      'Create an order for a dealer customer package (Admin Dashboard Form with multi-image upload)',
+      'Create a scheduled order for a dealer customer package (Admin Dashboard Form with multi-image upload)',
     description:
-      'Validates active package, verifies available incidents (incidents_used < incidents_allowed), ' +
-      'atomically deducts one incident, validates journey type (FourWay drop location mandatory), ' +
-      'uploads multiple vehicle condition images, and creates the order.',
+      'Creates a scheduled package order with upfront driver & vendor auto-assignment.\n\n' +
+      '• `activation_time` is mandatory and must be at least 2 hours in advance.\n' +
+      '• Validates active package contract and atomically reserves package incidents.\n' +
+      '• Assigns driver & vendor immediately before moving the order into Scheduled status.\n' +
+      '• Uploads multiple intake/condition photos.',
   })
   @ApiResponseDto(AdminPackageOrderResponseDto, false, 201)
   async create(

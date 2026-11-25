@@ -72,22 +72,12 @@ export class CreateAdminPackageOrderDto {
   extra_services?: string[];
 
   @ApiProperty({
-    enum: DispatchType,
-    example: DispatchType.Current,
-    description: 'Dispatch type: Current (immediate) or ScheduledLater',
-  })
-  @IsEnum(DispatchType)
-  @IsNotEmpty()
-  dispatch_type: DispatchType;
-
-  @ApiPropertyOptional({
     example: '2026-10-25T10:00:00.000Z',
-    description: 'Scheduled activation time (mandatory if dispatch_type is ScheduledLater)',
+    description: 'Scheduled activation time in ISO format (mandatory, must be at least 2 hours in the future)',
   })
-  @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsNotEmpty({ message: 'activation_time is required for scheduled orders' })
   @IsString()
-  activation_time?: string;
+  activation_time: string;
 
   @ApiPropertyOptional({
     example: '2026-10-25T11:30:00.000Z',

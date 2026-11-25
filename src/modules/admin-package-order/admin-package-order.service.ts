@@ -127,93 +127,86 @@ export class AdminPackageOrderService {
       }
     }
 
-    // 3. Validate Dispatch Type & Scheduled Boundaries
-    let parsedActivationTime: Date | null = null;
-    let initialStatus: OrderStatus = OrderStatus.New;
+    // 3. Validate Scheduled Activation Time (All package orders are strictly scheduled)
+    if (!dto.activation_time) {
+      throw new BadRequestException('Field activation_time is required.');
+    }
+    const parsedActivationTime = new Date(dto.activation_time);
+    if (isNaN(parsedActivationTime.getTime())) {
+      throw new BadRequestException('Invalid activation_time format.');
+    }
 
-    if (dto.dispatch_type === DispatchType.ScheduledLater) {
-      if (!dto.activation_time) {
+    // Minimum advance notice: 2 hours (120 minutes)
+    const minAllowedTime = Date.now() + MIN_SCHEDULE_ADVANCE_MINUTES * 60 * 1000;
+    if (parsedActivationTime.getTime() < minAllowedTime) {
+      throw new BadRequestException(
+        `Scheduled activation_time must be at least ${MIN_SCHEDULE_ADVANCE_MINUTES} minutes (2 hours) in the future.`,
+      );
+    }
+
+    // Cannot schedule beyond package expiration date
+    if (parsedActivationTime > new Date(packageOrder.expiry_date)) {
+      throw new BadRequestException(
+        `Cannot schedule order beyond package expiry date (${packageOrder.expiry_date.toISOString().split('T')[0]}).`,
+      );
+    }
+
+    const initialStatus: OrderStatus = OrderStatus.Scheduled;
+
+    // Upfront driver & vendor assignment for scheduled orders
+    if (dto.driver_id) {
+      const driver = await this.prisma.driver.findUnique({
+        where: { id: dto.driver_id },
+        include: { vendor: true },
+      });
+      if (!driver || driver.is_deleted) {
+        throw new NotFoundException(`Driver #${dto.driver_id} was not found or is inactive.`);
+      }
+      if (dto.vendor_id && driver.vendor_id !== dto.vendor_id) {
         throw new BadRequestException(
-          'Field activation_time is required when dispatch_type is ScheduledLater.',
+          `Driver #${dto.driver_id} does not belong to Vendor #${dto.vendor_id}.`,
         );
       }
-      parsedActivationTime = new Date(dto.activation_time);
-      if (isNaN(parsedActivationTime.getTime())) {
-        throw new BadRequestException('Invalid activation_time format.');
-      }
+      dto.vendor_id = driver.vendor_id;
+      dto.assigned_vehicle_id = (dto.assigned_vehicle_id || driver.vehicle_id) ?? undefined;
 
-      // Senior Developer Guard: Minimum advance notice
-      const minAllowedTime = Date.now() + MIN_SCHEDULE_ADVANCE_MINUTES * 60 * 1000;
-      if (parsedActivationTime.getTime() < minAllowedTime) {
+      const hasConflict = await this.dispatchService.hasDriverScheduleConflictAsync(
+        dto.driver_id,
+        parsedActivationTime,
+      );
+      if (hasConflict) {
         throw new BadRequestException(
-          `Scheduled activation_time must be at least ${MIN_SCHEDULE_ADVANCE_MINUTES} minutes (2 hours) in the future.`,
+          `Driver #${dto.driver_id} (${driver.driver_name}) is already assigned to another scheduled order or blackout window at that time.`,
         );
       }
+    } else {
+      // System auto-assignment
+      let pickupLat = dto.pickup_latitude;
+      let pickupLng = dto.pickup_longitude;
+      if ((!pickupLat || !pickupLng) && dto.pickup_place_id) {
+        const resolved = await this.mapsService.resolveAddressByPlaceIdAsync(
+          dto.pickup_place_id,
+        );
+        pickupLat = resolved.latitude;
+        pickupLng = resolved.longitude;
+      }
 
-      // Senior Developer Guard: Cannot schedule beyond package expiration date
-      if (parsedActivationTime > new Date(packageOrder.expiry_date)) {
+      if (!pickupLat || !pickupLng) {
         throw new BadRequestException(
-          `Cannot schedule order beyond package expiry date (${packageOrder.expiry_date.toISOString().split('T')[0]}).`,
+          'Pickup location coordinates or pickup_place_id are required to auto-assign a scheduled driver.',
         );
       }
 
-      initialStatus = OrderStatus.Scheduled;
+      const autoAssign = await this.dispatchService.autoAssignScheduledDriverAsync({
+        breakdownLat: pickupLat,
+        breakdownLng: pickupLng,
+        subServiceId: dto.sub_service_id,
+        scheduledAt: parsedActivationTime,
+      });
 
-      // Upfront driver & vendor assignment for scheduled orders (Senior Developer Flow)
-      if (dto.driver_id) {
-        const driver = await this.prisma.driver.findUnique({
-          where: { id: dto.driver_id },
-          include: { vendor: true },
-        });
-        if (!driver || driver.is_deleted) {
-          throw new NotFoundException(`Driver #${dto.driver_id} was not found or is inactive.`);
-        }
-        if (dto.vendor_id && driver.vendor_id !== dto.vendor_id) {
-          throw new BadRequestException(
-            `Driver #${dto.driver_id} does not belong to Vendor #${dto.vendor_id}.`,
-          );
-        }
-        dto.vendor_id = driver.vendor_id;
-        dto.assigned_vehicle_id = (dto.assigned_vehicle_id || driver.vehicle_id) ?? undefined;
-
-        const hasConflict = await this.dispatchService.hasDriverScheduleConflictAsync(
-          dto.driver_id,
-          parsedActivationTime,
-        );
-        if (hasConflict) {
-          throw new BadRequestException(
-            `Driver #${dto.driver_id} (${driver.driver_name}) is already assigned to another scheduled order or blackout window at that time.`,
-          );
-        }
-      } else {
-        // System auto-assignment
-        let pickupLat = dto.pickup_latitude;
-        let pickupLng = dto.pickup_longitude;
-        if ((!pickupLat || !pickupLng) && dto.pickup_place_id) {
-          const resolved = await this.mapsService.resolveAddressByPlaceIdAsync(
-            dto.pickup_place_id,
-          );
-          pickupLat = resolved.latitude;
-          pickupLng = resolved.longitude;
-        }
-
-        if (!pickupLat || !pickupLng) {
-          throw new BadRequestException(
-            'Pickup location coordinates or pickup_place_id are required to auto-assign a scheduled driver.',
-          );
-        }
-
-        const autoAssign = await this.dispatchService.autoAssignScheduledDriverAsync({
-          breakdownLat: pickupLat,
-          breakdownLng: pickupLng,
-          subServiceId: dto.sub_service_id,
-          scheduledAt: parsedActivationTime,
-        });
-
-        dto.vendor_id = autoAssign.vendorId;
-        dto.driver_id = autoAssign.driverId;
-        dto.assigned_vehicle_id = (dto.assigned_vehicle_id || autoAssign.vehicleId) ?? undefined;
-      }
+      dto.vendor_id = autoAssign.vendorId;
+      dto.driver_id = autoAssign.driverId;
+      dto.assigned_vehicle_id = (dto.assigned_vehicle_id || autoAssign.vehicleId) ?? undefined;
     }
 
     let parsedEta: Date | null = null;
@@ -322,7 +315,7 @@ export class AdminPackageOrderService {
           formated_id: formatedId,
           order_type: dto.order_type,
           sub_service_id: dto.sub_service_id,
-          dispatch_type: dto.dispatch_type,
+          dispatch_type: DispatchType.ScheduledLater,
           activation_time: parsedActivationTime,
           eta: parsedEta,
           client_type: dto.client_type,

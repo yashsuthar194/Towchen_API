@@ -119,10 +119,14 @@ describe('AdminPackageOrderService - Unit Tests', () => {
       dealer: { id: 1, name: 'Tata Motors', is_deleted: false },
     };
 
+    const futureActivationTime = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString();
+
     const baseDto = {
       order_type: OrderType.Package,
       sub_service_id: 1,
-      dispatch_type: DispatchType.Current,
+      activation_time: futureActivationTime,
+      pickup_latitude: 19.076,
+      pickup_longitude: 72.877,
       client_type: ClientType.Dealer,
       client_id: 1,
       dealer_id: 1,
@@ -179,7 +183,8 @@ describe('AdminPackageOrderService - Unit Tests', () => {
       mockPrisma.admin_package_order.create.mockResolvedValue({
         id: 1,
         formated_id: 'APO0000001',
-        status: OrderStatus.New,
+        status: OrderStatus.Scheduled,
+        dispatch_type: DispatchType.ScheduledLater,
         extra_services: ['Cab', 'Hotel Accomodation'],
       });
 
@@ -207,7 +212,9 @@ describe('AdminPackageOrderService - Unit Tests', () => {
       const flutterFlowDto: any = {
         order_type: OrderType.Package,
         sub_service_id: 1,
-        dispatch_type: DispatchType.Current,
+        activation_time: futureActivationTime,
+        pickup_latitude: 19.076,
+        pickup_longitude: 72.877,
         client_type: ClientType.Dealer,
         client_id: 1,
         tp_membership_id: 10,
@@ -239,7 +246,8 @@ describe('AdminPackageOrderService - Unit Tests', () => {
         customer_name: 'Jainish Panchal',
         vehicle_reg_number: 'GJ01HA9667',
         remarks: 'Vehicle breakdown and tyre flat',
-        status: OrderStatus.New,
+        status: OrderStatus.Scheduled,
+        dispatch_type: DispatchType.ScheduledLater,
         extra_services: ['Cab'],
         images: [],
       });
@@ -252,6 +260,42 @@ describe('AdminPackageOrderService - Unit Tests', () => {
       expect(result.customer).toBe('Jainish Panchal');
       expect(result.vehicle_registration_number).toBe('GJ01HA9667');
       expect(result.vehicle_problem).toBe('Vehicle breakdown and tyre flat');
+    });
+
+    it('should throw BadRequestException if activation_time is missing', async () => {
+      mockPrisma.dealer_package_order.findUnique.mockResolvedValue(basePackage);
+      const dtoWithoutActivation = { ...baseDto, activation_time: undefined };
+
+      await expect(service.createOrderAsync(dtoWithoutActivation, [])).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException if activation_time is less than 2 hours in future', async () => {
+      mockPrisma.dealer_package_order.findUnique.mockResolvedValue(basePackage);
+      const dtoNearActivation = {
+        ...baseDto,
+        activation_time: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 minutes in future
+      };
+
+      await expect(service.createOrderAsync(dtoNearActivation, [])).rejects.toThrow(
+        'Scheduled activation_time must be at least 120 minutes (2 hours) in the future.',
+      );
+    });
+
+    it('should throw BadRequestException if activation_time is beyond package expiry date', async () => {
+      mockPrisma.dealer_package_order.findUnique.mockResolvedValue({
+        ...basePackage,
+        expiry_date: new Date(Date.now() + 4 * 60 * 60 * 1000), // expires in 4 hours
+      });
+      const dtoBeyondExpiry = {
+        ...baseDto,
+        activation_time: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(), // 5 hours in future
+      };
+
+      await expect(service.createOrderAsync(dtoBeyondExpiry, [])).rejects.toThrow(
+        /Cannot schedule order beyond package expiry date/,
+      );
     });
   });
 
