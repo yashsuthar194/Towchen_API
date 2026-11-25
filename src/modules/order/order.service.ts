@@ -882,16 +882,19 @@ export class OrderService {
     if (filter.sub_service_id) where.sub_service_id = filter.sub_service_id;
 
     // 4. Date Range Filter
-    if (filter.start_date || filter.end_date) {
+    if (filter.start_date?.trim() || filter.end_date?.trim()) {
       const dateField = filter.date_filter_by || 'created_at';
-      where[dateField] = {};
-      if (filter.start_date) {
-        const start = new Date(filter.start_date);
-        if (!isNaN(start.getTime())) (where[dateField] as any).gte = start;
+      const dateRange: Prisma.DateTimeFilter = {};
+      if (filter.start_date?.trim()) {
+        const start = new Date(filter.start_date.trim());
+        if (!isNaN(start.getTime())) dateRange.gte = start;
       }
-      if (filter.end_date) {
-        const end = new Date(filter.end_date);
-        if (!isNaN(end.getTime())) (where[dateField] as any).lte = end;
+      if (filter.end_date?.trim()) {
+        const end = new Date(filter.end_date.trim());
+        if (!isNaN(end.getTime())) dateRange.lte = end;
+      }
+      if (Object.keys(dateRange).length > 0) {
+        where[dateField] = dateRange;
       }
     }
 
@@ -911,17 +914,19 @@ export class OrderService {
     }
 
     // 6. Financial Amount Range Filter
-    if (filter.min_amount !== undefined || filter.max_amount !== undefined) {
+    const hasMinAmount = filter.min_amount !== undefined && filter.min_amount !== null;
+    const hasMaxAmount = filter.max_amount !== undefined && filter.max_amount !== null;
+    if (hasMinAmount || hasMaxAmount) {
       where.final_amount = {};
-      if (filter.min_amount !== undefined) (where.final_amount as any).gte = filter.min_amount;
-      if (filter.max_amount !== undefined) (where.final_amount as any).lte = filter.max_amount;
+      if (hasMinAmount) (where.final_amount as any).gte = filter.min_amount;
+      if (hasMaxAmount) (where.final_amount as any).lte = filter.max_amount;
     }
 
     // 7. Dispute and Voucher Filters
-    if (filter.has_dispute !== undefined) {
+    if (filter.has_dispute !== undefined && filter.has_dispute !== null) {
       where.disputes = filter.has_dispute ? { some: {} } : { none: {} };
     }
-    if (filter.has_voucher !== undefined) {
+    if (filter.has_voucher !== undefined && filter.has_voucher !== null) {
       where.applied_voucher_id = filter.has_voucher ? { not: null } : null;
     }
 
@@ -992,16 +997,19 @@ export class OrderService {
     if (filter.sub_service_id) where.sub_service_id = filter.sub_service_id;
 
     // 4. Date Range Filter
-    if (filter.start_date || filter.end_date) {
+    if (filter.start_date?.trim() || filter.end_date?.trim()) {
       const dateField = filter.date_filter_by || 'created_at';
-      where[dateField] = {};
-      if (filter.start_date) {
-        const start = new Date(filter.start_date);
-        if (!isNaN(start.getTime())) (where[dateField] as any).gte = start;
+      const dateRange: Prisma.DateTimeFilter = {};
+      if (filter.start_date?.trim()) {
+        const start = new Date(filter.start_date.trim());
+        if (!isNaN(start.getTime())) dateRange.gte = start;
       }
-      if (filter.end_date) {
-        const end = new Date(filter.end_date);
-        if (!isNaN(end.getTime())) (where[dateField] as any).lte = end;
+      if (filter.end_date?.trim()) {
+        const end = new Date(filter.end_date.trim());
+        if (!isNaN(end.getTime())) dateRange.lte = end;
+      }
+      if (Object.keys(dateRange).length > 0) {
+        where[dateField] = dateRange;
       }
     }
 
@@ -1021,15 +1029,17 @@ export class OrderService {
     }
 
     // 6. Dispute Filter
-    if (filter.has_dispute !== undefined) {
+    if (filter.has_dispute !== undefined && filter.has_dispute !== null) {
       where.disputes = filter.has_dispute ? { some: {} } : { none: {} };
     }
 
     // 7. Financial Amount Range Filter
-    if (filter.min_amount !== undefined || filter.max_amount !== undefined) {
+    const hasMinAmount = filter.min_amount !== undefined && filter.min_amount !== null;
+    const hasMaxAmount = filter.max_amount !== undefined && filter.max_amount !== null;
+    if (hasMinAmount || hasMaxAmount) {
       where.final_amount = {};
-      if (filter.min_amount !== undefined) (where.final_amount as any).gte = filter.min_amount;
-      if (filter.max_amount !== undefined) (where.final_amount as any).lte = filter.max_amount;
+      if (hasMinAmount) (where.final_amount as any).gte = filter.min_amount;
+      if (hasMaxAmount) (where.final_amount as any).lte = filter.max_amount;
     }
 
     // 8. Search Filter (Single search key: Order ID, Vehicle Number, Customer, Driver, Location)
