@@ -1,7 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { MapsService } from 'src/services/maps/maps.service';
-import { AvailabilityStatus, DriverStatus, LocationCategory, driver, location } from '@prisma/client';
+import {
+  AvailabilityStatus,
+  DispatchType,
+  DriverStatus,
+  LocationCategory,
+  OrderStatus,
+  driver,
+  location,
+} from '@prisma/client';
 import { Utility } from 'src/shared/helper/utility';
 import { ServiceArrivalEstimateDto } from '../location/dto/order-estimate-response.dto';
 
@@ -224,30 +232,73 @@ export class DispatchService {
 
     if (drivers.length === 0) return [];
 
-    // 2. Calculate Haversine distance for every driver
-    const withDistance = drivers
-      .filter((d) => d.serviceLocation !== null)
-      .map((d) => ({
-        driver: d,
-        driverId: d.id,
-        vendorId: d.vendor_id,
-        distanceKm: Utility.calculateHaversineDistanceKm(
-          d.serviceLocation!.latitude,
-          d.serviceLocation!.longitude,
-          breakdownLat,
-          breakdownLng,
-        ),
-      }));
+    // 1b. Exclude drivers within the on-demand blackout window of an upcoming scheduled order (next 60 minutes)
+    const now = new Date();
+    const blackoutCutoff = new Date(now.getTime() + 60 * 60 * 1000);
+
+    const [upcomingScheduledOrders, upcomingScheduledPackageOrders] = await Promise.all([
+      this.prisma.order.findMany({
+        where: {
+          driver_id: { not: null },
+          status: { in: [OrderStatus.Scheduled, OrderStatus.Assigned] },
+          scheduled_order: {
+            scheduled_at: {
+              gte: now,
+              lte: blackoutCutoff,
+            },
+          },
+        },
+        select: { driver_id: true },
+      }),
+      this.prisma.admin_package_order.findMany({
+        where: {
+          driver_id: { not: null },
+          status: { in: [OrderStatus.Scheduled, OrderStatus.Assigned] },
+          dispatch_type: DispatchType.ScheduledLater,
+          activation_time: {
+            gte: now,
+            lte: blackoutCutoff,
+          },
+        },
+        select: { driver_id: true },
+      }),
+    ]);
+
+    const blackoutDriverIds = new Set<number>([
+      ...upcomingScheduledOrders.map((o) => o.driver_id!),
+      ...upcomingScheduledPackageOrders.map((o) => o.driver_id!),
+    ]);
+
+    const availableDrivers = drivers.filter(
+      (d) => !blackoutDriverIds.has(d.id) && d.serviceLocation !== null,
+    );
+
+    if (availableDrivers.length === 0) return [];
+
+    // 2. Calculate Haversine distance for every available driver
+    const withDistance = availableDrivers.map((d) => ({
+      driver: d,
+      driverId: d.id,
+      vendorId: d.vendor_id,
+      distanceKm: Utility.calculateHaversineDistanceKm(
+        d.serviceLocation!.latitude,
+        d.serviceLocation!.longitude,
+        breakdownLat,
+        breakdownLng,
+      ),
+    }));
 
     // 3. Group by vendor — keep only the minimum-distance driver per vendor (tie-break by rating)
     const vendorMap = new Map<number, VendorRankEntry & { rating: number }>();
 
     for (const entry of withDistance) {
       const existing = vendorMap.get(entry.vendorId);
-      const isBetter = !existing || 
-        entry.distanceKm < existing.distanceKm || 
-        (entry.distanceKm === existing.distanceKm && (entry.driver.average_rating || 0) > existing.rating);
-        
+      const isBetter =
+        !existing ||
+        entry.distanceKm < existing.distanceKm ||
+        (entry.distanceKm === existing.distanceKm &&
+          (entry.driver.average_rating || 0) > existing.rating);
+
       if (isBetter) {
         vendorMap.set(entry.vendorId, {
           vendorId: entry.vendorId,
@@ -264,5 +315,176 @@ export class DispatchService {
       if (diff !== 0) return diff;
       return b.rating - a.rating;
     });
+  }
+
+  // ─── Scheduled Order Conflict Checking & Auto-Assignment ───────────────────
+
+  /**
+   * Checks whether a driver has an overlapping blackout window with existing scheduled
+   * or active orders (both customer orders and admin package orders).
+   *
+   * Blackout window: [targetActivation - bufferMinutes, targetActivation + bufferMinutes]
+   */
+  async hasDriverScheduleConflictAsync(
+    driverId: number,
+    targetActivationTime: Date,
+    bufferMinutes = 60,
+    excludeOrderId?: { orderId?: number; adminPackageOrderId?: number },
+  ): Promise<boolean> {
+    const windowStart = new Date(targetActivationTime.getTime() - bufferMinutes * 60 * 1000);
+    const windowEnd = new Date(targetActivationTime.getTime() + bufferMinutes * 60 * 1000);
+
+    // 1. Check customer orders for scheduled or active conflicts
+    const conflictOrder = await this.prisma.order.findFirst({
+      where: {
+        driver_id: driverId,
+        status: { in: [OrderStatus.Scheduled, OrderStatus.Assigned] },
+        ...(excludeOrderId?.orderId ? { id: { not: excludeOrderId.orderId } } : {}),
+        scheduled_order: {
+          scheduled_at: {
+            gte: windowStart,
+            lte: windowEnd,
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (conflictOrder) return true;
+
+    // 2. Check admin package orders for scheduled or active conflicts
+    const conflictPackage = await this.prisma.admin_package_order.findFirst({
+      where: {
+        driver_id: driverId,
+        status: { in: [OrderStatus.Scheduled, OrderStatus.Assigned] },
+        dispatch_type: DispatchType.ScheduledLater,
+        activation_time: {
+          gte: windowStart,
+          lte: windowEnd,
+        },
+        ...(excludeOrderId?.adminPackageOrderId
+          ? { id: { not: excludeOrderId.adminPackageOrderId } }
+          : {}),
+      },
+      select: { id: true },
+    });
+
+    if (conflictPackage) return true;
+
+    return false;
+  }
+
+  /**
+   * System Auto-Assignment Engine for Scheduled Orders.
+   *
+   * Finds the closest available driver matching the requested sub_service,
+   * ensures no blackout conflicts exist at the scheduled activation time,
+   * and returns the assigned driver, vendor, and vehicle IDs.
+   */
+  async autoAssignScheduledDriverAsync(params: {
+    breakdownLat: number;
+    breakdownLng: number;
+    subServiceId: number;
+    scheduledAt: Date;
+    bufferMinutes?: number;
+  }): Promise<{
+    driverId: number;
+    vendorId: number;
+    vehicleId: number | null;
+    distanceKm: number;
+  }> {
+    const bufferMinutes = params.bufferMinutes ?? 60;
+
+    // 1. Fetch available drivers for this sub_service with a registered location
+    const drivers = await this.prisma.driver.findMany({
+      where: {
+        is_deleted: false,
+        sub_service_id: params.subServiceId,
+        status: DriverStatus.Available,
+        availability_status: AvailabilityStatus.Available,
+        serviceLocation: {
+          isNot: null,
+        },
+      },
+      include: {
+        serviceLocation: true,
+        vehicle: { select: { id: true } },
+        vendor: { select: { id: true, is_deleted: true } },
+      },
+    });
+
+    if (drivers.length === 0) {
+      throw new BadRequestException(
+        'No available drivers found in the system for the requested service.',
+      );
+    }
+
+    // 2. Filter out drivers with deleted vendors or invalid locations
+    const activeDrivers = drivers.filter(
+      (d) => d.vendor && !d.vendor.is_deleted && d.serviceLocation !== null,
+    );
+
+    // 3. Filter out drivers with blackout window conflicts
+    const eligibleDrivers: typeof activeDrivers = [];
+    for (const d of activeDrivers) {
+      const hasConflict = await this.hasDriverScheduleConflictAsync(
+        d.id,
+        params.scheduledAt,
+        bufferMinutes,
+      );
+      if (!hasConflict) {
+        eligibleDrivers.push(d);
+      }
+    }
+
+    if (eligibleDrivers.length === 0) {
+      throw new BadRequestException(
+        'All nearby drivers are currently booked for other scheduled orders around this time. Please select a different time or area.',
+      );
+    }
+
+    // 4. Calculate distance from driver's serviceLocation to breakdown point
+    const withDistance = eligibleDrivers.map((d) => {
+      const distanceKm = Utility.calculateHaversineDistanceKm(
+        d.serviceLocation!.latitude,
+        d.serviceLocation!.longitude,
+        params.breakdownLat,
+        params.breakdownLng,
+      );
+      return {
+        driverId: d.id,
+        vendorId: d.vendor_id,
+        vehicleId: d.vehicle_id || d.vehicle?.id || null,
+        distanceKm,
+        rating: d.average_rating || 0,
+      };
+    });
+
+    // 5. Sort ascending by distance, tie-break by rating descending
+    withDistance.sort((a, b) => {
+      const diff = a.distanceKm - b.distanceKm;
+      if (diff !== 0) return diff;
+      return b.rating - a.rating;
+    });
+
+    const bestCandidate = withDistance[0];
+
+    // If driver does not have a vehicle_id assigned, attempt to find an active vehicle under their vendor
+    if (!bestCandidate.vehicleId) {
+      const vendorVehicle = await this.prisma.vehicle.findFirst({
+        where: { vendor_id: bestCandidate.vendorId },
+        select: { id: true },
+      });
+      if (vendorVehicle) {
+        bestCandidate.vehicleId = vendorVehicle.id;
+      }
+    }
+
+    return {
+      driverId: bestCandidate.driverId,
+      vendorId: bestCandidate.vendorId,
+      vehicleId: bestCandidate.vehicleId,
+      distanceKm: bestCandidate.distanceKm,
+    };
   }
 }

@@ -26,6 +26,7 @@ import {
   CancelAdminPackageOrderDto,
   RescheduleAdminPackageOrderDto,
 } from './dto/cancel-admin-package-order.dto';
+import { ReassignOrderDriverDto } from '../order/dto/reassign-order-driver.dto';
 import {
   AdminPackageOrderResponseDto,
   AdminPackageOrderListResponseDto,
@@ -132,6 +133,31 @@ export class AdminPackageOrderController {
     const result = await this.service.rescheduleOrderAsync(id, dto, adminId);
     return ResponseDto.updated(
       'Admin package order rescheduled successfully',
+      result as any,
+    );
+  }
+
+  @Patch(':id/reassign')
+  @ApiOperation({
+    summary: 'Manually re-assign vendor and driver for an admin package order (Admin only)',
+    description:
+      'Allows an administrator to manually re-assign the vendor and driver for an admin package order.\n\n' +
+      'Validates that:\n' +
+      '- Order is in Scheduled, Assigned, or New status\n' +
+      '- Driver belongs to the specified vendor\n' +
+      '- Driver has no overlapping scheduled orders or blackout window conflicts\n' +
+      '- Appends an audit remark with the reason',
+  })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the admin package order', example: 1 })
+  @ApiResponseDto(AdminPackageOrderResponseDto, false, 200)
+  async reassign(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReassignOrderDriverDto,
+  ) {
+    const adminId = this.callerService.getUserId();
+    const result = await this.service.reassignDriverAsync(id, dto, adminId);
+    return ResponseDto.updated(
+      'Admin package order driver re-assigned successfully',
       result as any,
     );
   }

@@ -21,12 +21,14 @@ import { WalletService } from '../wallet/wallet.service';
 import { OrderNotificationService } from './order-notification.service';
 import { OrderCreationService } from './order-creation.service';
 import { StorageService } from 'src/services/storage/storage.service';
+import { DispatchService } from '../dispatch/dispatch.service';
 import { AdminOrderFilterDto } from './dto/admin-order-filter.dto';
 import { VendorOrderFilterDto } from './dto/vendor-order-filter.dto';
 import {
   PaginatedOrderListResponseDto,
   OrderListItemDto,
 } from './dto/order-list-response.dto';
+import { ReassignOrderDriverDto } from './dto/reassign-order-driver.dto';
 
 @Injectable()
 export class OrderService {
@@ -37,6 +39,7 @@ export class OrderService {
     private readonly _notificationService: OrderNotificationService,
     private readonly _orderCreationService: OrderCreationService,
     private readonly _storageService: StorageService,
+    private readonly _dispatchService: DispatchService,
   ) {}
 
   /**
@@ -1236,6 +1239,12 @@ export class OrderService {
           reason: true,
         },
       },
+      scheduled_order: {
+        select: {
+          scheduled_at: true,
+          timezone: true,
+        },
+      },
     };
   }
 
@@ -1286,6 +1295,7 @@ export class OrderService {
       created_at: order.created_at,
       updated_at: order.updated_at,
       assign_time: order.assign_time,
+      scheduled_at: order.scheduled_order?.scheduled_at || null,
       start_time: order.start_time,
       completion_time: order.completion_time,
       remarks: order.remarks,
@@ -1303,5 +1313,140 @@ export class OrderService {
       dropoff_location: dropoffLocation,
       locations,
     };
+  }
+
+  /**
+   * Returns list of scheduled orders assigned to a specific driver,
+   * sorted ascending by scheduled execution time.
+   */
+  async getDriverScheduledOrdersAsync(driverId: number): Promise<OrderListItemDto[]> {
+    const orders = await this._prisma.order.findMany({
+      where: {
+        driver_id: driverId,
+        status: OrderStatus.Scheduled,
+      },
+      include: this._buildOrderListInclude(),
+      orderBy: { id: 'asc' },
+    });
+
+    return orders
+      .map((order) => this._formatOrderListItem(order))
+      .sort((a, b) => {
+        const timeA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+        const timeB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+        return timeA - timeB;
+      });
+  }
+
+  /**
+   * Returns list of scheduled orders assigned to a specific vendor's fleet,
+   * sorted ascending by scheduled execution time.
+   */
+  async getVendorScheduledOrdersAsync(vendorId: number): Promise<OrderListItemDto[]> {
+    const orders = await this._prisma.order.findMany({
+      where: {
+        vendor_id: vendorId,
+        status: OrderStatus.Scheduled,
+      },
+      include: this._buildOrderListInclude(),
+      orderBy: { id: 'asc' },
+    });
+
+    return orders
+      .map((order) => this._formatOrderListItem(order))
+      .sort((a, b) => {
+        const timeA = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+        const timeB = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+        return timeA - timeB;
+      });
+  }
+
+  /**
+   * Manually re-assigns the vendor, driver, and vehicle for a scheduled or assigned order.
+   * Enforces vendor-driver relationship and schedule conflict checks.
+   */
+  async adminReassignOrderDriverAsync(
+    orderId: number,
+    dto: ReassignOrderDriverDto,
+    adminId?: number,
+  ): Promise<OrderListItemDto> {
+    const order = await this._prisma.order.findUnique({
+      where: { id: orderId },
+      include: { scheduled_order: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Order #${orderId} was not found`);
+    }
+
+    const allowedStatuses: OrderStatus[] = [OrderStatus.Scheduled, OrderStatus.Assigned, OrderStatus.New];
+    if (!allowedStatuses.includes(order.status)) {
+      throw new BadRequestException(
+        `Cannot reassign order #${orderId}. Only orders in Scheduled, Assigned, or New status can be reassigned (current status: '${order.status}').`,
+      );
+    }
+
+    const driver = await this._prisma.driver.findUnique({
+      where: { id: dto.driver_id },
+      include: { vendor: true, vehicle: true },
+    });
+
+    if (!driver || driver.is_deleted) {
+      throw new NotFoundException(`Driver #${dto.driver_id} was not found or is inactive`);
+    }
+
+    if (driver.vendor_id !== dto.vendor_id) {
+      throw new BadRequestException(
+        `Driver #${dto.driver_id} does not belong to Vendor #${dto.vendor_id}`,
+      );
+    }
+
+    const targetTime = order.scheduled_order?.scheduled_at || order.assign_time || new Date();
+    const hasConflict = await this._dispatchService.hasDriverScheduleConflictAsync(
+      dto.driver_id,
+      targetTime,
+      60,
+      { orderId },
+    );
+
+    if (hasConflict) {
+      throw new BadRequestException(
+        `Driver #${dto.driver_id} (${driver.driver_name}) is already assigned to another scheduled order or blackout window at that time.`,
+      );
+    }
+
+    let vehicleId = dto.vehicle_id || driver.vehicle_id || driver.vehicle?.id || null;
+    if (!vehicleId) {
+      const vendorVehicle = await this._prisma.vehicle.findFirst({
+        where: { vendor_id: dto.vendor_id },
+        select: { id: true },
+      });
+      if (vendorVehicle) vehicleId = vendorVehicle.id;
+    }
+
+    const auditRemark = dto.reason
+      ? `Reassigned by Admin${adminId ? ` #${adminId}` : ''}: ${dto.reason}`
+      : `Reassigned by Admin${adminId ? ` #${adminId}` : ''} to Driver #${dto.driver_id}`;
+
+    const updated = await this._prisma.order.update({
+      where: { id: orderId },
+      data: {
+        vendor_id: dto.vendor_id,
+        driver_id: dto.driver_id,
+        vehicle_id: vehicleId,
+        assign_time: new Date(),
+        remarks: order.remarks ? `${order.remarks} | ${auditRemark}` : auditRemark,
+      },
+      include: this._buildOrderListInclude(),
+    });
+
+    // Notify new driver
+    void this._notificationService.notifyDriverAssignedToScheduledOrder(
+      order.id,
+      dto.driver_id,
+      targetTime,
+    );
+
+    return this._formatOrderListItem(updated);
   }
 }

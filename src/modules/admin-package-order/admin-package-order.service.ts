@@ -7,13 +7,16 @@ import {
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { StorageService } from 'src/services/storage/storage.service';
+import { DispatchService } from '../dispatch/dispatch.service';
+import { MapsService } from 'src/services/maps/maps.service';
 import { CreateAdminPackageOrderDto } from './dto/create-admin-package-order.dto';
 import { AdminPackageOrderQueryDto } from './dto/admin-package-order-query.dto';
 import { RescheduleAdminPackageOrderDto } from './dto/cancel-admin-package-order.dto';
+import { ReassignOrderDriverDto } from '../order/dto/reassign-order-driver.dto';
 import { DispatchType, OrderStatus, Prisma } from '@prisma/client';
 
-/** Minimum minutes in advance a booking must be scheduled */
-const MIN_SCHEDULE_ADVANCE_MINUTES = 5;
+/** Minimum minutes in advance a booking must be scheduled (2 hours minimum advance notice) */
+const MIN_SCHEDULE_ADVANCE_MINUTES = 120;
 
 /** Checks if extra services list includes Cab service */
 export function hasCabService(services?: string[]): boolean {
@@ -42,6 +45,8 @@ export class AdminPackageOrderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
+    private readonly dispatchService: DispatchService,
+    private readonly mapsService: MapsService,
   ) {}
 
   /**
@@ -141,7 +146,7 @@ export class AdminPackageOrderService {
       const minAllowedTime = Date.now() + MIN_SCHEDULE_ADVANCE_MINUTES * 60 * 1000;
       if (parsedActivationTime.getTime() < minAllowedTime) {
         throw new BadRequestException(
-          `Scheduled activation_time must be at least ${MIN_SCHEDULE_ADVANCE_MINUTES} minutes in the future.`,
+          `Scheduled activation_time must be at least ${MIN_SCHEDULE_ADVANCE_MINUTES} minutes (2 hours) in the future.`,
         );
       }
 
@@ -153,6 +158,62 @@ export class AdminPackageOrderService {
       }
 
       initialStatus = OrderStatus.Scheduled;
+
+      // Upfront driver & vendor assignment for scheduled orders (Senior Developer Flow)
+      if (dto.driver_id) {
+        const driver = await this.prisma.driver.findUnique({
+          where: { id: dto.driver_id },
+          include: { vendor: true },
+        });
+        if (!driver || driver.is_deleted) {
+          throw new NotFoundException(`Driver #${dto.driver_id} was not found or is inactive.`);
+        }
+        if (dto.vendor_id && driver.vendor_id !== dto.vendor_id) {
+          throw new BadRequestException(
+            `Driver #${dto.driver_id} does not belong to Vendor #${dto.vendor_id}.`,
+          );
+        }
+        dto.vendor_id = driver.vendor_id;
+        dto.assigned_vehicle_id = (dto.assigned_vehicle_id || driver.vehicle_id) ?? undefined;
+
+        const hasConflict = await this.dispatchService.hasDriverScheduleConflictAsync(
+          dto.driver_id,
+          parsedActivationTime,
+        );
+        if (hasConflict) {
+          throw new BadRequestException(
+            `Driver #${dto.driver_id} (${driver.driver_name}) is already assigned to another scheduled order or blackout window at that time.`,
+          );
+        }
+      } else {
+        // System auto-assignment
+        let pickupLat = dto.pickup_latitude;
+        let pickupLng = dto.pickup_longitude;
+        if ((!pickupLat || !pickupLng) && dto.pickup_place_id) {
+          const resolved = await this.mapsService.resolveAddressByPlaceIdAsync(
+            dto.pickup_place_id,
+          );
+          pickupLat = resolved.latitude;
+          pickupLng = resolved.longitude;
+        }
+
+        if (!pickupLat || !pickupLng) {
+          throw new BadRequestException(
+            'Pickup location coordinates or pickup_place_id are required to auto-assign a scheduled driver.',
+          );
+        }
+
+        const autoAssign = await this.dispatchService.autoAssignScheduledDriverAsync({
+          breakdownLat: pickupLat,
+          breakdownLng: pickupLng,
+          subServiceId: dto.sub_service_id,
+          scheduledAt: parsedActivationTime,
+        });
+
+        dto.vendor_id = autoAssign.vendorId;
+        dto.driver_id = autoAssign.driverId;
+        dto.assigned_vehicle_id = (dto.assigned_vehicle_id || autoAssign.vehicleId) ?? undefined;
+      }
     }
 
     let parsedEta: Date | null = null;
@@ -378,20 +439,20 @@ export class AdminPackageOrderService {
         continue;
       }
 
-      // Atomic claim to avoid double promotion in multi-pod/worker deployments
+      // Atomic claim to transition Scheduled -> Assigned (Driver already pre-assigned)
       const claimed = await this.prisma.admin_package_order.updateMany({
         where: {
           id: order.id,
           status: OrderStatus.Scheduled,
         },
         data: {
-          status: OrderStatus.New,
+          status: OrderStatus.Assigned,
         },
       });
 
       if (claimed.count === 1) {
         this.logger.log(
-          `Scheduled package order #${order.id} (${order.formated_id}) has been ACTIVATED (Status: New) at ${now.toISOString()}. Ready for driver dispatch.`,
+          `Scheduled package order #${order.id} (${order.formated_id}) has been ACTIVATED (Status: Assigned) at ${now.toISOString()}. Driver #${order.driver_id} is active.`,
         );
       }
     }
@@ -500,7 +561,7 @@ export class AdminPackageOrderService {
 
     if (newActivation.getTime() < Date.now() + MIN_SCHEDULE_ADVANCE_MINUTES * 60 * 1000) {
       throw new BadRequestException(
-        `Rescheduled activation_time must be at least ${MIN_SCHEDULE_ADVANCE_MINUTES} minutes in the future.`,
+        `Rescheduled activation_time must be at least ${MIN_SCHEDULE_ADVANCE_MINUTES} minutes (2 hours) in the future.`,
       );
     }
 
@@ -530,6 +591,96 @@ export class AdminPackageOrderService {
     this.logger.log(
       `Order #${id} (${order.formated_id}) rescheduled to ${newActivation.toISOString()}`,
     );
+
+    return this.formatOrderResponse(updated);
+  }
+
+  /**
+   * Manually re-assigns vendor and driver for an admin package order.
+   * Enforces vendor-driver relationship and schedule conflict checks.
+   */
+  async reassignDriverAsync(
+    id: number,
+    dto: ReassignOrderDriverDto,
+    adminId?: number,
+  ) {
+    const order = await this.prisma.admin_package_order.findUnique({
+      where: { id },
+    });
+
+    if (!order) {
+      throw new NotFoundException(`Admin package order #${id} was not found.`);
+    }
+
+    const allowedStatuses: OrderStatus[] = [OrderStatus.Scheduled, OrderStatus.Assigned, OrderStatus.New];
+    if (!allowedStatuses.includes(order.status)) {
+      throw new BadRequestException(
+        `Cannot reassign order #${id}. Only orders in Scheduled, Assigned, or New status can be reassigned (current status: '${order.status}').`,
+      );
+    }
+
+    const driver = await this.prisma.driver.findUnique({
+      where: { id: dto.driver_id },
+      include: { vendor: true, vehicle: true },
+    });
+
+    if (!driver || driver.is_deleted) {
+      throw new NotFoundException(`Driver #${dto.driver_id} was not found or is inactive.`);
+    }
+
+    if (driver.vendor_id !== dto.vendor_id) {
+      throw new BadRequestException(
+        `Driver #${dto.driver_id} does not belong to Vendor #${dto.vendor_id}.`,
+      );
+    }
+
+    const targetTime = order.activation_time || order.assign_time || new Date();
+    const hasConflict = await this.dispatchService.hasDriverScheduleConflictAsync(
+      dto.driver_id,
+      targetTime,
+      60,
+      { adminPackageOrderId: id },
+    );
+
+    if (hasConflict) {
+      throw new BadRequestException(
+        `Driver #${dto.driver_id} (${driver.driver_name}) is already assigned to another scheduled order or blackout window at that time.`,
+      );
+    }
+
+    let vehicleId = dto.vehicle_id || driver.vehicle_id || driver.vehicle?.id || null;
+    if (!vehicleId) {
+      const vendorVehicle = await this.prisma.vehicle.findFirst({
+        where: { vendor_id: dto.vendor_id },
+        select: { id: true },
+      });
+      if (vendorVehicle) vehicleId = vendorVehicle.id;
+    }
+
+    const auditRemark = dto.reason
+      ? `Reassigned by Admin${adminId ? ` #${adminId}` : ''}: ${dto.reason}`
+      : `Reassigned by Admin${adminId ? ` #${adminId}` : ''} to Driver #${dto.driver_id}`;
+
+    const updated = await this.prisma.admin_package_order.update({
+      where: { id },
+      data: {
+        vendor_id: dto.vendor_id,
+        driver_id: dto.driver_id,
+        assigned_vehicle_id: vehicleId,
+        assign_time: new Date(),
+        remarks: order.remarks ? `${order.remarks} | ${auditRemark}` : auditRemark,
+      },
+      include: {
+        dealer: true,
+        dealer_package_order: true,
+        dealer_customer: true,
+        dealer_customer_vehicle: true,
+        sub_service: true,
+        vendor: true,
+        driver: true,
+        assigned_vehicle: true,
+      },
+    });
 
     return this.formatOrderResponse(updated);
   }

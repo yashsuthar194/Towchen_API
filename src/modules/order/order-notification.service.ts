@@ -120,6 +120,83 @@ export class OrderNotificationService {
     await this.sendSafely(customerNumber, message, `order-otp:${orderId}:${type}`);
   }
 
+  /**
+   * Notifies the driver that they have been pre-assigned to an upcoming scheduled order.
+   */
+  async notifyDriverAssignedToScheduledOrder(
+    orderId: number,
+    driverId: number,
+    scheduledAt: Date,
+  ): Promise<void> {
+    const [driver, order] = await Promise.all([
+      this._prisma.driver.findUnique({
+        where: { id: driverId },
+        select: { mobile_number: true, driver_name: true },
+      }),
+      this._prisma.order.findUnique({
+        where: { id: orderId },
+        select: { formated_id: true },
+      }),
+    ]);
+
+    if (!driver || !driver.mobile_number) return;
+
+    const formatted = scheduledAt.toLocaleString('en-IN', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'Asia/Kolkata',
+    });
+
+    const message =
+      `Hello ${driver.driver_name}, you have been assigned to scheduled order ` +
+      `${order?.formated_id ?? `#${orderId}`} for ${formatted}. Please check your driver app for details.`;
+
+    await this.sendSafely(
+      driver.mobile_number,
+      message,
+      `driver-scheduled-assigned:${orderId}:${driverId}`,
+    );
+  }
+
+  /**
+   * Notifies both the driver and the customer when a scheduled order activation time arrives
+   * and the order transitions to Assigned.
+   */
+  async notifyOrderActivated(
+    orderId: number,
+    driverId: number,
+    customerId: number,
+  ): Promise<void> {
+    const [driver, customer, order] = await Promise.all([
+      this._prisma.driver.findUnique({
+        where: { id: driverId },
+        select: { mobile_number: true, driver_name: true },
+      }),
+      this.fetchCustomer(customerId),
+      this._prisma.order.findUnique({
+        where: { id: orderId },
+        select: { formated_id: true },
+      }),
+    ]);
+
+    const orderIdStr = order?.formated_id ?? `#${orderId}`;
+
+    if (driver?.mobile_number) {
+      const driverMsg =
+        `Your scheduled order ${orderIdStr} is now ACTIVE. ` +
+        `Please navigate to the breakdown/pickup location.`;
+      await this.sendSafely(driver.mobile_number, driverMsg, `order-activated-driver:${orderId}`);
+    }
+
+    if (customer?.number) {
+      const driverInfo = driver ? `${driver.driver_name} (${driver.mobile_number})` : 'Your assigned driver';
+      const customerMsg =
+        `Your scheduled order ${orderIdStr} is now active. ` +
+        `Driver ${driverInfo} has been dispatched and will reach you shortly.`;
+      await this.sendSafely(customer.number, customerMsg, `order-activated-customer:${orderId}`);
+    }
+  }
+
   // ─── Private helpers ───────────────────────────────────────────────────────
 
   /** Fetches a customer by ID, returning null and logging if not found. */

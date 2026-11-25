@@ -216,6 +216,9 @@ export class OrderListItemDto {
   @ApiPropertyOptional({ nullable: true })
   assign_time?: Date | null;
 
+  @ApiPropertyOptional({ nullable: true, description: 'Scheduled execution datetime' })
+  scheduled_at?: Date | null;
+
   @ApiPropertyOptional({ nullable: true })
   start_time?: Date | null;
 

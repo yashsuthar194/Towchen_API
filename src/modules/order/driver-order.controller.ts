@@ -37,6 +37,7 @@ import { SubmitDropoffEvcrfDto } from '../evcrf/dto/submit-dropoff-evcrf.dto';
 import { EvcrfConfigResponseDto } from '../evcrf/dto/evcrf-config-response.dto';
 import { EvcrfPrefillResponseDto, DropoffEvcrfPrefillResponseDto } from '../evcrf/dto/evcrf-prefill-response.dto';
 import { PhysicalVcrfResponseDto, EvcrfSubmissionResponseDto, VerifyOtpResponseDto } from './dto/job-card-response.dto';
+import { OrderListItemDto } from './dto/order-list-response.dto';
 import { CallerService } from 'src/services/jwt/caller.service';
 import { VehicleClassMappingService } from '../vehicle-class-mapping/vehicle-class-mapping.service';
 import { AddDamageDto } from '../evcrf/dto/add-damage.dto';
@@ -52,6 +53,24 @@ export class DriverOrderController {
     private readonly _callerService: CallerService,
     private readonly _vehicleClassMappingService: VehicleClassMappingService,
   ) {}
+
+  /**
+   * GET /driver/order/scheduled
+   * Returns list of upcoming scheduled orders assigned to the authenticated driver.
+   */
+  @Get('scheduled')
+  @ApiOperation({
+    summary: 'Get list of scheduled orders assigned to this driver',
+    description:
+      'Returns all upcoming scheduled orders assigned to the logged-in driver, sorted ascending by scheduled execution time.\n\n' +
+      '⚠️ Only authenticated drivers can call this endpoint.',
+  })
+  @ApiResponseDto(OrderListItemDto, true, 200)
+  async getScheduledOrders(): Promise<ResponseDto<OrderListItemDto[]>> {
+    const driverId = this._callerService.getUserId();
+    const orders = await this._orderService.getDriverScheduledOrdersAsync(driverId);
+    return ResponseDto.retrieved('Scheduled orders retrieved successfully', orders);
+  }
 
   /**
    * List all pending (New/unassigned) orders in the system.

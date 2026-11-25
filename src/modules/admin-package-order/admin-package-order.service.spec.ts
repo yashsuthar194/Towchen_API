@@ -7,6 +7,8 @@ import {
 } from './admin-package-order.service';
 import { PrismaService } from 'src/core/prisma/prisma.service';
 import { StorageService } from 'src/services/storage/storage.service';
+import { DispatchService } from '../dispatch/dispatch.service';
+import { MapsService } from 'src/services/maps/maps.service';
 import {
   ClientType,
   DispatchType,
@@ -43,12 +45,32 @@ describe('AdminPackageOrderService - Unit Tests', () => {
     uploadFileAsync: jest.fn(),
   };
 
+  const mockDispatchService = {
+    hasDriverScheduleConflictAsync: jest.fn().mockResolvedValue(false),
+    autoAssignScheduledDriverAsync: jest.fn().mockResolvedValue({
+      driverId: 10,
+      vendorId: 5,
+      vehicleId: 2,
+      distanceKm: 3.5,
+    }),
+  };
+
+  const mockMapsService = {
+    resolveAddressByPlaceIdAsync: jest.fn().mockResolvedValue({
+      latitude: 19.076,
+      longitude: 72.877,
+      address: 'Test Address',
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminPackageOrderService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: StorageService, useValue: mockStorageService },
+        { provide: DispatchService, useValue: mockDispatchService },
+        { provide: MapsService, useValue: mockMapsService },
       ],
     }).compile();
 

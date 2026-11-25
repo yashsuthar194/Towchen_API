@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/core/prisma/prisma.service';
-import { ScheduledOrderStatus, scheduled_order } from '@prisma/client';
+import { ScheduledOrderStatus, OrderStatus, scheduled_order } from '@prisma/client';
 import { OrderCreationService } from './order-creation.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { OrderNotificationService } from './order-notification.service';
@@ -121,7 +121,40 @@ export class ScheduledOrderProcessorService {
    */
   private async promoteSingle(row: scheduled_order): Promise<void> {
     try {
-      // Deserialize the stored payload snapshot back into a typed DTO
+      // 1. Upfront pre-assigned order activation (Scheduled -> Assigned)
+      if (row.promoted_order_id) {
+        const existingOrder = await this._prisma.order.findUnique({
+          where: { id: row.promoted_order_id },
+          select: { id: true, driver_id: true, vendor_id: true, status: true },
+        });
+
+        if (existingOrder && existingOrder.status === OrderStatus.Scheduled) {
+          await this._prisma.order.update({
+            where: { id: existingOrder.id },
+            data: { status: OrderStatus.Assigned },
+          });
+
+          await this._prisma.scheduled_order.update({
+            where: { id: row.id },
+            data: { status: ScheduledOrderStatus.Promoted },
+          });
+
+          if (existingOrder.driver_id) {
+            void this._notificationService.notifyOrderActivated(
+              existingOrder.id,
+              existingOrder.driver_id,
+              row.customer_id,
+            );
+          }
+
+          this.logger.log(
+            `Scheduled order #${row.id} (Order #${existingOrder.id}) activated: Scheduled -> Assigned (Driver #${existingOrder.driver_id}).`,
+          );
+          return;
+        }
+      }
+
+      // 2. Fallback for legacy scheduled bookings without pre-assigned order
       const payload = row.payload as unknown as CreateOrderDto;
 
       const order = await this._orderCreationService.createForCustomerAsync(

@@ -1,8 +1,23 @@
-import { Controller, Post, Body, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Patch,
+  Param,
+  ParseIntPipe,
+  Body,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+  Req,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import { AdminOrderFilterDto } from './dto/admin-order-filter.dto';
-import { PaginatedOrderListResponseDto } from './dto/order-list-response.dto';
+import {
+  PaginatedOrderListResponseDto,
+  OrderListItemDto,
+} from './dto/order-list-response.dto';
+import { ReassignOrderDriverDto } from './dto/reassign-order-driver.dto';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
 import { ApiResponseDto } from 'src/core/response/decorators/api-response-dto.decorator';
@@ -60,5 +75,33 @@ export class AdminOrderController {
     @Body() filterDto: AdminOrderFilterDto,
   ): Promise<ResponseDto<PaginatedOrderListResponseDto>> {
     return this.getOrderList(filterDto);
+  }
+
+  /**
+   * PATCH /admin/order/:id/reassign
+   * Manually re-assigns vendor and driver for a scheduled or assigned order.
+   */
+  @Patch(':id/reassign')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Manually re-assign vendor and driver for an order (Admin only)',
+    description:
+      'Allows an administrator to manually re-assign the vendor and driver for an order.\n\n' +
+      'Validates that:\n' +
+      '- Order is in Scheduled, Assigned, or New status\n' +
+      '- Driver belongs to the specified vendor\n' +
+      '- Driver has no overlapping scheduled orders or blackout window conflicts\n' +
+      '- Appends an audit remark with the reason',
+  })
+  @ApiParam({ name: 'id', description: 'Numeric ID of the order to reassign', example: 105 })
+  @ApiResponseDto(OrderListItemDto, false, 200)
+  async reassignOrderDriver(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ReassignOrderDriverDto,
+    @Req() req: any,
+  ): Promise<ResponseDto<OrderListItemDto>> {
+    const adminId = req.user?.id;
+    const updated = await this._orderService.adminReassignOrderDriverAsync(id, dto, adminId);
+    return ResponseDto.updated('Order driver re-assigned successfully', updated);
   }
 }

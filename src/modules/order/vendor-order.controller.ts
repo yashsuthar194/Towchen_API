@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   UseGuards,
@@ -10,7 +11,10 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { OrderService } from './order.service';
 import { VendorOrderFilterDto } from './dto/vendor-order-filter.dto';
-import { PaginatedOrderListResponseDto } from './dto/order-list-response.dto';
+import {
+  PaginatedOrderListResponseDto,
+  OrderListItemDto,
+} from './dto/order-list-response.dto';
 import { JwtAuthGuard } from 'src/services/jwt/guards/jwt-auth.guard';
 import { VendorGuard } from 'src/services/jwt/guards/vendor.guard';
 import { CallerService } from 'src/services/jwt/caller.service';
@@ -26,6 +30,24 @@ export class VendorOrderController {
     private readonly _orderService: OrderService,
     private readonly _callerService: CallerService,
   ) {}
+
+  /**
+   * GET /vendor/order/scheduled
+   * Returns list of scheduled orders assigned to the authenticated vendor fleet.
+   */
+  @Get('scheduled')
+  @ApiOperation({
+    summary: 'Get list of scheduled orders assigned to this vendor fleet',
+    description:
+      'Returns all upcoming scheduled orders assigned to the logged-in vendor, sorted ascending by scheduled execution time.\n\n' +
+      '⚠️ Automatically scoped to the authenticated vendor.',
+  })
+  @ApiResponseDto(OrderListItemDto, true, 200)
+  async getScheduledOrders(@Req() req: any): Promise<ResponseDto<OrderListItemDto[]>> {
+    const vendorId = req.user?.id || this._callerService.getUserId();
+    const orders = await this._orderService.getVendorScheduledOrdersAsync(vendorId);
+    return ResponseDto.retrieved('Vendor scheduled orders retrieved successfully', orders);
+  }
 
   /**
    * POST /vendor/order/list
