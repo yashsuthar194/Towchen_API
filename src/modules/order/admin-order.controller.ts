@@ -47,8 +47,7 @@ export class AdminOrderController {
       '- `service_id`, `sub_service_id`\n' +
       '- Date range (`start_date`, `end_date`, `date_filter_by`)\n' +
       '- Location (`city`, `state`, `pincode`)\n' +
-      '- Financial range (`min_amount`, `max_amount`, `has_voucher`)\n' +
-      '- Disputes (`has_dispute`)\n' +
+      '- Financial range (`min_amount`, `max_amount`)\n' +
       '- Universal text `search` (order ID, customer, driver, vehicle reg, address)\n' +
       '- Sorted automatically by latest order (`id: desc`)\n' +
       '- Pagination (`page`, optional `limit` defaulting to 30)',

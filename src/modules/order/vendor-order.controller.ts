@@ -70,7 +70,6 @@ export class VendorOrderController {
       '- Date range (`start_date`, `end_date`, `date_filter_by`)\n' +
       '- Location (`city`, `state`, `pincode`)\n' +
       '- Financial range (`min_amount`, `max_amount`)\n' +
-      '- Disputes (`has_dispute`)\n' +
       '- Universal text `search` (order ID, customer, driver, vehicle reg, address)\n' +
       '- Sorted automatically by latest order (`id: desc`)\n' +
       '- Pagination (`page`, optional `limit` defaulting to 30)',

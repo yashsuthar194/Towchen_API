@@ -922,15 +922,7 @@ export class OrderService {
       if (hasMaxAmount) (where.final_amount as any).lte = filter.max_amount;
     }
 
-    // 7. Dispute and Voucher Filters
-    if (filter.has_dispute !== undefined && filter.has_dispute !== null) {
-      where.disputes = filter.has_dispute ? { some: {} } : { none: {} };
-    }
-    if (filter.has_voucher !== undefined && filter.has_voucher !== null) {
-      where.applied_voucher_id = filter.has_voucher ? { not: null } : null;
-    }
-
-    // 8. Search Filters (Order ID, Vehicle Number, Customer, Driver, Location)
+    // 7. Search Filters (Order ID, Vehicle Number, Customer, Driver, Location)
     const searchConditions = this._buildSearchFilter(filter.search, true);
     if (searchConditions.length > 0) {
       where.AND = [
@@ -1028,12 +1020,7 @@ export class OrderService {
       where.locations = { some: locationConditions };
     }
 
-    // 6. Dispute Filter
-    if (filter.has_dispute !== undefined && filter.has_dispute !== null) {
-      where.disputes = filter.has_dispute ? { some: {} } : { none: {} };
-    }
-
-    // 7. Financial Amount Range Filter
+    // 6. Financial Amount Range Filter
     const hasMinAmount = filter.min_amount !== undefined && filter.min_amount !== null;
     const hasMaxAmount = filter.max_amount !== undefined && filter.max_amount !== null;
     if (hasMinAmount || hasMaxAmount) {
@@ -1042,7 +1029,7 @@ export class OrderService {
       if (hasMaxAmount) (where.final_amount as any).lte = filter.max_amount;
     }
 
-    // 8. Search Filter (Single search key: Order ID, Vehicle Number, Customer, Driver, Location)
+    // 7. Search Filter (Single search key: Order ID, Vehicle Number, Customer, Driver, Location)
     const searchConditions = this._buildSearchFilter(filter.search, false);
     if (searchConditions.length > 0) {
       where.AND = [
@@ -1152,7 +1139,7 @@ export class OrderService {
   /**
    * Helper that returns full Prisma include configuration for Order list queries.
    */
-  private _buildOrderListInclude() {
+  private _buildOrderListInclude(): Prisma.orderInclude {
     return {
       customer: {
         select: {
@@ -1246,7 +1233,7 @@ export class OrderService {
         select: {
           id: true,
           status: true,
-          reason: true,
+          dispute_type: true,
         },
       },
       scheduled_order: {

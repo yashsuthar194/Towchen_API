@@ -1,6 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -11,7 +10,6 @@ import {
 import { Transform } from 'class-transformer';
 import { OrderStatus, OrderType } from '@prisma/client';
 import {
-  emptyToBoolean,
   emptyToNumber,
   emptyToUndefined,
 } from 'src/core/utils/dto-transform.util';
@@ -145,18 +143,6 @@ export class AdminOrderFilterDto {
   @Transform(emptyToNumber)
   @IsNumber()
   max_amount?: number;
-
-  @ApiPropertyOptional({ description: 'Filter orders that have an active dispute', example: true })
-  @IsOptional()
-  @Transform(emptyToBoolean)
-  @IsBoolean()
-  has_dispute?: boolean;
-
-  @ApiPropertyOptional({ description: 'Filter orders where a discount voucher was applied', example: true })
-  @IsOptional()
-  @Transform(emptyToBoolean)
-  @IsBoolean()
-  has_voucher?: boolean;
 
   @ApiPropertyOptional({
     description:
