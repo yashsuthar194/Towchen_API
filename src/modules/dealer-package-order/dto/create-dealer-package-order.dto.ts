@@ -111,8 +111,17 @@ export class CreateDealerPackageOrderDto {
   @Min(0)
   current_odometer_reading: number;
 
-  @ApiProperty({ enum: CarSegment, example: CarSegment.Basic, description: 'Car segment: Basic, Standard, or Premium' })
-  @IsEnum(CarSegment, { message: 'Car segment must be Basic, Standard, or Premium' })
+  @ApiProperty({ enum: CarSegment, example: CarSegment.Basic, description: 'Car segment: Basic (Gold), Standard (Platinum), or Premium (Diamond)' })
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      const lower = value.toLowerCase();
+      if (lower === 'gold' || lower === 'basic') return CarSegment.Basic;
+      if (lower === 'platinum' || lower === 'standard') return CarSegment.Standard;
+      if (lower === 'diamond' || lower === 'premium') return CarSegment.Premium;
+    }
+    return value;
+  })
+  @IsEnum(CarSegment, { message: 'Car segment must be Basic/Gold, Standard/Platinum, or Premium/Diamond' })
   car_segment: CarSegment;
 
   // --- PACKAGE PLAN SELECTION ---
