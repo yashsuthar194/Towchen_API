@@ -23,6 +23,10 @@ import { VendorAgreementDto } from './dto/vendor-agreement.dto';
 import { VendorRegistrationResponseDto } from './dto/vendor-registration-response.dto';
 import { UploadVendorDocumentDto } from './dto/upload-vendor-document.dto';
 import { UpsertVendorAddressDto } from './dto/upsert-vendor-address.dto';
+import {
+  VendorDriverStatusCountsDto,
+  VendorVehicleStatusCountsDto,
+} from './dto/vendor-status-counts.dto';
 import { ResponseDto } from 'src/core/response/dto/response.dto';
 import {
   ApiResponseDto,
@@ -88,6 +92,42 @@ export class VendorController {
     return ResponseDto.retrieved(
       'Sub-services retrieved successfully',
       subServices,
+    );
+  }
+
+  /**
+   * Retrieves status-wise counts of all non-deleted drivers belonging to
+   * the currently authenticated vendor.
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponseDto(VendorDriverStatusCountsDto, false, 200)
+  @Get('me/drivers/status-counts')
+  async getMyDriverStatusCounts(): Promise<
+    ResponseDto<VendorDriverStatusCountsDto>
+  > {
+    const counts = await this._vendorService.getMyDriverStatusCountsAsync();
+    return ResponseDto.retrieved(
+      'Driver status counts retrieved successfully',
+      counts,
+    );
+  }
+
+  /**
+   * Retrieves status-wise counts of all non-deleted vehicles belonging to
+   * the currently authenticated vendor.
+   */
+  @UseGuards(JwtAuthGuard, VendorGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiResponseDto(VendorVehicleStatusCountsDto, false, 200)
+  @Get('me/vehicles/status-counts')
+  async getMyVehicleStatusCounts(): Promise<
+    ResponseDto<VendorVehicleStatusCountsDto>
+  > {
+    const counts = await this._vendorService.getMyVehicleStatusCountsAsync();
+    return ResponseDto.retrieved(
+      'Vehicle status counts retrieved successfully',
+      counts,
     );
   }
 

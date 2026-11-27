@@ -68,6 +68,17 @@ const ACTIVE_CONSENT_STATUS_SET = new Set<ConsentStatus>([
 ]);
 
 /**
+ * Consent types that Vendors are permitted to initiate.
+ */
+const VENDOR_ALLOWED_CONSENT_TYPES = new Set<ConsentType>([
+  ConsentType.OrderEdit,
+  ConsentType.OrderClosure,
+  ConsentType.DriverRegistration,
+  ConsentType.VehicleRegistration,
+  ConsentType.VendorWalletSettlement,
+]);
+
+/**
  * Precomputed Map of all known consent types to their display labels for O(1) lookup.
  */
 const GLOBAL_CONSENT_LABEL_MAP = new Map<ConsentType, string>();
@@ -138,6 +149,22 @@ export class ConsentService {
       );
     }
 
+    // 1b. Restrict consent types and payload references when initiated by a Vendor
+    if (caller.type === Role.Vendor) {
+      if (!VENDOR_ALLOWED_CONSENT_TYPES.has(dto.consent_type)) {
+        throw new ForbiddenException(
+          `Vendors are not permitted to create '${dto.consent_type}' consent requests. Allowed types: [${Array.from(VENDOR_ALLOWED_CONSENT_TYPES).join(', ')}].`,
+        );
+      }
+
+      if (dto.consent_type === ConsentType.OrderEdit) {
+        await this.validateVendorOrderEditChanges(
+          (dto.proposed_payload || {}) as CreateOrderEditConsentDto['changes'],
+          caller.id,
+        );
+      }
+    }
+
     // 2. Validate entity_id for types operating on existing records
     const typesRequiringEntityId = new Set<ConsentType>([
       ConsentType.OrderEdit,
@@ -201,6 +228,12 @@ export class ConsentService {
           throw new NotFoundException(`Order with ID ${dto.entity_id} was not found.`);
         }
 
+        if (caller.type === Role.Vendor && order.vendor_id !== caller.id) {
+          throw new ForbiddenException(
+            'You can only request consent for orders assigned to your vendor account.',
+          );
+        }
+
         originalPayload = {
           status: order.status,
           remarks: order.remarks,
@@ -225,6 +258,12 @@ export class ConsentService {
           throw new NotFoundException(`Vendor with ID ${dto.entity_id} was not found.`);
         }
 
+        if (caller.type === Role.Vendor && vendor.id !== caller.id) {
+          throw new ForbiddenException(
+            'You can only request consent for your own vendor account.',
+          );
+        }
+
         originalPayload = {
           organization_name: vendor.organization_name,
           mobile_number: vendor.mobile_number,
@@ -241,6 +280,12 @@ export class ConsentService {
           throw new NotFoundException(`Driver with ID ${dto.entity_id} was not found.`);
         }
 
+        if (caller.type === Role.Vendor && driver.vendor_id !== caller.id) {
+          throw new ForbiddenException(
+            'You can only request consent for drivers belonging to your vendor account.',
+          );
+        }
+
         originalPayload = {
           driver_name: driver.driver_name,
           mobile_number: driver.mobile_number,
@@ -254,6 +299,12 @@ export class ConsentService {
 
         if (!vehicle) {
           throw new NotFoundException(`Vehicle with ID ${dto.entity_id} was not found.`);
+        }
+
+        if (caller.type === Role.Vendor && vehicle.vendor_id !== caller.id) {
+          throw new ForbiddenException(
+            'You can only request consent for vehicles belonging to your vendor account.',
+          );
         }
 
         originalPayload = {
@@ -375,6 +426,58 @@ export class ConsentService {
       },
       caller,
     );
+  }
+
+  /**
+   * Ensures a vendor only proposes order-edit references belonging to their own vendor account.
+   */
+  private async validateVendorOrderEditChanges(
+    changes: CreateOrderEditConsentDto['changes'],
+    vendorId: number,
+  ): Promise<void> {
+    if (changes.vendor_id !== undefined && changes.vendor_id !== vendorId) {
+      throw new ForbiddenException(
+        'Vendors cannot reassign an order to another vendor.',
+      );
+    }
+
+    if (changes.driver_id) {
+      const driver = await this.prisma.driver.findUnique({
+        where: { id: changes.driver_id },
+        select: { id: true, vendor_id: true, is_deleted: true },
+      });
+
+      if (!driver || driver.is_deleted) {
+        throw new BadRequestException(
+          `Assigned driver #${changes.driver_id} does not exist or has been deleted.`,
+        );
+      }
+
+      if (driver.vendor_id !== vendorId) {
+        throw new ForbiddenException(
+          `Driver #${changes.driver_id} does not belong to your vendor account.`,
+        );
+      }
+    }
+
+    if (changes.vehicle_id) {
+      const vehicle = await this.prisma.vehicle.findUnique({
+        where: { id: changes.vehicle_id },
+        select: { id: true, vendor_id: true, is_deleted: true },
+      });
+
+      if (!vehicle || vehicle.is_deleted) {
+        throw new BadRequestException(
+          `Assigned vehicle #${changes.vehicle_id} does not exist or has been deleted.`,
+        );
+      }
+
+      if (vehicle.vendor_id !== vendorId) {
+        throw new ForbiddenException(
+          `Vehicle #${changes.vehicle_id} does not belong to your vendor account.`,
+        );
+      }
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

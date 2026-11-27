@@ -13,7 +13,11 @@ import { CallerService } from 'src/services/jwt/caller.service';
 import { JwtService } from 'src/services/jwt/jwt.service';
 import { UpsertVendorAddressDto } from './dto/upsert-vendor-address.dto';
 import { LocationService } from '../location/location.service';
-import { SignatureType, Role, OrderStatus, DispatchRoundStatus, ReviewUserType, LocationCategory } from '@prisma/client';
+import { SignatureType, Role, OrderStatus, DispatchRoundStatus, ReviewUserType, LocationCategory, DriverStatus, VehicleStatus } from '@prisma/client';
+import {
+  VendorDriverStatusCountsDto,
+  VendorVehicleStatusCountsDto,
+} from './dto/vendor-status-counts.dto';
 
 /**
  * Allowed document types for individual document upload.
@@ -666,7 +670,61 @@ export class VendorService {
     });
   }
 
+  /**
+   * Returns counts of all non-deleted drivers belonging to the authenticated vendor,
+   * broken down by `DriverStatus` plus `total`.
+   */
+  async getMyDriverStatusCountsAsync(): Promise<VendorDriverStatusCountsDto> {
+    const vendorId = this._callerService.getUserId();
+    const groups = await this._prismaService.driver.groupBy({
+      by: ['status'],
+      where: {
+        vendor_id: vendorId,
+        is_deleted: false,
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    return this.buildStatusCounts(Object.values(DriverStatus), groups);
+  }
+
+  /**
+   * Returns counts of all non-deleted vehicles belonging to the authenticated vendor,
+   * broken down by `VehicleStatus` plus `total`.
+   */
+  async getMyVehicleStatusCountsAsync(): Promise<VendorVehicleStatusCountsDto> {
+    const vendorId = this._callerService.getUserId();
+    const groups = await this._prismaService.vehicle.groupBy({
+      by: ['status'],
+      where: {
+        vendor_id: vendorId,
+        is_deleted: false,
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    return this.buildStatusCounts(Object.values(VehicleStatus), groups);
+  }
+
   //#region Private Function
+  private buildStatusCounts<T extends string>(
+    statuses: readonly T[],
+    groups: Array<{ status: T; _count: { _all: number } }>,
+  ): Record<T | 'total', number> {
+    const counts = { total: 0 } as Record<T | 'total', number>;
+    for (const status of statuses) {
+      counts[status] = 0;
+    }
+    for (const group of groups) {
+      counts[group.status] = group._count._all;
+      counts.total += group._count._all;
+    }
+    return counts;
+  }
   /**
    * Validate duplicate vendor
    * @param mobileNumber 

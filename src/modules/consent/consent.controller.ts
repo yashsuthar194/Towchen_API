@@ -37,6 +37,7 @@ import {
 import { ConsentRoleGuard } from './guards/consent-role.guard';
 import { RequireConsentRole } from './decorators/require-consent-role.decorator';
 import { AdminGuard } from 'src/services/jwt/guards/admin.guard';
+import { AdminOrVendorGuard } from 'src/services/jwt/guards/admin-or-vendor.guard';
 
 @ApiTags('Consent Management')
 @Controller('consent')
@@ -53,7 +54,7 @@ export class ConsentController {
   // ─────────────────────────────────────────────────────────────────────────
 
   @Post()
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminOrVendorGuard)
   @ApiOperation({
     summary: 'Step 1: Create a new consent request (Universal endpoint for all 12 consent types)',
     description:
@@ -75,7 +76,7 @@ export class ConsentController {
   }
 
   @Post('order-edit')
-  @UseGuards(AdminGuard)
+  @UseGuards(AdminOrVendorGuard)
   @ApiOperation({
     summary: 'Step 1: Create a consent request for editing an order',
     description:
